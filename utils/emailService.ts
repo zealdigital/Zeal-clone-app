@@ -3,25 +3,26 @@ import type { Booking } from '../types';
 
 /**
  * EMAILJS SETUP GUIDE:
- * 1. SERVICE_ID: From your screenshot (service_xyfrsfy)
- * 2. TEMPLATE_ID: Go to "Email Templates" tab in EmailJS.
- * 3. PUBLIC_KEY: FPM7pAmCikUAWGkog (Updated from screenshot)
+ * 1. SERVICE_ID: service_xyfrsfy
+ * 2. TEMPLATE_ID: template_notification
+ * 3. PUBLIC_KEY: FPM7pAmCikUAWGkog
  */
 const EMAILJS_CONFIG = {
     SERVICE_ID: "service_xyfrsfy",
-    TEMPLATE_ID: "template_notification", // Ensure this matches the ID in your EmailJS Templates tab
-    PUBLIC_KEY: "FPM7pAmCikUAWGkog",    // Successfully updated with your key
+    TEMPLATE_ID: "template_notification", 
+    PUBLIC_KEY: "FPM7pAmCikUAWGkog",    
 };
 
 /**
  * Sends a real email notification via EmailJS
  */
 export const sendEmailNotification = async (toEmail: string, subject: string, booking: Partial<Booking>, message: string) => {
-    // Primary recipient
-    const targetEmail = "pia@zealdigital.com.au";
+    // Primary recipient as per request, but we also pass the 'toEmail' to the template
+    const primaryRecipient = "pia@zealdigital.com.au";
 
     const templateParams = {
-        to_email: targetEmail,
+        to_email: toEmail || primaryRecipient,
+        cc_email: primaryRecipient,
         subject: subject,
         message: message,
         business_name: booking.businessName || 'N/A',
@@ -33,16 +34,15 @@ export const sendEmailNotification = async (toEmail: string, subject: string, bo
     };
 
     try {
-        const emailjs = await import('https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/index.esm.js' as any);
+        // Access emailjs from the window object (loaded in index.html)
+        const emailjs = (window as any).emailjs;
         
-        // Safety check for initialization
-        if (EMAILJS_CONFIG.PUBLIC_KEY === "user_your_public_key") {
-            console.warn("MISSING PUBLIC KEY: Please get it from EmailJS Account > API Keys.");
-            showToast(`Setup: Add your Public Key to the code.`);
+        if (!emailjs) {
+            console.error("EmailJS SDK not loaded yet.");
             return;
         }
 
-        const response = await emailjs.default.send(
+        const response = await emailjs.send(
             EMAILJS_CONFIG.SERVICE_ID,
             EMAILJS_CONFIG.TEMPLATE_ID,
             templateParams,
@@ -50,12 +50,11 @@ export const sendEmailNotification = async (toEmail: string, subject: string, bo
         );
         
         if (response.status === 200) {
-            showToast(`Notification sent to Pia`);
+            console.log("Email sent successfully");
         }
     } catch (error: any) {
         console.error("Email delivery failed:", error);
-        const errorMsg = error?.text || error?.message || "Check your API keys.";
-        showToast(`Email error: ${errorMsg.substring(0, 30)}...`);
+        showToast(`Email Error: ${error?.text || 'Network error'}`);
     }
 };
 
