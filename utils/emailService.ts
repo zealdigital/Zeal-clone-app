@@ -3,10 +3,11 @@ import type { Booking } from '../types';
 
 /**
  * EMAILJS CONFIGURATION
+ * Note: Using the specific Template ID provided by the user: template_erdqf7d
  */
 const EMAILJS_CONFIG = {
     SERVICE_ID: "service_fm5qakn",
-    TEMPLATE_ID: "contact_form", // Updated to match the default EmailJS template name seen in your screenshot
+    TEMPLATE_ID: "template_erdqf7d", 
     PUBLIC_KEY: "FPM7pAmCikUAWGkog",    
 };
 
@@ -16,7 +17,6 @@ const EMAILJS_CONFIG = {
 export const sendEmailNotification = async (toEmail: string, subject: string, booking: Partial<Booking>, message: string) => {
     const primaryRecipient = "pia@zealdigital.com.au";
     
-    // Clean inputs to avoid API rejection
     const cleanString = (str: string) => str ? String(str).replace(/[^\x20-\x7E]/g, "").trim() : "";
 
     const templateParams = {
@@ -25,7 +25,6 @@ export const sendEmailNotification = async (toEmail: string, subject: string, bo
         to_name: "Admin/Team",
         subject: cleanString(subject),
         message: cleanString(message), 
-        // These map to variables in your EmailJS template
         business_name: cleanString(booking.businessName || 'N/A'),
         client_name: cleanString(booking.clientName || 'N/A'),
         appointment_date: booking.date || 'N/A',
@@ -50,7 +49,8 @@ export const sendEmailNotification = async (toEmail: string, subject: string, bo
         }
     } catch (error: any) {
         console.error("EMAILJS ERROR:", error);
-        showToast(`Email Error: ${error?.text || error?.message || 'Check connection'}`);
+        const errorMsg = error?.text || error?.message || 'Check connection';
+        showToast(`Email Error: ${errorMsg}`);
     }
 };
 
@@ -68,7 +68,7 @@ export const testEmailService = async () => {
                 to_email: "pia@zealdigital.com.au",
                 from_name: "System Diagnostic",
                 subject: "SYSTEM TEST: Connection Verified",
-                message: "This is a diagnostic test from the Zeal Booking Portal. Your EmailJS to Gmail connection is working correctly.",
+                message: "This is a diagnostic test. If you see this, your EmailJS template is correctly linked.",
             },
             EMAILJS_CONFIG.PUBLIC_KEY
         );
@@ -83,11 +83,11 @@ export const testEmailService = async () => {
 
 const showToast = (msg: string) => {
     const toast = document.createElement('div');
-    toast.className = 'fixed bottom-4 right-4 bg-gray-900 text-white px-4 py-3 rounded-xl shadow-2xl z-[9999] text-xs animate-bounceIn flex flex-col gap-1 border border-white/20';
+    toast.className = 'fixed bottom-4 right-4 bg-gray-900 text-white px-4 py-3 rounded-xl shadow-2xl z-[9999] text-xs animate-bounceIn flex flex-col gap-1 border border-white/20 max-w-xs';
     toast.innerHTML = `<div class="flex items-center gap-2 text-indigo-400 font-bold"><span>📢</span> NOTIFICATION</div><div class="opacity-90">${msg}</div>`;
     document.body.appendChild(toast);
     setTimeout(() => {
         toast.classList.add('opacity-0', 'translate-y-2', 'transition-all', 'duration-500');
         setTimeout(() => toast.remove(), 500);
-    }, 6000);
+    }, 8000);
 };
