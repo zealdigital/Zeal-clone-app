@@ -6,7 +6,7 @@ import type { Booking } from '../types';
  */
 const EMAILJS_CONFIG = {
     SERVICE_ID: "service_fm5qakn",
-    TEMPLATE_ID: "template_notification", 
+    TEMPLATE_ID: "contact_form", // Updated to match the default EmailJS template name seen in your screenshot
     PUBLIC_KEY: "FPM7pAmCikUAWGkog",    
 };
 
@@ -21,18 +21,17 @@ export const sendEmailNotification = async (toEmail: string, subject: string, bo
 
     const templateParams = {
         to_email: toEmail || primaryRecipient,
-        cc_email: primaryRecipient,
+        from_name: "Zeal Booking Portal",
         to_name: "Admin/Team",
         subject: cleanString(subject),
         message: cleanString(message), 
+        // These map to variables in your EmailJS template
         business_name: cleanString(booking.businessName || 'N/A'),
         client_name: cleanString(booking.clientName || 'N/A'),
         appointment_date: booking.date || 'N/A',
         appointment_time: booking.time || 'N/A',
         region: booking.region || 'N/A',
-        from_name: "Zeal Booking Portal",
-        reply_to: primaryRecipient,
-        site_link: window.location.origin 
+        reply_to: primaryRecipient
     };
 
     try {
@@ -67,10 +66,9 @@ export const testEmailService = async () => {
             EMAILJS_CONFIG.TEMPLATE_ID,
             {
                 to_email: "pia@zealdigital.com.au",
+                from_name: "System Diagnostic",
                 subject: "SYSTEM TEST: Connection Verified",
                 message: "This is a diagnostic test from the Zeal Booking Portal. Your EmailJS to Gmail connection is working correctly.",
-                business_name: "Test Corp",
-                client_name: "Test User"
             },
             EMAILJS_CONFIG.PUBLIC_KEY
         );
