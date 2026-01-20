@@ -2,10 +2,10 @@
 import type { Booking } from '../types';
 
 /**
- * EMAILJS SETUP GUIDE:
- * 1. SERVICE_ID: Updated to service_fm5qakn
- * 2. TEMPLATE_ID: Updated to template_erdqf7d
- * 3. PUBLIC_KEY: FPM7pAmCikUAWGkog
+ * EMAILJS CONFIGURATION
+ * SERVICE_ID: service_fm5qakn
+ * TEMPLATE_ID: template_erdqf7d
+ * PUBLIC_KEY: FPM7pAmCikUAWGkog
  */
 const EMAILJS_CONFIG = {
     SERVICE_ID: "service_fm5qakn",
@@ -14,10 +14,31 @@ const EMAILJS_CONFIG = {
 };
 
 /**
+ * Ensures EmailJS is loaded via script tag to avoid "Failed to fetch" dynamic import errors
+ */
+const loadEmailJS = (): Promise<any> => {
+    return new Promise((resolve, reject) => {
+        if ((window as any).emailjs) {
+            resolve((window as any).emailjs);
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js';
+        script.onload = () => {
+            const emailjs = (window as any).emailjs;
+            emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
+            resolve(emailjs);
+        };
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+};
+
+/**
  * Sends a real email notification via EmailJS
  */
 export const sendEmailNotification = async (toEmail: string, subject: string, booking: Partial<Booking>, message: string) => {
-    // Primary recipient
+    // Primary recipient as per request
     const targetEmail = "pia@zealdigital.com.au";
 
     const templateParams = {
@@ -33,20 +54,12 @@ export const sendEmailNotification = async (toEmail: string, subject: string, bo
     };
 
     try {
-        const emailjs = await import('https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/index.esm.js' as any);
+        const emailjs = await loadEmailJS();
         
-        // Safety check for initialization
-        if (EMAILJS_CONFIG.PUBLIC_KEY === "user_your_public_key") {
-            console.warn("MISSING PUBLIC KEY: Please get it from EmailJS Account > API Keys.");
-            showToast(`Setup: Add your Public Key to the code.`);
-            return;
-        }
-
-        const response = await emailjs.default.send(
+        const response = await emailjs.send(
             EMAILJS_CONFIG.SERVICE_ID,
             EMAILJS_CONFIG.TEMPLATE_ID,
-            templateParams,
-            EMAILJS_CONFIG.PUBLIC_KEY
+            templateParams
         );
         
         if (response.status === 200) {
@@ -54,8 +67,8 @@ export const sendEmailNotification = async (toEmail: string, subject: string, bo
         }
     } catch (error: any) {
         console.error("Email delivery failed:", error);
-        const errorMsg = error?.text || error?.message || "Check your API keys.";
-        showToast(`Email error: ${errorMsg.substring(0, 30)}...`);
+        const errorMsg = error?.text || error?.message || "Connection Error";
+        showToast(`Email error: ${errorMsg.substring(0, 35)}`);
     }
 };
 
