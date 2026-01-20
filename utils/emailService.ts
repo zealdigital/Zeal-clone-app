@@ -9,8 +9,8 @@ import type { Booking } from '../types';
  */
 const EMAILJS_CONFIG = {
     SERVICE_ID: "service_xyfrsfy",
-    TEMPLATE_ID: "template_notification", // Ensure this matches the ID in your EmailJS Templates tab
-    PUBLIC_KEY: "FPM7pAmCikUAWGkog",    // Successfully updated with your key
+    TEMPLATE_ID: "template_erdqf7d", // Updated template ID as requested
+    PUBLIC_KEY: "FPM7pAmCikUAWGkog",    
 };
 
 /**
@@ -57,6 +57,18 @@ export const sendEmailNotification = async (toEmail: string, subject: string, bo
         const errorMsg = error?.text || error?.message || "Check your API keys.";
         showToast(`Email error: ${errorMsg.substring(0, 30)}...`);
     }
+};
+
+/**
+ * Diagnostic tool to verify connection
+ */
+export const testEmailService = () => {
+    sendEmailNotification(
+        "pia@zealdigital.com.au",
+        "System Test: Connection Verified",
+        { businessName: "Test Corporation", clientName: "Diagnostic Tool" },
+        "The automated email notification system is linked correctly to your Gmail account."
+    );
 };
 
 const showToast = (msg: string) => {

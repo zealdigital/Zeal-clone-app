@@ -211,7 +211,7 @@ const App: React.FC = () => {
   const renderDashboard = () => {
     if (!currentUser) return null;
     const commonProps = {
-        currentUser, onLogout: handleLogout, allBookings, 
+        onLogout: handleLogout, allBookings, 
         setAllBookings: (val: any) => updateState('allBookings', val),
         notifications, 
         setNotifications: (val: any) => updateState('notifications', val),
@@ -225,6 +225,7 @@ const App: React.FC = () => {
         return (
           <ManagerDashboard
             {...commonProps}
+            currentUser={currentUser as Extract<User, { role: 'manager' }>}
             salespeopleCount={salespeopleCount}
             publicHolidays={publicHolidays}
             setPublicHolidays={(val: any) => updateState('publicHolidays', val)}
@@ -247,6 +248,7 @@ const App: React.FC = () => {
         return (
           <Dashboard
             {...commonProps}
+            currentUser={currentUser as Extract<User, { role: 'vendor' }>}
             salespeopleCount={salespeopleCount}
             publicHolidays={publicHolidays}
             appointmentTimes={appointmentTimes}
@@ -262,6 +264,7 @@ const App: React.FC = () => {
         return (
           <BdmDashboard
             {...commonProps}
+            currentUser={currentUser as Extract<User, { role: 'bdm' }>}
             vendors={vendors}
             managers={managers}
             salespeopleCount={salespeopleCount}
