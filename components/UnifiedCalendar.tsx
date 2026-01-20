@@ -1,0 +1,307 @@
+
+import React, { useState, useMemo } from 'react';
+import type { Booking, User, ManagerAppointment } from '../types';
+import { PlusIcon, UserGroupIcon, BellIcon, TrashIcon, PencilSquareIcon } from './Icons';
+import ManagerAppointmentModal from './ManagerAppointmentModal';
+
+interface UnifiedCalendarProps {
+  bookings: Booking[];
+  currentUser: User;
+  onUpdateStatus?: (booking: Booking) => void;
+  appointments?: ManagerAppointment[];
+  setAppointments?: React.Dispatch<React.SetStateAction<ManagerAppointment[]>>;
+}
+
+type CalendarItem = 
+  | { type: 'appointment'; data: ManagerAppointment; sortTime: number }
+  | { type: 'booking'; data: Booking; sortTime: number };
+
+const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({ 
+  bookings, 
+  currentUser, 
+  appointments = [], 
+  setAppointments 
+}) => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<'month' | 'week'>('week');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<ManagerAppointment | null>(null);
+
+  // Helper to get YYYY-MM-DD string from a Date object without timezone shifts
+  const getDateKey = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const parseTimeStringToMinutes = (timeStr: string) => {
+    try {
+      const [t, mod] = timeStr.split(' ');
+      let [h, m] = t.split(':').map(Number);
+      if (mod === 'PM' && h !== 12) h += 12;
+      if (mod === 'AM' && h === 12) h = 0;
+      return h * 60 + m;
+    } catch (e) {
+      return 0;
+    }
+  };
+
+  const mixedItemsByDate = useMemo(() => {
+    const map = new Map<string, CalendarItem[]>();
+
+    // 1. Process Client Bookings (Using exact date string from record)
+    bookings.forEach(b => {
+      const dateKey = b.date; // Record already stores YYYY-MM-DD
+      if (!map.has(dateKey)) map.set(dateKey, []);
+      const minutes = parseTimeStringToMinutes(b.time);
+      map.get(dateKey)!.push({ type: 'booking', data: b, sortTime: minutes });
+    });
+
+    // 2. Process Personal Reminders/Appointments
+    appointments.forEach(app => {
+      const appDate = new Date(app.start);
+      const dateKey = getDateKey(appDate);
+      if (!map.has(dateKey)) map.set(dateKey, []);
+      const minutes = appDate.getHours() * 60 + appDate.getMinutes();
+      map.get(dateKey)!.push({ type: 'appointment', data: app, sortTime: minutes });
+    });
+
+    map.forEach(list => list.sort((a, b) => a.sortTime - b.sortTime));
+    return map;
+  }, [bookings, appointments]);
+
+  const handlePrev = () => {
+    const newDate = new Date(currentDate);
+    if (viewMode === 'month') newDate.setMonth(newDate.getMonth() - 1);
+    else newDate.setDate(newDate.getDate() - 7);
+    setCurrentDate(newDate);
+  };
+
+  const handleNext = () => {
+    const newDate = new Date(currentDate);
+    if (viewMode === 'month') newDate.setMonth(newDate.getMonth() + 1);
+    else newDate.setDate(newDate.getDate() + 7);
+    setCurrentDate(newDate);
+  };
+
+  const handleToday = () => setCurrentDate(new Date());
+
+  const openAddModal = (day: Date) => {
+    if (!setAppointments) return;
+    setSelectedDay(day);
+    setSelectedAppointment(null);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (appointment: ManagerAppointment) => {
+    if (!setAppointments) return;
+    setSelectedAppointment(appointment);
+    setSelectedDay(null);
+    setIsModalOpen(true);
+  };
+
+  const handleSaveAppointment = (appointmentData: Omit<ManagerAppointment, 'id'>) => {
+    if (!setAppointments) return;
+    if (selectedAppointment) {
+      setAppointments(prev => prev.map(app => app.id === selectedAppointment.id ? { ...app, ...appointmentData } : app));
+    } else {
+      const newAppointment: ManagerAppointment = { id: Date.now(), ...appointmentData };
+      setAppointments(prev => [...prev, newAppointment]);
+    }
+    setIsModalOpen(false);
+  };
+
+  const handleDeleteAppointment = (id: number) => {
+    if (!setAppointments) return;
+    setAppointments(prev => prev.filter(app => app.id !== id));
+    setIsModalOpen(false);
+  };
+
+  const getHeaderDateString = () => {
+    if (viewMode === 'month') return currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const startOfWeek = new Date(currentDate);
+    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    return `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${endOfWeek.getFullYear()}`;
+  };
+
+  const renderMonthView = () => {
+    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    const startDay = startOfMonth.getDay();
+    const daysInMonth = endOfMonth.getDate();
+
+    return (
+      <div className="grid grid-cols-7 gap-px border-l border-t border-gray-200 bg-gray-200">
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+          <div key={day} className="py-2 text-center text-xs font-semibold text-gray-600 bg-gray-50">{day}</div>
+        ))}
+        {Array.from({ length: startDay }).map((_, i) => <div key={`empty-start-${i}`} className="bg-gray-50 min-h-28"></div>)}
+        {Array.from({ length: daysInMonth }).map((_, i) => {
+          const dayNum = i + 1;
+          const fullDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), dayNum);
+          const dateStr = getDateKey(fullDate);
+          const dayItems = mixedItemsByDate.get(dateStr) || [];
+          const isToday = getDateKey(new Date()) === dateStr;
+
+          return (
+            <div key={dayNum} className="bg-white p-1.5 min-h-28 relative group">
+              <span className={`text-xs font-bold ${isToday ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-full' : 'text-gray-700'}`}>{dayNum}</span>
+              {setAppointments && (
+                <button onClick={() => openAddModal(fullDate)} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-indigo-500 text-white rounded-full p-1 hover:bg-indigo-600 z-10">
+                  <PlusIcon className="w-4 h-4" />
+                </button>
+              )}
+              <div className="mt-1 space-y-1 overflow-y-auto max-h-24">
+                {dayItems.map((item, idx) => {
+                  if (item.type === 'booking') {
+                    const booking = item.data;
+                    const styleClass = booking.region === 'NSW' ? 'bg-green-50 text-green-900 border-green-200' : booking.region === 'VIC' ? 'bg-blue-50 text-blue-900 border-blue-200' : 'bg-purple-50 text-purple-900 border-purple-200';
+                    return (
+                      <div key={`bk-${booking.id}-${idx}`} className={`w-full text-left text-xs p-1 rounded border ${styleClass} select-none shadow-sm`}>
+                        <div className="flex items-center gap-1 overflow-hidden">
+                          <UserGroupIcon className="w-3 h-3 opacity-50 flex-shrink-0" />
+                          <span className="font-mono font-bold text-[10px] flex-shrink-0">{booking.time.split(' ')[0]}</span>
+                          <span className="truncate font-medium flex-grow">{booking.clientName}</span>
+                        </div>
+                      </div>
+                    );
+                  } else {
+                    const app = item.data;
+                    return (
+                      <div key={`app-${app.id}`} onClick={() => openEditModal(app)} className="w-full text-left text-xs p-1 bg-indigo-100 text-indigo-800 rounded border border-indigo-200 hover:bg-indigo-200 cursor-pointer truncate select-none shadow-sm">
+                        {new Date(app.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} {app.title}
+                      </div>
+                    );
+                  }
+                })}
+              </div>
+            </div>
+          );
+        })}
+        {Array.from({ length: (7 - (startDay + daysInMonth) % 7) % 7 }).map((_, i) => <div key={`empty-end-${i}`} className="bg-gray-50 min-h-28"></div>)}
+      </div>
+    );
+  };
+
+  const renderWeekView = () => {
+    const startOfWeek = new Date(currentDate);
+    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+    const weekDays = Array.from({ length: 7 }).map((_, i) => {
+        const d = new Date(startOfWeek);
+        d.setDate(startOfWeek.getDate() + i);
+        return d;
+    });
+
+    return (
+       <div className="border-t border-gray-200">
+            {weekDays.map(day => {
+                const dateKey = getDateKey(day);
+                const dayItems = mixedItemsByDate.get(dateKey) || [];
+                const isToday = dateKey === getDateKey(new Date());
+
+                return (
+                    <div key={dateKey} className="grid grid-cols-12 border-b border-gray-200">
+                        <div className={`col-span-2 p-3 border-r border-gray-200 ${isToday ? 'bg-indigo-50' : 'bg-gray-50'}`}>
+                           <p className={`text-sm font-semibold ${isToday ? 'text-indigo-600' : 'text-gray-700'}`}>{day.toLocaleDateString('en-US', { weekday: 'short' })}</p>
+                           <p className={`text-2xl font-bold ${isToday ? 'text-indigo-600' : 'text-gray-800'}`}>{day.getDate()}</p>
+                        </div>
+                        <div className="col-span-10 p-3 space-y-2 relative group min-h-[80px]">
+                            {dayItems.length > 0 ? dayItems.map((item, idx) => {
+                                if (item.type === 'booking') {
+                                    const booking = item.data;
+                                    const isNsw = booking.region === 'NSW';
+                                    const isVic = booking.region === 'VIC';
+                                    const styleClass = isNsw ? 'bg-green-50 text-green-900 border-green-200' : isVic ? 'bg-blue-50 text-blue-900 border-blue-200' : 'bg-purple-50 text-purple-900 border-purple-200';
+                                    return (
+                                        <div key={`bk-${booking.id}-${idx}`} className={`w-full text-left p-2 rounded-lg border ${styleClass} select-none shadow-sm`}>
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                        <span className="font-bold text-sm">{booking.time}</span>
+                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${isNsw ? 'bg-green-200 text-green-800' : isVic ? 'bg-blue-200 text-blue-800' : 'bg-purple-200 text-purple-800'}`}>{booking.region}</span>
+                                                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-white/50 border border-black/10 text-black/70">
+                                                            {booking.status === 'rescheduled_bdm' ? 'RESCHED (BDM)' : booking.status.toUpperCase()}
+                                                        </span>
+                                                    </div>
+                                                    <p className="font-semibold text-sm">{booking.clientName}</p>
+                                                    <p className="text-xs opacity-75">{booking.businessName}</p>
+                                                </div>
+                                                <div className="text-xs flex items-center gap-1 opacity-60"><UserGroupIcon className="w-4 h-4" /></div>
+                                            </div>
+                                        </div>
+                                    );
+                                } else {
+                                    const app = item.data;
+                                    return (
+                                        <div key={`app-${app.id}`} onClick={() => openEditModal(app)} className="w-full text-left p-2 bg-indigo-100 rounded-lg border border-indigo-200 hover:bg-indigo-200 transition-colors cursor-pointer relative group/item select-none shadow-sm">
+                                            <div className="flex items-center justify-between">
+                                                <p className="font-semibold text-indigo-900">{app.title}</p>
+                                                <div className="flex items-center gap-2">
+                                                    {app.reminder && <BellIcon className="w-4 h-4 text-amber-600" />}
+                                                    <button onClick={(e) => { e.stopPropagation(); if(window.confirm('Delete this?')) handleDeleteAppointment(app.id); }} className="opacity-0 group-hover/item:opacity-100 p-1 text-red-600 bg-white/50 rounded hover:bg-white"><TrashIcon className="w-3 h-3"/></button>
+                                                </div>
+                                            </div>
+                                            <p className="text-xs text-indigo-800">{new Date(app.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                        </div>
+                                    );
+                                }
+                            }) : (
+                                <p className="text-sm text-gray-400 h-full flex items-center justify-center pt-2">No schedule.</p>
+                            )}
+                            {setAppointments && (
+                              <button onClick={() => openAddModal(day)} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-indigo-500 text-white rounded-full p-1.5 hover:bg-indigo-600 shadow-md">
+                                  <PlusIcon className="w-5 h-5" />
+                              </button>
+                            )}
+                        </div>
+                    </div>
+                )
+            })}
+       </div>
+    );
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow-xl border border-gray-100 relative overflow-hidden">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+        <div>
+          <h2 className="text-2xl font-black text-gray-900 tracking-tight">My Calendar</h2>
+          <p className="text-sm font-medium text-gray-500">Scheduled appointments and personal reminders.</p>
+        </div>
+        <div className="w-full sm:w-auto flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex-shrink-0 bg-gray-100 rounded-xl p-1.5 flex gap-1 border border-gray-200">
+                <button onClick={() => setViewMode('month')} className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode === 'month' ? 'bg-white text-black shadow-md' : 'text-gray-500 hover:text-gray-700'}`}>MONTH</button>
+                <button onClick={() => setViewMode('week')} className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode === 'week' ? 'bg-white text-black shadow-md' : 'text-gray-500 hover:text-gray-700'}`}>WEEK</button>
+            </div>
+            <div className="flex items-center gap-2 justify-center">
+                <button onClick={handlePrev} className="p-2 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 shadow-sm transition-all font-bold">&larr;</button>
+                <button onClick={handleToday} className="px-4 py-2 text-xs font-black text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 shadow-sm uppercase tracking-widest">Today</button>
+                <span className="text-sm font-black text-gray-800 min-w-[140px] text-center uppercase tracking-wider">{getHeaderDateString()}</span>
+                <button onClick={handleNext} className="p-2 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 shadow-sm transition-all font-bold">&rarr;</button>
+            </div>
+        </div>
+      </div>
+      
+      <div className="rounded-xl overflow-hidden border border-gray-200">
+        {viewMode === 'month' ? renderMonthView() : renderWeekView()}
+      </div>
+
+      {isModalOpen && (
+        <ManagerAppointmentModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSave={handleSaveAppointment}
+          onDelete={handleDeleteAppointment}
+          appointment={selectedAppointment}
+          day={selectedDay}
+        />
+      )}
+    </div>
+  );
+};
+
+export default UnifiedCalendar;
