@@ -3,13 +3,13 @@ import type { Booking } from '../types';
 
 /**
  * EMAILJS SETUP GUIDE:
- * 1. SERVICE_ID: From your screenshot (service_xyfrsfy)
- * 2. TEMPLATE_ID: Go to "Email Templates" tab in EmailJS.
- * 3. PUBLIC_KEY: FPM7pAmCikUAWGkog (Updated from screenshot)
+ * 1. SERVICE_ID: Updated to service_fm5qakn
+ * 2. TEMPLATE_ID: Updated to template_erdqf7d
+ * 3. PUBLIC_KEY: FPM7pAmCikUAWGkog
  */
 const EMAILJS_CONFIG = {
-    SERVICE_ID: "service_xyfrsfy",
-    TEMPLATE_ID: "template_erdqf7d", // Updated template ID as requested
+    SERVICE_ID: "service_fm5qakn",
+    TEMPLATE_ID: "template_erdqf7d", 
     PUBLIC_KEY: "FPM7pAmCikUAWGkog",    
 };
 
