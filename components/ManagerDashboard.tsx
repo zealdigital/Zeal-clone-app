@@ -524,6 +524,19 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const handleManualBookingEntry = (bookingDetails: Omit<Booking, 'id' | 'status'>) => {
         const mainBookingId = Date.now();
         const newBooking: Booking = { ...bookingDetails, id: mainBookingId, status: 'active' };
+
+        // NOTIFY ALL MANAGERS VIA EMAIL (Consistent with BDM dashboard requirements)
+        managers.forEach(m => {
+            if (m.notificationPreferences?.newBooking && m.email) {
+                sendEmailNotification(
+                    m.email,
+                    `New Lead Booked (Admin): ${bookingDetails.businessName}`,
+                    newBooking,
+                    `Hello, Admin ${currentUser.name} has manually entered a new lead for ${bookingDetails.clientName} at ${bookingDetails.businessName}.`
+                );
+            }
+        });
+
         setAllBookings(prev => [...prev, newBooking]);
         setIsManualBookingOpen(false);
         triggerSystemAlert(`Lead booked directly.`);
@@ -793,7 +806,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                         <th className="px-6 py-4 text-right text-xs font-normal text-gray-900 uppercase">Actions</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody className="bg-white divide-y divide-gray-100">
+                                                <tbody className="bg-white divide-y divide-100">
                                                     {sortedVendors.map(v => (
                                                         <tr key={v.id} className="hover:bg-gray-50 transition-colors">
                                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-normal">{v.name}</td>
