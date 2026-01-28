@@ -3,18 +3,16 @@ import type { Booking } from '../types';
 
 /**
  * EMAILJS CONFIGURATION
- * SERVICE_ID: service_fm5qakn
- * TEMPLATE_ID: template_erdqf7d
- * PUBLIC_KEY: FPM7pAmCikUAWGkog
  */
 const EMAILJS_CONFIG = {
     SERVICE_ID: "service_fm5qakn",
-    TEMPLATE_ID: "template_erdqf7d", 
+    BOOKING_TEMPLATE_ID: "template_erdqf7d", 
+    PASSWORD_RESET_TEMPLATE_ID: "template_o5u0zln", 
     PUBLIC_KEY: "FPM7pAmCikUAWGkog",    
 };
 
 /**
- * Ensures EmailJS is loaded via script tag to avoid "Failed to fetch" dynamic import errors
+ * Ensures EmailJS is loaded via script tag
  */
 const loadEmailJS = (): Promise<any> => {
     return new Promise((resolve, reject) => {
@@ -35,23 +33,22 @@ const loadEmailJS = (): Promise<any> => {
 };
 
 /**
- * Sends a real email notification via EmailJS
+ * Sends a lead booking notification
+ * @param toEmail The recipient (defaults to Pia if not specified or for manual entries)
  */
 export const sendEmailNotification = async (toEmail: string, subject: string, booking: Partial<Booking>, message: string) => {
-    // Primary recipient as per request
-    const targetEmail = "pia@zealdigital.com.au";
-
-    // Split time for the template's {{time}} and {{ampm}} fields
+    // If toEmail is empty or generic, route to the primary admin
+    const finalRecipient = toEmail || "pia@zealdigital.com.au";
+    
     const timeParts = (booking.time || '').split(' ');
     const timeVal = timeParts[0] || 'N/A';
     const ampmVal = timeParts[1] || '';
 
-    // Map fields specifically to the EmailJS template placeholders provided
     const templateParams = {
-        to_email: targetEmail,
-        subject: subject, // Keep subject for reference
-        title: subject,   // Added for "Contact Us: {{title}}" in EmailJS Subject field
-        message: message, // General context
+        to_email: finalRecipient,
+        subject: subject,
+        title: subject,
+        message: message,
         calling_team: booking.vendor?.name || booking.callerName || 'N/A',
         region: booking.region || 'N/A',
         client_name: booking.clientName || 'N/A',
@@ -68,43 +65,43 @@ export const sendEmailNotification = async (toEmail: string, subject: string, bo
 
     try {
         const emailjs = await loadEmailJS();
-        
         const response = await emailjs.send(
             EMAILJS_CONFIG.SERVICE_ID,
-            EMAILJS_CONFIG.TEMPLATE_ID,
+            EMAILJS_CONFIG.BOOKING_TEMPLATE_ID,
             templateParams
         );
-        
         if (response.status === 200) {
-            showToast(`Notification sent to Pia`);
+            showToast(`Notification sent`);
         }
     } catch (error: any) {
         console.error("Email delivery failed:", error);
-        const errorMsg = error?.text || error?.message || "Connection Error";
-        showToast(`Email error: ${errorMsg.substring(0, 35)}`);
     }
 };
 
 /**
- * Diagnostic tool to verify connection
+ * Sends a password reset email using the simplified template structure
  */
-export const testEmailService = () => {
-    sendEmailNotification(
-        "pia@zealdigital.com.au",
-        "System Test: Connection Verified",
-        { 
-            businessName: "Test Corporation", 
-            clientName: "Diagnostic Tool", 
-            region: "NSW", 
-            time: "10:00 AM", 
-            date: "2025-01-01",
-            clientPhone: "0000000000",
-            clientWebsite: "test.com",
-            address: "123 Test St",
-            notes: "Test diagnostic run."
-        },
-        "The automated email notification system is linked correctly."
-    );
+export const sendPasswordResetEmail = async (email: string, passwordInfo: string) => {
+    const templateParams = {
+        email: email, // Matches {{email}} in template
+        link: window.location.origin, // Matches {{link}} in template
+        message: passwordInfo // Matches {{message}} in template
+    };
+
+    try {
+        const emailjs = await loadEmailJS();
+        const response = await emailjs.send(
+            EMAILJS_CONFIG.SERVICE_ID,
+            EMAILJS_CONFIG.PASSWORD_RESET_TEMPLATE_ID,
+            templateParams
+        );
+        if (response.status === 200) {
+            showToast(`Recovery email sent to ${email}`);
+        }
+    } catch (error: any) {
+        console.error("Email delivery failed:", error);
+        showToast("Error sending recovery email");
+    }
 };
 
 const showToast = (msg: string) => {

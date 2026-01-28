@@ -525,21 +525,17 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         const mainBookingId = Date.now();
         const newBooking: Booking = { ...bookingDetails, id: mainBookingId, status: 'active' };
 
-        // NOTIFY ALL MANAGERS VIA EMAIL (Consistent with BDM dashboard requirements)
-        managers.forEach(m => {
-            if (m.notificationPreferences?.newBooking && m.email) {
-                sendEmailNotification(
-                    m.email,
-                    `New Lead Booked (Admin): ${bookingDetails.businessName}`,
-                    newBooking,
-                    `Hello, Admin ${currentUser.name} has manually entered a new lead for ${bookingDetails.clientName} at ${bookingDetails.businessName}.`
-                );
-            }
-        });
+        // NOTIFY PIA VIA EMAIL (Direct route to system email as requested)
+        sendEmailNotification(
+            "pia@zealdigital.com.au",
+            `New Lead Booked (Admin): ${bookingDetails.businessName}`,
+            newBooking,
+            `Hello, Admin ${currentUser.name} has manually entered a new lead for ${bookingDetails.clientName} at ${bookingDetails.businessName}.`
+        );
 
         setAllBookings(prev => [...prev, newBooking]);
         setIsManualBookingOpen(false);
-        triggerSystemAlert(`Lead booked directly.`);
+        triggerSystemAlert(`Lead booked directly. Notification sent.`);
     };
 
     const handleMarkSmsAsSent = (bookingId: number) => {
