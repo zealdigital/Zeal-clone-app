@@ -41,15 +41,28 @@ export const sendEmailNotification = async (toEmail: string, subject: string, bo
     // Primary recipient as per request
     const targetEmail = "pia@zealdigital.com.au";
 
+    // Split time for the template's {{time}} and {{ampm}} fields
+    const timeParts = (booking.time || '').split(' ');
+    const timeVal = timeParts[0] || 'N/A';
+    const ampmVal = timeParts[1] || '';
+
+    // Map fields specifically to the EmailJS template placeholders provided
     const templateParams = {
         to_email: targetEmail,
-        subject: subject,
-        message: message,
-        business_name: booking.businessName || 'N/A',
-        client_name: booking.clientName || 'N/A',
-        date: booking.date || 'N/A',
-        time: booking.time || 'N/A',
+        subject: subject, // Keep subject for reference
+        title: subject,   // Added for "Contact Us: {{title}}" in EmailJS Subject field
+        message: message, // General context
+        calling_team: booking.vendor?.name || booking.callerName || 'N/A',
         region: booking.region || 'N/A',
+        client_name: booking.clientName || 'N/A',
+        business_name: booking.businessName || 'N/A',
+        phone: booking.clientPhone || 'N/A',
+        website: booking.clientWebsite || 'N/A',
+        address: booking.address || 'N/A',
+        date: booking.date || 'N/A',
+        time: timeVal,
+        ampm: ampmVal,
+        notes: booking.notes || booking.bdmNote || 'No additional notes provided.',
         link: window.location.origin 
     };
 
@@ -79,8 +92,18 @@ export const testEmailService = () => {
     sendEmailNotification(
         "pia@zealdigital.com.au",
         "System Test: Connection Verified",
-        { businessName: "Test Corporation", clientName: "Diagnostic Tool" },
-        "The automated email notification system is linked correctly to your Gmail account."
+        { 
+            businessName: "Test Corporation", 
+            clientName: "Diagnostic Tool", 
+            region: "NSW", 
+            time: "10:00 AM", 
+            date: "2025-01-01",
+            clientPhone: "0000000000",
+            clientWebsite: "test.com",
+            address: "123 Test St",
+            notes: "Test diagnostic run."
+        },
+        "The automated email notification system is linked correctly."
     );
 };
 
