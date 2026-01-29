@@ -4,32 +4,62 @@ import type { Booking, Vendor, Region } from '../types';
 // Helper to normalize strings for comparison
 const normalize = (str: string) => str ? str.trim().toLowerCase() : '';
 
-// Helper to parse date/time string from various formats
-const parseDateTime = (dateStr: string): { date: string, time: string } => {
-    const today = new Date().toISOString().split('T')[0];
-    if (!dateStr || dateStr.trim() === '') return { date: today, time: '10:00 AM' };
+/**
+ * Robust date and time parser for CSV imports.
+ * Handles YYYY-MM-DD, DD/MM/YYYY, and optional time suffixes.
+ * Uses LOCAL time components to avoid UTC timezone shifts.
+ */
+const parseDateTime = (dateTimeStr: string): { date: string, time: string } => {
+    const now = new Date();
+    const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+    if (!dateTimeStr || dateTimeStr.trim() === '') return { date: today, time: '10:00 AM' };
 
     try {
-        // Clean up artifacts like trailing dashes (e.g., "02/02/2026-")
-        const cleanStr = dateStr.replace(/[^\d/:-]/g, '').replace(/-+$/, '').trim();
+        const input = dateTimeStr.trim();
+        const parts = input.split(/\s+/);
+        let dateStr = parts[0];
+        let timeStr = parts.slice(1).join(' ').trim();
+
+        dateStr = dateStr.replace(/[^\d/:-]/g, '').replace(/-+$/, '').trim();
+
+        let finalDate = today;
         
-        // Handle DD/MM/YYYY format specifically
-        const slashParts = cleanStr.split('/');
-        if (slashParts.length === 3) {
-            const day = slashParts[0].padStart(2, '0');
-            const month = slashParts[1].padStart(2, '0');
-            let year = slashParts[2];
-            if (year.length === 2) year = `20${year}`;
-            return { date: `${year}-${month}-${day}`, time: '10:00 AM' };
+        if (dateStr.includes('/')) {
+            const slashParts = dateStr.split('/');
+            if (slashParts.length === 3) {
+                const day = slashParts[0].padStart(2, '0');
+                const month = slashParts[1].padStart(2, '0');
+                let year = slashParts[2];
+                if (year.length === 2) year = `20${year}`;
+                finalDate = `${year}-${month}-${day}`;
+            }
+        } else if (dateStr.includes('-')) {
+            const dashParts = dateStr.split('-');
+            if (dashParts.length === 3) {
+                const year = dashParts[0].length === 2 ? `20${dashParts[0]}` : dashParts[0];
+                const month = dashParts[1].padStart(2, '0');
+                const day = dashParts[2].padStart(2, '0');
+                finalDate = `${year}-${month}-${day}`;
+            }
         }
 
-        const d = new Date(cleanStr);
-        if (isNaN(d.getTime())) return { date: today, time: '10:00 AM' };
-        
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return { date: `${year}-${month}-${day}`, time: '10:00 AM' };
+        let finalTime = '10:00 AM';
+        if (timeStr) {
+            finalTime = timeStr.toUpperCase();
+            if (!finalTime.includes('AM') && !finalTime.includes('PM')) {
+                const timeParts = finalTime.split(':');
+                if (timeParts.length >= 2) {
+                    let h = parseInt(timeParts[0]);
+                    let m = timeParts[1].substring(0, 2);
+                    const suffix = h >= 12 ? 'PM' : 'AM';
+                    h = h % 12;
+                    if (h === 0) h = 12;
+                    finalTime = `${h.toString().padStart(2, '0')}:${m} ${suffix}`;
+                }
+            }
+        }
+
+        return { date: finalDate, time: finalTime };
     } catch (e) {
         return { date: today, time: '10:00 AM' };
     }
@@ -103,11 +133,9 @@ export const processImportFile = async (
 
                 const cols = parseCSVLine(line);
                 
-                // DEEP SCAN: User data often shifts columns. 
-                // We look for Business Name in the standard slot (7) OR the first non-empty column.
                 let businessName = cols[7]; 
                 if (!businessName || businessName.trim() === '') {
-                    businessName = cols.find(c => c && c.trim().length > 0) || '';
+                    businessName = cols[7] || cols[8] || cols[6] || '';
                 }
 
                 if (!businessName || businessName.trim() === '') {
@@ -120,6 +148,8 @@ export const processImportFile = async (
                 const bookedDate = cols[2] || '';
                 const apptDateRaw = cols[3] || '';
                 const statusRaw = cols[4] || 'active';
+                const callerName = cols[5] || callingTeam;
+                const notes = cols[6] || '';
                 const clientName = cols[8] || 'Imported Lead';
                 const regionRaw = cols[9] || 'NSW';
                 const address = cols[10] || '';
@@ -129,7 +159,7 @@ export const processImportFile = async (
                 
                 let matchedVendor = vendors.find(v => normalize(v.name) === normalize(callingTeam));
                 if (!matchedVendor) {
-                    matchedVendor = { id: 999999, name: callingTeam, username: 'imported', active: true };
+                    matchedVendor = { id: 999999 + index, name: callingTeam, username: 'imported', active: true };
                 }
 
                 const region = (normalize(regionRaw).includes('vic') ? 'VIC' : 'NSW') as Region;
@@ -137,7 +167,7 @@ export const processImportFile = async (
                 const s = normalize(statusRaw);
                 if (['active', 'rejected', 'seen', 'rescheduled', 'cancelled', 'dq', 'sold', 'pending_approval'].includes(s)) {
                     status = s as Booking['status'];
-                } else if (s === 'done' || s === 'completed') {
+                } else if (s === 'done' || s === 'completed' || s === 'met') {
                     status = 'seen';
                 }
 
@@ -158,8 +188,8 @@ export const processImportFile = async (
                     clientPhone: phone,
                     clientWebsite: website,
                     vendor: matchedVendor,
-                    callerName: matchedVendor.name,
-                    notes: `Imported: ${bookedDate}`.trim(),
+                    callerName: callerName,
+                    notes: notes || `Imported: ${bookedDate}`,
                     status,
                     isDuplicate: !!isDuplicate,
                     duplicateOfBookingId: duplicateId,

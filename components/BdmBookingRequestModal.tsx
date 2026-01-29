@@ -1,22 +1,24 @@
 
-import React, { useState, useEffect } from 'react';
-import type { Booking, Region, BDM, Vendor, User } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import type { Booking, Region, BDM, Vendor, User, AppointmentSlotsConfig } from '../types';
 import { XMarkIcon } from './Icons';
+import { getAppointmentSlotsForDay } from '../utils/slotUtils';
 
 interface BdmBookingRequestModalProps {
   currentUser: User;
   vendors: Vendor[];
   onClose: () => void;
-  onRequestBooking: (bookingDetails: Omit<Booking, 'id' | 'status'>) => void;
+  onRequestBooking: (bookingDetails: Omit<Booking, 'id' | 'status'>, slotsToBlock: string[]) => void;
   prefillData?: Booking | null;
   regions: Region[];
+  appointmentTimes: Record<Region, AppointmentSlotsConfig>;
 }
 
 const HOURS = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
 const MINUTES = ['00', '15', '30', '45'];
 const PERIODS = ['AM', 'PM'];
 
-const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ currentUser, vendors, onClose, onRequestBooking, prefillData, regions }) => {
+const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ currentUser, vendors, onClose, onRequestBooking, prefillData, regions, appointmentTimes }) => {
   const isManager = currentUser.role === 'manager';
   const isVendor = currentUser.role === 'vendor';
   const isBdm = currentUser.role === 'bdm';
@@ -39,6 +41,8 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
     region: (isBdm ? currentUser.region : regions[0]),
     vendorId: isVendor ? currentUser.id.toString() : '',
   });
+
+  const [slotsToBlock, setSlotsToBlock] = useState<string[]>([]);
 
   // Split time state for neat dropdowns
   const [timeState, setTimeState] = useState({
@@ -73,12 +77,29 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
     }
   }, [prefillData, currentUser, isVendor, isBdm, regions]);
 
+  // Determine standard slots for the selected date/region
+  const standardSlotsForDay = useMemo(() => {
+    if (!formData.date || !formData.region) return [];
+    try {
+        const dateObj = new Date(formData.date + 'T00:00:00Z');
+        return getAppointmentSlotsForDay(dateObj, formData.region, appointmentTimes);
+    } catch (e) {
+        return [];
+    }
+  }, [formData.date, formData.region, appointmentTimes]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleTimeChange = (field: keyof typeof timeState, value: string) => {
     setTimeState(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleToggleSlotBlock = (slot: string) => {
+    setSlotsToBlock(prev => 
+        prev.includes(slot) ? prev.filter(s => s !== slot) : [...prev, slot]
+    );
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -116,7 +137,7 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
         vendor: selectedVendor,
     };
 
-    onRequestBooking(bookingPayload);
+    onRequestBooking(bookingPayload, slotsToBlock);
   };
 
   return (
@@ -231,10 +252,38 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
                 <textarea name="notes" id="notes" value={formData.notes} onChange={handleChange} rows={3} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 sm:text-sm" />
             </div>
 
+            {isManager && (
+                <div className="pt-4 border-t border-gray-100">
+                    <label className="block text-sm font-bold text-gray-700 mb-3">Select standard slots to remove/block (if any):</label>
+                    {standardSlotsForDay.length > 0 ? (
+                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                            <div className="grid grid-cols-2 gap-4">
+                                {standardSlotsForDay.map(slot => (
+                                    <label key={slot} className="flex items-center gap-3 cursor-pointer group">
+                                        <div className="relative flex items-center justify-center">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={slotsToBlock.includes(slot)} 
+                                                onChange={() => handleToggleSlotBlock(slot)}
+                                                className="w-5 h-5 rounded border-gray-300 text-black focus:ring-black transition-all"
+                                            />
+                                        </div>
+                                        <span className="text-sm font-bold text-gray-700">{slot}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            <p className="mt-4 text-[11px] text-gray-400 font-medium italic">Selected slots will be marked as 'Blocked' on the Vendor Dashboard.</p>
+                        </div>
+                    ) : (
+                        <p className="text-xs text-gray-400 italic px-1">Please select a date with configured slots to block them.</p>
+                    )}
+                </div>
+            )}
+
             <div className="pt-4 flex justify-end gap-3">
                 <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 font-bold text-sm">Cancel</button>
                 <button type="submit" className="px-8 py-2 bg-black text-white font-black rounded-md hover:bg-gray-800 uppercase tracking-widest text-xs">
-                    {isManager ? 'Book' : 'Send Request'}
+                    {isManager ? 'Confirm Approval' : 'Send Request'}
                 </button>
             </div>
         </form>

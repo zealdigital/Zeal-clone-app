@@ -24,8 +24,16 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
   // State for Context Menu
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; appointment: ManagerAppointment } | null>(null);
 
-  // Close context menu on global click (using a transparent backdrop instead for reliability)
+  // Close context menu on global click
   const closeContextMenu = () => setContextMenu(null);
+
+  // Helper to get YYYY-MM-DD string from a Date object without timezone shifts
+  const getDateKey = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   // Helper to parse time string "10:00 AM" to minutes from midnight
   const parseTimeStringToMinutes = (timeStr: string) => {
@@ -43,20 +51,19 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
   const mixedItemsByDate = useMemo(() => {
     const map = new Map<string, CalendarItem[]>();
 
-    // 1. Process Personal Appointments
+    // 1. Process Personal Appointments (Using safe local date parsing)
     appointments.forEach(app => {
-      const dateKey = new Date(app.start).toISOString().split('T')[0];
+      const appDate = new Date(app.start);
+      const dateKey = getDateKey(appDate);
       if (!map.has(dateKey)) map.set(dateKey, []);
       
-      const d = new Date(app.start);
-      const minutes = d.getHours() * 60 + d.getMinutes();
-      
+      const minutes = appDate.getHours() * 60 + appDate.getMinutes();
       map.get(dateKey)!.push({ type: 'appointment', data: app, sortTime: minutes });
     });
 
-    // 2. Process Client Bookings
+    // 2. Process Client Bookings (Record already stores YYYY-MM-DD string)
     bookings.forEach(b => {
-        const dateKey = b.date; // Already YYYY-MM-DD
+        const dateKey = b.date; 
         if (!map.has(dateKey)) map.set(dateKey, []);
         
         const minutes = parseTimeStringToMinutes(b.time);
@@ -117,7 +124,7 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
       closeContextMenu();
   };
 
-  // Right Click Handler - Using clientX/Y for fixed positioning relative to viewport
+  // Right Click Handler
   const handleContextMenu = (e: React.MouseEvent, appointment: ManagerAppointment) => {
       e.preventDefault();
       e.stopPropagation();
@@ -141,16 +148,15 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
         ))}
         {Array.from({ length: startDay }).map((_, i) => <div key={`empty-start-${i}`} className="bg-gray-50 min-h-28"></div>)}
         {Array.from({ length: daysInMonth }).map((_, dayIndex) => {
-          const day = dayIndex + 1;
-          const fullDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-          const today = new Date();
-          const isToday = day === today.getDate() && currentDate.getMonth() === today.getMonth() && currentDate.getFullYear() === today.getFullYear();
-          const dateKey = fullDate.toISOString().split('T')[0];
+          const dayNum = dayIndex + 1;
+          const fullDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), dayNum);
+          const dateKey = getDateKey(fullDate);
           const dayItems = mixedItemsByDate.get(dateKey) || [];
+          const isToday = getDateKey(new Date()) === dateKey;
 
           return (
-            <div key={day} className="bg-white p-1.5 min-h-28 relative group">
-              <time dateTime={dateKey} className={`text-xs font-bold ${isToday ? 'bg-indigo-600 text-white rounded-full w-6 h-6 flex items-center justify-center' : 'text-gray-700'}`}>{day}</time>
+            <div key={dayNum} className="bg-white p-1.5 min-h-28 relative group">
+              <time dateTime={dateKey} className={`text-xs font-bold ${isToday ? 'bg-indigo-600 text-white rounded-full w-6 h-6 flex items-center justify-center' : 'text-gray-700'}`}>{dayNum}</time>
               <button onClick={() => openAddModal(fullDate)} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-indigo-500 text-white rounded-full p-1 hover:bg-indigo-600 z-10">
                 <PlusIcon className="w-4 h-4" />
               </button>
@@ -189,7 +195,7 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
                       return (
                           <div 
                             key={`bk-${booking.id}`}
-                            className={`w-full text-left text-xs p-1 rounded border ${styleClass} select-none`}
+                            className={`w-full text-left text-xs p-1 rounded border ${styleClass} select-none shadow-sm`}
                             title={`${booking.clientName} (${booking.businessName}) - ${booking.region} [${booking.status}]`}
                           >
                               <div className="flex items-center gap-1 overflow-hidden">
@@ -224,10 +230,10 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
     return (
        <div className="border-t border-gray-200">
             {weekDays.map(day => {
-                const dateKey = day.toISOString().split('T')[0];
+                const dateKey = getDateKey(day);
                 const dayItems = mixedItemsByDate.get(dateKey) || [];
                 const today = new Date();
-                const isToday = day.toDateString() === today.toDateString();
+                const isToday = dateKey === getDateKey(today);
 
                 return (
                     <div key={dateKey} className="grid grid-cols-12 border-b border-gray-200">
@@ -280,7 +286,7 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
                                     return (
                                         <div 
                                             key={`bk-${booking.id}`}
-                                            className={`w-full text-left p-2 rounded-lg border ${styleClass} select-none`}
+                                            className={`w-full text-left p-2 rounded-lg border ${styleClass} select-none shadow-sm`}
                                         >
                                             <div className="flex justify-between items-start">
                                                 <div>

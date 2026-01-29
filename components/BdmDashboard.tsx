@@ -99,14 +99,30 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
 
   const myAssignedBookings = useMemo(() => myUniqueBookings.filter(b => b.status !== 'rejected' && b.status !== 'pending_approval'), [myUniqueBookings]);
   
+  // EXHAUSTIVE SEARCH FOR BDM
   const filteredBookings = useMemo(() => {
     const lowercasedFilter = searchTerm.trim().toLowerCase();
     return myAssignedBookings.filter(booking => {
       const bookingDate = new Date(booking.date);
       if (dateRange.startDate && bookingDate < new Date(dateRange.startDate)) return false;
       if (dateRange.endDate && bookingDate > new Date(dateRange.endDate)) return false;
+      
       if (!lowercasedFilter) return true;
-      return (booking.clientName.toLowerCase().includes(lowercasedFilter) || booking.businessName.toLowerCase().includes(lowercasedFilter) || booking.vendor.name.toLowerCase().includes(lowercasedFilter) || booking.address.toLowerCase().includes(lowercasedFilter));
+      
+      return (
+        booking.clientName.toLowerCase().includes(lowercasedFilter) || 
+        booking.businessName.toLowerCase().includes(lowercasedFilter) || 
+        booking.clientPhone.toLowerCase().includes(lowercasedFilter) || 
+        booking.clientWebsite.toLowerCase().includes(lowercasedFilter) ||
+        booking.address.toLowerCase().includes(lowercasedFilter) ||
+        booking.callerName.toLowerCase().includes(lowercasedFilter) ||
+        booking.vendor.name.toLowerCase().includes(lowercasedFilter) || 
+        (booking.notes?.toLowerCase().includes(lowercasedFilter)) ||
+        (booking.bdmNote?.toLowerCase().includes(lowercasedFilter)) ||
+        booking.date.includes(lowercasedFilter) ||
+        booking.time.toLowerCase().includes(lowercasedFilter) ||
+        booking.region.toLowerCase().includes(lowercasedFilter)
+      );
     });
   }, [searchTerm, myAssignedBookings, dateRange]);
 
@@ -119,8 +135,13 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
     });
   }, [myUniqueBookings, analyticsDateRange]);
 
+  // Updated sort to descending: newest leads first.
   const groupedBookings = useMemo(() => {
-    const sorted = [...filteredBookings].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const sorted = [...filteredBookings].sort((a, b) => {
+        const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return b.id - a.id;
+    });
     const groups: Record<string, Booking[]> = {};
     sorted.forEach(b => {
       if (!groups[b.date]) groups[b.date] = [];
@@ -129,14 +150,14 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
     return groups;
   }, [filteredBookings]);
 
-  const sortedDateKeys = useMemo(() => Object.keys(groupedBookings).sort((a, b) => new Date(a).getTime() - new Date(b).getTime()), [groupedBookings]);
+  // Updated sort to descending for the group date headers
+  const sortedDateKeys = useMemo(() => Object.keys(groupedBookings).sort((a, b) => new Date(b).getTime() - new Date(a).getTime()), [groupedBookings]);
 
   const handleUpdateBookingStatus = (bookingId: number, newStatus: Booking['status'], note: string) => {
     let updatedBooking: Booking | undefined;
     setAllBookings(prev => { const newBookings = prev.map(b => { if (b.id === bookingId) { updatedBooking = { ...b, status: newStatus, bdmNote: note }; return updatedBooking; } return b; }); return newBookings; });
     
     if (updatedBooking) {
-        // EMAIL VENDOR
         if (updatedBooking.vendor.notificationPreferences?.statusChange) {
             sendEmailNotification(
                 updatedBooking.vendor.email || '',
@@ -145,8 +166,6 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                 `Hello, BDM ${currentUser.name} has updated the status of ${updatedBooking.businessName} to ${newStatus}. Note: ${note}`
             );
         }
-        
-        // EMAIL MANAGERS
         managers.forEach(m => {
             if (m.notificationPreferences?.bdmStatusUpdate) {
                 sendEmailNotification(
@@ -176,8 +195,6 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
   
   const handleRequestBooking = (bookingDetails: Omit<Booking, 'id' | 'status'>) => {
       const newBooking: Booking = { ...bookingDetails, id: Date.now(), status: 'pending_approval' };
-      
-      // EMAIL MANAGERS
       managers.forEach(m => { 
         if (m.notificationPreferences?.bookingRequest) {
             sendEmailNotification(
@@ -188,7 +205,6 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
             );
         }
       });
-
       const managerNotif: Notification = { id: Date.now(), vendorId: 0, bookingId: newBooking.id, message: `New Request from BDM ${currentUser.name}: ${bookingDetails.clientName}`, read: false, timestamp: new Date().toISOString() };
       setNotifications(prev => [...prev, managerNotif]);
       setAllBookings(prev => [...prev, newBooking]);
@@ -225,65 +241,96 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
             {activeTab === 'dashboard' && (
                 <div className="animate-fadeIn">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4"><h1 className="text-3xl font-black text-gray-900">Your Appointments</h1><button onClick={() => handleOpenRequestModal(null)} className="flex items-center justify-center gap-2 px-6 py-2.5 bg-black text-white rounded-lg hover:bg-gray-800 shadow-md transition-all font-bold uppercase text-xs tracking-widest"><PlusIcon className="w-4 h-4" /> Request Booking</button></div>
-                    <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 items-end"><DateRangePicker startDate={dateRange.startDate} endDate={dateRange.endDate} onDateChange={setDateRange} /><div className="flex gap-2"><div className="relative flex-grow"><input type="text" className="block w-full rounded-md border-0 py-2.5 pl-3 text-gray-900 ring-1 ring-inset ring-gray-300" placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div><button onClick={() => exportBookingsToCSV(filteredBookings, 'bdm_bookings')} className="px-4 py-2 bg-white border rounded-md font-bold text-sm">Export</button></div></div>
-                    
-                    <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Client & Business</th>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Calling Team</th>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Time</th>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Notes</th>
-                                        <th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-widest">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {sortedDateKeys.length === 0 ? (
-                                        <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-500 italic">No appointments found.</td></tr>
-                                    ) : (
-                                        sortedDateKeys.map(dateKey => (
-                                            <React.Fragment key={dateKey}>
-                                                <tr className="bg-gray-50 border-y border-gray-200"><td colSpan={6} className="px-6 py-3 text-sm font-bold text-gray-700 uppercase tracking-tight">{new Date(dateKey + 'T00:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</td></tr>
-                                                {groupedBookings[dateKey].map(booking => (
-                                                    <tr key={booking.id} className="hover:bg-blue-50/30 transition-colors">
-                                                        <td className="px-6 py-5 align-top">
-                                                            <div className="text-base font-bold text-gray-900 mb-1">{booking.clientName}</div>
-                                                            <div className="flex flex-col gap-1.5">
-                                                                {booking.clientWebsite && (<a href={booking.clientWebsite.startsWith('http') ? booking.clientWebsite : `https://${booking.clientWebsite}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline font-medium break-all">{booking.clientWebsite}</a>)}
-                                                                {booking.clientPhone && (<a href={`tel:${booking.clientPhone}`} className="text-xs text-gray-500 hover:text-indigo-600 transition-colors font-medium">{booking.clientPhone}</a>)}
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-5 align-top whitespace-nowrap text-sm text-gray-600 font-medium pt-7">{booking.vendor.name}</td>
-                                                        <td className="px-6 py-5 align-top whitespace-nowrap pt-7"><div className="text-sm font-black text-gray-900">{booking.time}</div></td>
-                                                        <td className="px-6 py-5 align-top pt-6">{getStatusPill(booking.status)}</td>
-                                                        <td className="px-6 py-5 align-top text-sm text-gray-500 max-w-xs pt-7"><ExpandableNote text={booking.bdmNote || booking.notes} /></td>
-                                                        <td className="px-6 py-5 align-top whitespace-nowrap text-sm font-medium pt-6">
-                                                            <div className="flex justify-end gap-2">
-                                                                <button onClick={() => setBookingToUpdate(booking)} className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-md border border-gray-200" title="Update Lead Result / Status">
-                                                                    <PencilSquareIcon className="w-4 h-4" />
-                                                                </button>
-                                                                {booking.status === 'rescheduled_bdm' && (
-                                                                    <button onClick={() => handleOpenRequestModal(booking)} className="p-1.5 text-orange-600 hover:bg-orange-50 border border-orange-200 rounded-md" title="Rebook this Lead (Prefilled)">
-                                                                        <ArrowPathIcon className="w-4 h-4" />
-                                                                    </button>
-                                                                )}
-                                                                <button onClick={() => setBookingToManageNotes(booking)} className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-md border border-gray-200" title="Private Notes & Reminders">
-                                                                    <BellIcon className="w-4 h-4" />
-                                                                </button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </React.Fragment>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
+                    <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                        <DateRangePicker startDate={dateRange.startDate} endDate={dateRange.endDate} onDateChange={setDateRange} />
+                        <div className="flex gap-2">
+                            <div className="relative flex-grow flex items-center">
+                                <MagnifyingGlassIcon className="absolute left-3 w-5 h-5 text-gray-400" />
+                                <input 
+                                    type="text" 
+                                    className="block w-full rounded-md border-0 py-2.5 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-black" 
+                                    placeholder="Search Phone, Address, Website, Team..." 
+                                    value={searchTerm} 
+                                    onChange={e => setSearchTerm(e.target.value)} 
+                                />
+                                {searchTerm && (
+                                    <button 
+                                        onClick={() => setSearchTerm('')}
+                                        className="absolute right-3 p-1 text-gray-400 hover:text-gray-600 rounded-full"
+                                    >
+                                        <XMarkIcon className="w-5 h-5" />
+                                    </button>
+                                )}
+                            </div>
+                            <button onClick={() => exportBookingsToCSV(filteredBookings, 'bdm_bookings')} className="px-4 py-2 bg-white border rounded-md font-bold text-sm">Export</button>
                         </div>
                     </div>
+                    
+                    {searchTerm.trim() !== '' ? (
+                        <div className="mt-8 mb-8 animate-fadeIn">
+                            <div className="bg-white rounded-xl shadow-md overflow-hidden border border-indigo-100">
+                                <PerformanceLeadLog bookings={filteredBookings} title="Matched Appointments" hideFilters={true} />
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Client & Business</th>
+                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Calling Team</th>
+                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Time</th>
+                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
+                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Notes</th>
+                                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-widest">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {sortedDateKeys.length === 0 ? (
+                                            <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-500 italic">No appointments found.</td></tr>
+                                        ) : (
+                                            sortedDateKeys.map(dateKey => (
+                                                <React.Fragment key={dateKey}>
+                                                    <tr className="bg-gray-50 border-y border-gray-200"><td colSpan={6} className="px-6 py-3 text-sm font-bold text-gray-700 uppercase tracking-tight">{new Date(dateKey + 'T00:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</td></tr>
+                                                    {groupedBookings[dateKey].map(booking => (
+                                                        <tr key={booking.id} className="hover:bg-blue-50/30 transition-colors">
+                                                            <td className="px-6 py-5 align-top">
+                                                                <div className="text-base font-bold text-gray-900 mb-1">{booking.clientName}</div>
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    {booking.clientWebsite && (<a href={booking.clientWebsite.startsWith('http') ? booking.clientWebsite : `https://${booking.clientWebsite}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline font-medium break-all">{booking.clientWebsite}</a>)}
+                                                                    {booking.clientPhone && (<a href={`tel:${booking.clientPhone}`} className="text-xs text-gray-500 hover:text-indigo-600 transition-colors font-medium">{booking.clientPhone}</a>)}
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-5 align-top whitespace-nowrap text-sm text-gray-600 font-medium pt-7">{booking.vendor.name}</td>
+                                                            <td className="px-6 py-5 align-top whitespace-nowrap pt-7"><div className="text-sm font-black text-gray-900">{booking.time}</div></td>
+                                                            <td className="px-6 py-5 align-top pt-6">{getStatusPill(booking.status)}</td>
+                                                            <td className="px-6 py-5 align-top text-sm text-gray-500 max-w-xs pt-7"><ExpandableNote text={booking.bdmNote || booking.notes} /></td>
+                                                            <td className="px-6 py-5 align-top whitespace-nowrap text-sm font-medium pt-6">
+                                                                <div className="flex justify-end gap-2">
+                                                                    <button onClick={() => setBookingToUpdate(booking)} className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-md border border-gray-200" title="Update Lead Result / Status">
+                                                                        <PencilSquareIcon className="w-4 h-4" />
+                                                                    </button>
+                                                                    {booking.status === 'rescheduled_bdm' && (
+                                                                        <button onClick={() => handleOpenRequestModal(booking)} className="p-1.5 text-orange-600 hover:bg-orange-50 border border-orange-200 rounded-md" title="Rebook this Lead (Prefilled)">
+                                                                            <ArrowPathIcon className="w-4 h-4" />
+                                                                        </button>
+                                                                    )}
+                                                                    <button onClick={() => setBookingToManageNotes(booking)} className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-md border border-gray-200" title="Private Notes & Reminders">
+                                                                        <BellIcon className="w-4 h-4" />
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </React.Fragment>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 

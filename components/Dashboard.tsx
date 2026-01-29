@@ -180,25 +180,37 @@ const Dashboard: React.FC<DashboardProps> = ({
   const myBookings = useMemo(() => allBookings.filter(b => b.vendor.id === currentUser.id), [allBookings, currentUser.id]);
   const vendorVisibleBookings = useMemo(() => myBookings.map(booking => (booking.status === 'sold' ? { ...booking, status: 'seen' as const } : booking)), [myBookings]);
   
+  // EXHAUSTIVE SEARCH FOR VENDORS
   const filteredVendorBookings = useMemo(() => {
     const lowercasedFilter = searchTerm.trim().toLowerCase();
     return vendorVisibleBookings.filter(booking => {
       if (booking.status === 'rejected') return false; 
+      
       const bookingDate = new Date(booking.date);
       if (dateRange.startDate && bookingDate < new Date(dateRange.startDate)) return false;
       if (dateRange.endDate && bookingDate > new Date(dateRange.endDate)) return false;
+      
       if (!lowercasedFilter) return true;
-      return (booking.clientName.toLowerCase().includes(lowercasedFilter) || booking.businessName.toLowerCase().includes(lowercasedFilter) || booking.callerName.toLowerCase().includes(lowercasedFilter) || booking.address.toLowerCase().includes(lowercasedFilter));
+      
+      return (
+        booking.clientName.toLowerCase().includes(lowercasedFilter) || 
+        booking.businessName.toLowerCase().includes(lowercasedFilter) || 
+        booking.clientPhone.toLowerCase().includes(lowercasedFilter) ||
+        booking.clientWebsite.toLowerCase().includes(lowercasedFilter) ||
+        booking.address.toLowerCase().includes(lowercasedFilter) ||
+        booking.callerName.toLowerCase().includes(lowercasedFilter) ||
+        (booking.notes?.toLowerCase().includes(lowercasedFilter)) ||
+        booking.date.includes(lowercasedFilter) ||
+        booking.time.toLowerCase().includes(lowercasedFilter) ||
+        booking.region.toLowerCase().includes(lowercasedFilter)
+      );
     });
   }, [searchTerm, vendorVisibleBookings, dateRange]);
 
-  // UPDATED: Callers can now see team-wide data in the performance tab for their allowed regions
   const analyticsBookings = useMemo(() => {
     return allBookings.filter(b => {
       if (b.isBlocker) return false;
-      // Filter by Caller's allowed regions
       if (allowedRegions.length > 0 && !allowedRegions.includes(b.region)) return false;
-      
       const bDate = new Date(b.date);
       if (analyticsDateRange.startDate && bDate < new Date(analyticsDateRange.startDate)) return false;
       if (analyticsDateRange.endDate && bDate > new Date(analyticsDateRange.endDate)) return false;
@@ -219,7 +231,12 @@ const Dashboard: React.FC<DashboardProps> = ({
       const list = myBookings.filter(b => b.status === 'rejected' && !b.isBlocker);
       const lowercasedFilter = searchTerm.trim().toLowerCase();
       if (!lowercasedFilter) return list;
-      return list.filter(b => b.clientName.toLowerCase().includes(lowercasedFilter) || b.businessName.toLowerCase().includes(lowercasedFilter));
+      return list.filter(b => 
+        b.clientName.toLowerCase().includes(lowercasedFilter) || 
+        b.businessName.toLowerCase().includes(lowercasedFilter) ||
+        b.clientPhone.toLowerCase().includes(lowercasedFilter) ||
+        b.address.toLowerCase().includes(lowercasedFilter)
+      );
   }, [myBookings, searchTerm]);
 
   const myNotifications = useMemo(() => notifications.filter(n => n.vendorId === currentUser.id), [notifications, currentUser.id]);
@@ -271,26 +288,57 @@ const Dashboard: React.FC<DashboardProps> = ({
                     {allowedRegions.length > 0 && (
                         <CalendarView allBookingsForRegion={calendarBookingsForRegion} onSelectSlot={handleOpenSlotManager} region={currentRegion} salespeopleCount={salespeopleCount} publicHolidays={publicHolidays} appointmentTimes={appointmentTimes} leaveDays={leaveDays} />
                     )}
-                    <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-end"><DateRangePicker startDate={dateRange.startDate} endDate={dateRange.endDate} onDateChange={setDateRange} /><div className="flex gap-2"><div className="relative flex-grow"><input type="text" className="block w-full rounded-md border-0 py-2.5 pl-3 text-gray-900 ring-1 ring-inset ring-gray-300" placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div><button onClick={() => exportBookingsToCSV(filteredVendorBookings, 'bookings')} className="px-4 py-2 bg-white border rounded-md text-sm font-bold hover:bg-gray-50">Export</button></div></div>
-                    
-                    <div className="mt-8 space-y-8">
-                        <div>
-                            <h2 className="text-xl font-bold text-gray-800 mb-4">Your Recent Bookings</h2>
-                            < MyBookingsList bookings={activeBookings} onEditBooking={handleEditFromList} onDeleteBooking={handleDeleteBooking} searchTerm={searchTerm} onRequestSms={handleRequestSms} />
-                        </div>
-                    </div>
-
-                    <div className="mt-12 space-y-8">
-                        <ArchivedBookingsList bookings={archivedBookings} role="vendor" searchTerm={searchTerm} />
-                    </div>
-
-                    {rejectedBookings.length > 0 && (
-                        <div className="mt-12 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden animate-fadeIn">
-                            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                                <h3 className="text-xl font-black text-[#0F172A] tracking-tight">Rejected Appointments ({rejectedBookings.length})</h3>
+                    <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                        <DateRangePicker startDate={dateRange.startDate} endDate={dateRange.endDate} onDateChange={setDateRange} />
+                        <div className="flex gap-2">
+                            <div className="relative flex-grow flex items-center">
+                                <MagnifyingGlassIcon className="absolute left-3 w-5 h-5 text-gray-400" />
+                                <input 
+                                    type="text" 
+                                    className="block w-full rounded-md border-0 py-2.5 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-black" 
+                                    placeholder="Search Phone, Address, Website, Business..." 
+                                    value={searchTerm} 
+                                    onChange={e => setSearchTerm(e.target.value)} 
+                                />
+                                {searchTerm && (
+                                    <button 
+                                        onClick={() => setSearchTerm('')}
+                                        className="absolute right-3 p-1 text-gray-400 hover:text-gray-600"
+                                    >
+                                        <XMarkIcon className="w-5 h-5" />
+                                    </button>
+                                )}
                             </div>
-                            <RejectedBookingsList bookings={rejectedBookings} role="vendor" searchTerm={searchTerm} />
+                            <button onClick={() => exportBookingsToCSV(filteredVendorBookings, 'bookings')} className="px-4 py-2 bg-white border rounded-md text-sm font-bold hover:bg-gray-50">Export</button>
                         </div>
+                    </div>
+                    
+                    {searchTerm.trim() !== '' ? (
+                        <div className="mt-8 mb-8 animate-fadeIn">
+                            <MyBookingsList bookings={filteredVendorBookings} onEditBooking={handleEditFromList} onDeleteBooking={handleDeleteBooking} searchTerm={searchTerm} onRequestSms={handleRequestSms} />
+                        </div>
+                    ) : (
+                        <>
+                            <div className="mt-8 space-y-8">
+                                <div>
+                                    <h2 className="text-xl font-bold text-gray-800 mb-4">Your Recent Bookings</h2>
+                                    < MyBookingsList bookings={activeBookings} onEditBooking={handleEditFromList} onDeleteBooking={handleDeleteBooking} searchTerm={searchTerm} onRequestSms={handleRequestSms} />
+                                </div>
+                            </div>
+
+                            <div className="mt-12 space-y-8">
+                                <ArchivedBookingsList bookings={archivedBookings} role="vendor" searchTerm={searchTerm} />
+                            </div>
+
+                            {rejectedBookings.length > 0 && (
+                                <div className="mt-12 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden animate-fadeIn">
+                                    <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                                        <h3 className="text-xl font-black text-[#0F172A] tracking-tight">Rejected Appointments ({rejectedBookings.length})</h3>
+                                    </div>
+                                    <RejectedBookingsList bookings={rejectedBookings} role="vendor" searchTerm={searchTerm} />
+                                </div>
+                            )}
+                        </>
                     )}
                   </div>
               )}

@@ -9,7 +9,6 @@ import BdmDashboard from './components/BdmDashboard';
 import { subscribeToState, saveStateToFirebase } from './services/firebaseService';
 import { isFirebaseConfigured, auth } from './firebaseConfig';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
-import { XMarkIcon } from './components/Icons';
 
 const defaultState: PersistedState = {
   allBookings: [],
@@ -54,6 +53,7 @@ const App: React.FC = () => {
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
   
+  // Ref to track if the state update is coming from Firestore to avoid redundant writes
   const isIncomingUpdate = useRef(false);
 
   const processIncomingState = useCallback((incomingState: Partial<PersistedState>): PersistedState => {
@@ -74,8 +74,6 @@ const App: React.FC = () => {
 
       if (mergedState.vendors && Array.isArray(mergedState.vendors)) {
           mergedState.vendors = mergedState.vendors.map(migrateVendor);
-          
-          // CRITICAL: Ensure Dharmesh account ALWAYS exists in the vendor list
           const masterVendor = VENDORS[0];
           const hasMaster = mergedState.vendors.some((v: Vendor) => v.username.toLowerCase() === masterVendor.username.toLowerCase());
           if (!hasMaster) {
@@ -105,13 +103,6 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (isFirebaseReady && !isIncomingUpdate.current) {
-        saveStateToFirebase(appState);
-    }
-    isIncomingUpdate.current = false;
-  }, [appState, isFirebaseReady]);
-
-  useEffect(() => {
     if (!isFirebaseConfigured || !auth) {
         const saved = localStorage.getItem('vendorBookingAppState');
         if (saved) setAppState(JSON.parse(saved));
@@ -127,6 +118,7 @@ const App: React.FC = () => {
                 isIncomingUpdate.current = true;
                 setAppState(processed);
                 localStorage.setItem('vendorBookingAppState', JSON.stringify(processed));
+                // Ref reset is handled in the render or next tick, but setting ready here
             }
             setIsFirebaseReady(true);
             setFirebaseError(null);
@@ -168,11 +160,26 @@ const App: React.FC = () => {
     styleEl.innerHTML = styleContent;
   }, [branding]);
 
+  /**
+   * REFACTORED: Targeted Write-Through Update
+   * This ensures that every state change is immediately persisted to Firestore
+   * without waiting for a global useEffect or risking race conditions.
+   */
   const updateState = (key: keyof PersistedState, updater: any) => {
-      setAppState(prev => ({
-          ...prev,
-          [key]: typeof updater === 'function' ? updater(prev[key]) : updater
-      }));
+      setAppState(prev => {
+          const currentValue = prev[key];
+          const newValue = typeof updater === 'function' ? updater(currentValue) : updater;
+          
+          // Persist the specific change to Firebase immediately
+          if (isFirebaseReady) {
+              saveStateToFirebase({ [key]: newValue });
+          }
+          
+          return {
+              ...prev,
+              [key]: newValue
+          };
+      });
   };
 
   const salespeopleCount = useMemo(() => {

@@ -2,9 +2,8 @@
 import type { PublicHoliday, Region, LeaveDay, AppointmentSlotsConfig } from '../types';
 
 /**
- * Formats a Date object into a YYYY-MM-DD string.
- * @param date The date to format.
- * @returns A string in YYYY-MM-DD format.
+ * Formats a Date object into a YYYY-MM-DD string using Local Time.
+ * This is crucial to avoid UTC shifts that cause dates to move +1 or -1 days.
  */
 export const formatDateForStorage = (date: Date): string => {
     const year = date.getFullYear();
@@ -43,9 +42,7 @@ export const isWorkday = (
   
   // Check Holiday Ranges
   const isHoliday = publicHolidays.some(h => {
-      // Check if this holiday applies to the region
       if (!h.regions.includes(region)) return false;
-      // Check date range
       return dateString >= h.startDate && dateString <= h.endDate;
   });
 
@@ -56,7 +53,6 @@ export const isWorkday = (
   // --- PRIORITY 3: CAPACITY CHECK (Office Events / All Staff Leave) ---
   const totalBdms = salespeopleCount[region] || 0;
   
-  // If there are BDMs assigned to this region, check if they are ALL on leave
   if (totalBdms > 0) {
     const bdmsOnAllDayLeave = leaveDays.filter(l => 
         l.date === dateString && 
@@ -88,7 +84,6 @@ export const getNextTwoWorkdays = (
   let currentDate = new Date(today);
   let attempts = 0;
   
-  // Loop until we find 2 days or hit a safety limit (e.g., 60 days out)
   while (workdays.length < 2 && attempts < 60) {
     currentDate.setDate(currentDate.getDate() + 1);
     attempts++;
@@ -101,7 +96,7 @@ export const getNextTwoWorkdays = (
 };
 
 /**
- * Formats a Date object into a readable string format.
+ * Formats a Date object into a readable string format using Local components.
  */
 export const formatDisplayDate = (date: Date): string => {
     return date.toLocaleDateString('en-US', {

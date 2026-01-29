@@ -1,14 +1,33 @@
 
 import { db } from '../firebaseConfig';
-import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import type { PersistedState } from '../types';
 
 const DOC_ID = 'globalState';
 const COLLECTION_NAME = 'app_data';
 
 /**
+ * Recursively removes any keys with the value of undefined from an object.
+ * Firestore does not support 'undefined' as a value, even with merge: true.
+ */
+const stripUndefined = (obj: any): any => {
+    if (Array.isArray(obj)) {
+        return obj.map(item => stripUndefined(item));
+    } else if (obj !== null && typeof obj === 'object') {
+        const cleaned: any = {};
+        Object.keys(obj).forEach(key => {
+            const val = obj[key];
+            if (val !== undefined) {
+                cleaned[key] = stripUndefined(val);
+            }
+        });
+        return cleaned;
+    }
+    return obj;
+};
+
+/**
  * Listens to the global Firestore document and triggers a callback on every change.
- * This is the heart of the real-time multi-user synchronization.
  */
 export const subscribeToState = (
     onUpdate: (data: Partial<PersistedState>) => void,
@@ -23,7 +42,6 @@ export const subscribeToState = (
             const data = docSnap.data() as Partial<PersistedState>;
             onUpdate(data);
         } else {
-            // Document doesn't exist yet, return empty object to trigger default initialization
             onUpdate({});
         }
     }, (error) => {
@@ -33,18 +51,19 @@ export const subscribeToState = (
 };
 
 /**
- * Saves the current app state to Firestore.
- * In a multi-user environment, this ensures all clients stay in sync.
+ * Saves specific fields of the app state to Firestore.
+ * This targeted update approach prevents race conditions and significantly 
+ * improves performance by reducing payload size.
  */
-export const saveStateToFirebase = async (state: PersistedState) => {
+export const saveStateToFirebase = async (partialState: Partial<PersistedState>) => {
     if (!db) return;
 
     try {
         const docRef = doc(db, COLLECTION_NAME, DOC_ID);
-        // We use setDoc which overwrites. In a high-traffic app, 
-        // updateDoc or transactions would be better, but for this portal,
-        // setDoc ensures the entire complex object (branding, slots, etc) stays aligned.
-        await setDoc(docRef, state, { merge: false });
+        // Clean the payload to remove any 'undefined' values that would crash Firestore
+        const cleanedState = stripUndefined(partialState);
+        // Using merge: true ensures we only overwrite the keys provided in partialState
+        await setDoc(docRef, cleanedState, { merge: true });
     } catch (e) {
         console.error("Failed to sync state to cloud:", e);
     }
