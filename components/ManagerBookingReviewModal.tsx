@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { Booking, AppointmentSlotsConfig } from '../types';
 import { XMarkIcon } from './Icons';
@@ -30,34 +31,68 @@ const ManagerBookingReviewModal: React.FC<ManagerBookingReviewModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg">
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg animate-scaleIn">
         <div className="flex justify-between items-center p-4 border-b bg-indigo-600 text-white rounded-t-lg">
           <h2 className="text-xl font-bold">Review Booking Request</h2>
-          <button onClick={onClose} className="text-indigo-100 hover:text-white"><XMarkIcon className="w-6 h-6" /></button>
+          <button onClick={onClose} className="text-indigo-100 hover:text-white transition-colors"><XMarkIcon className="w-6 h-6" /></button>
         </div>
         
         <div className="p-6 space-y-4">
             {/* Booking Summary */}
-            <div className="bg-gray-50 p-4 rounded-md border border-gray-200 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="font-semibold">Client:</span> <span>{booking.clientName}</span></div>
-                <div className="flex justify-between"><span className="font-semibold">Business:</span> <span>{booking.businessName}</span></div>
-                <div className="flex justify-between"><span className="font-semibold">Requested By:</span> <span>{booking.callerName} (BDM)</span></div>
-                <div className="flex justify-between"><span className="font-semibold">Date:</span> <span>{booking.date}</span></div>
-                <div className="flex justify-between text-indigo-700 font-bold"><span className="font-semibold">Requested Time:</span> <span>{booking.time}</span></div>
-                {booking.notes && <div className="pt-2 border-t border-gray-200 mt-2"><span className="font-semibold block mb-1">Notes:</span> {booking.notes}</div>}
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-2 text-sm shadow-sm">
+                <div className="flex justify-between">
+                  <span className="font-bold text-gray-500 uppercase text-[10px] tracking-wider">Client:</span> 
+                  <span className="font-semibold text-gray-900">{booking.clientName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-bold text-gray-500 uppercase text-[10px] tracking-wider">Business:</span> 
+                  <span className="font-semibold text-gray-900">{booking.businessName}</span>
+                </div>
+                {booking.clientWebsite && (
+                    <div className="flex justify-between items-center">
+                        <span className="font-bold text-gray-500 uppercase text-[10px] tracking-wider">Website:</span>
+                        <a 
+                            href={booking.clientWebsite.startsWith('http') ? booking.clientWebsite : `https://${booking.clientWebsite}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-indigo-600 hover:text-indigo-800 font-bold underline transition-colors truncate max-w-[220px]"
+                            title={booking.clientWebsite}
+                        >
+                            {booking.clientWebsite}
+                        </a>
+                    </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="font-bold text-gray-500 uppercase text-[10px] tracking-wider">Requested By:</span> 
+                  <span className="font-semibold text-gray-900">{booking.callerName || booking.vendor.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-bold text-gray-500 uppercase text-[10px] tracking-wider">Date:</span> 
+                  <span className="font-semibold text-gray-900">{new Date(booking.date + 'T00:00:00Z').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                </div>
+                <div className="flex justify-between text-indigo-700 font-black">
+                  <span className="font-bold text-indigo-500 uppercase text-[10px] tracking-wider">Requested Time:</span> 
+                  <span>{booking.time}</span>
+                </div>
+                {booking.notes && (
+                  <div className="pt-3 border-t border-gray-200 mt-2">
+                    <span className="font-bold text-gray-500 uppercase text-[10px] tracking-wider block mb-1">Notes:</span> 
+                    <p className="text-gray-700 italic leading-relaxed bg-white/50 p-2 rounded border border-gray-100">{booking.notes}</p>
+                  </div>
+                )}
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-gray-200">
+            <div className="flex bg-gray-100 p-1 rounded-xl">
                 <button 
                     onClick={() => setActiveTab('approve')}
-                    className={`flex-1 py-2 text-sm font-medium ${activeTab === 'approve' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'} transition-colors`}
+                    className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${activeTab === 'approve' ? 'bg-white text-indigo-600 shadow' : 'text-gray-500 hover:text-gray-700'}`}
                 >
                     Approve & Configure
                 </button>
                 <button 
                     onClick={() => setActiveTab('reject')}
-                    className={`flex-1 py-2 text-sm font-medium ${activeTab === 'reject' ? 'text-red-600 border-b-2 border-red-600' : 'text-gray-500 hover:text-gray-700'} transition-colors`}
+                    className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${activeTab === 'reject' ? 'bg-white text-red-600 shadow' : 'text-gray-500 hover:text-gray-700'}`}
                 >
                     Reject Request
                 </button>
@@ -65,25 +100,26 @@ const ManagerBookingReviewModal: React.FC<ManagerBookingReviewModalProps> = ({
 
             {activeTab === 'approve' && (
                 <div className="space-y-3 animate-fadeIn">
-                    <p className="text-sm text-gray-700 font-medium">Select standard slots to remove/block (if any):</p>
-                    <div className="grid grid-cols-2 gap-2 bg-gray-50 p-3 rounded border border-gray-200 max-h-40 overflow-y-auto">
+                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">Select standard slots to remove/block (if any):</label>
+                    <div className="grid grid-cols-2 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200 max-h-40 overflow-y-auto shadow-inner">
                         {standardSlotsForDay.map(slot => (
-                            <label key={slot} className="flex items-center space-x-2 text-sm">
+                            <label key={slot} className="flex items-center gap-3 cursor-pointer group">
                                 <input 
                                     type="checkbox" 
                                     value={slot} 
                                     checked={slotsToRemove.includes(slot)} 
                                     onChange={handleSlotChange}
-                                    className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" 
+                                    className="h-5 w-5 text-indigo-600 rounded-md border-gray-300 focus:ring-indigo-500 transition-all cursor-pointer" 
                                 />
-                                <span>{slot}</span>
+                                <span className="text-sm font-bold text-gray-700 group-hover:text-black">{slot}</span>
                             </label>
                         ))}
+                        {standardSlotsForDay.length === 0 && <p className="col-span-2 text-center text-xs text-gray-400 italic py-2">No standard slots available for this date.</p>}
                     </div>
-                    <p className="text-xs text-gray-500">Selected slots will be marked as 'Blocked' on the Vendor Dashboard.</p>
+                    <p className="text-[10px] text-gray-400 font-medium italic">Selected slots will be marked as 'Blocked' on the Vendor Dashboard to prevent overlap.</p>
                     <button 
                         onClick={() => onApprove(booking.id, slotsToRemove)}
-                        className="w-full py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-semibold mt-2"
+                        className="w-full py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-black uppercase tracking-widest text-xs shadow-lg shadow-green-100 transition-all active:scale-95"
                     >
                         Confirm Approval
                     </button>
@@ -91,21 +127,23 @@ const ManagerBookingReviewModal: React.FC<ManagerBookingReviewModalProps> = ({
             )}
 
             {activeTab === 'reject' && (
-                <div className="space-y-3 animate-fadeIn">
-                     <label className="block text-sm font-medium text-gray-700">Reason for Rejection</label>
-                     <textarea 
-                        value={rejectionReason}
-                        onChange={(e) => setRejectionReason(e.target.value)}
-                        rows={3}
-                        className="w-full border border-gray-300 rounded-md p-2 text-sm"
-                        placeholder="Why is this request being rejected?"
-                     />
+                <div className="space-y-4 animate-fadeIn">
+                     <div>
+                       <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Reason for Rejection</label>
+                       <textarea 
+                          value={rejectionReason}
+                          onChange={(e) => setRejectionReason(e.target.value)}
+                          rows={4}
+                          className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl p-4 text-sm focus:border-red-500 focus:ring-0 transition-all outline-none"
+                          placeholder="Please explain why this request is being rejected..."
+                       />
+                     </div>
                      <button 
                         onClick={() => onReject(booking.id, rejectionReason)}
                         disabled={!rejectionReason.trim()}
-                        className="w-full py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-semibold mt-2 disabled:bg-gray-400"
+                        className="w-full py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 font-black uppercase tracking-widest text-xs shadow-lg shadow-red-100 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Reject Request
+                        Submit Rejection
                     </button>
                 </div>
             )}

@@ -23,8 +23,8 @@ import TimePicker from './TimePicker';
 import TrendAnalytics, { TimePeriod } from './TrendAnalytics';
 import NotificationSettings from './NotificationSettings';
 import BdmBookingRequestModal from './BdmBookingRequestModal';
+import BdmOutcomePerformance from './BdmOutcomePerformance';
 import { sendEmailNotification } from '../utils/emailService';
-// Fixed typo in import statement: changed PUBLIC_HYLIDAYS to PUBLIC_HOLIDAYS.
 import { DEFAULT_NOTIFICATION_PREFERENCES, MANAGERS, VENDORS, BDMS, PUBLIC_HOLIDAYS, APPOINTMENT_TIMES, DEFAULT_BRANDING, DEFAULT_REGION_COLORS } from '../constants';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -379,6 +379,20 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             return bDate >= visibilityCutoff;
         });
     }, [allBookings, searchTerm, visibilityCutoff]);
+
+    // Analytics Specific Data Filtering based on user chosen date range
+    const analyticsBookings = useMemo(() => {
+        return allBookings.filter(b => {
+            if (b.isBlocker) return false;
+            const [y, m, d] = b.date.split('-').map(Number);
+            const bDate = new Date(y, m - 1, d);
+            
+            if (analyticsDateRange.startDate && bDate < new Date(analyticsDateRange.startDate)) return false;
+            if (analyticsDateRange.endDate && bDate > new Date(analyticsDateRange.endDate)) return false;
+            
+            return true;
+        });
+    }, [allBookings, analyticsDateRange]);
 
     // 1. ACTIVE LEADS: Active, Pending, or Rescheduled (BDM)
     // Updated sort to descending: Newer leads on top, Older leads at bottom.
@@ -1015,13 +1029,42 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                             </>
                         )}
                         {activeTab === 'analytics' && (
-                          <div className="space-y-8 animate-fadeIn">
-                            <AnalyticsDashboard bookings={allBookings.filter(b => !b.isBlocker)} isManager={true} />
-                            <TrendAnalytics bookings={allBookings.filter(b => !b.isBlocker)} period={analyticsTimePeriod} />
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                <StatusAnalytics bookings={allBookings.filter(b => !b.isBlocker)} title="Database Distribution" />
-                                <VendorPerformanceAnalytics bookings={allBookings.filter(b => !b.isBlocker)} vendors={vendors} />
+                          <div className="space-y-8 animate-fadeIn pb-20">
+                            {/* Analytics Controls Section */}
+                            <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+                                <h3 className="text-lg font-bold text-gray-800 mb-4">Analytics Controls</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                                    <DateRangePicker startDate={analyticsDateRange.startDate} endDate={analyticsDateRange.endDate} onDateChange={setAnalyticsDateRange} />
+                                    <div className="flex flex-col">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Trend Grouping</label>
+                                        <div className="flex rounded-md shadow-sm">
+                                            {['daily', 'weekly', 'monthly', 'yearly'].map(p => (
+                                                <button 
+                                                    key={p} 
+                                                    onClick={() => setAnalyticsTimePeriod(p as any)} 
+                                                    className={`flex-1 py-2 text-sm border capitalize transition-all ${analyticsTimePeriod === p ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                                                >
+                                                    {p}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+
+                            <AnalyticsDashboard bookings={analyticsBookings} isManager={true} />
+                            
+                            {/* New BDM Performance Table */}
+                            <BdmOutcomePerformance bookings={analyticsBookings} bdms={bdms} />
+
+                            <TrendAnalytics bookings={analyticsBookings} period={analyticsTimePeriod} />
+                            
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                <StatusAnalytics bookings={analyticsBookings} title="Database Distribution" />
+                                <VendorPerformanceAnalytics bookings={analyticsBookings} vendors={vendors} />
+                            </div>
+                            
+                            <PerformanceLeadLog bookings={analyticsBookings} title="Comprehensive Analytics Lead Log" />
                           </div>
                         )}
                         {activeTab === 'users' && (
@@ -1139,7 +1182,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                         <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody className="bg-white divide-y divide-gray-100">
+                                                <tbody className="bg-white divide-y divide-100">
                                                     {sortedManagers.map(m => (
                                                         <tr key={m.id} className="hover:bg-gray-50 transition-colors">
                                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">{m.name}</td>
