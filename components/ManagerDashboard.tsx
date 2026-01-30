@@ -231,7 +231,7 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Duplicate</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-100">
+                                <tbody className="divide-y divide-100">
                                     {newBookings.slice(0, 20).map((b, idx) => (
                                         <tr key={idx} className={`hover:bg-gray-50 transition-colors ${b.isDuplicate ? 'bg-amber-50/50' : ''}`}>
                                             <td className="p-3 font-bold text-gray-900 whitespace-nowrap">{b.businessName || '-'}</td>
@@ -457,7 +457,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                 b.clientName.toLowerCase().includes(lowerFilter) || 
                 b.businessName.toLowerCase().includes(lowerFilter)
             );
-        }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        }).sort((a, b) => b.id - a.id);
     }, [visibleBookings, searchTerm]);
 
     const bdmsByRegion = useMemo(() => bdms.reduce((acc, bdm) => { if (bdm.active !== false) { if (!acc[bdm.region]) acc[bdm.region] = []; acc[bdm.region].push(bdm); } return acc; }, {} as Record<Region, BDM[]>), [bdms]);
@@ -975,7 +975,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                         <button onClick={() => setIsManualBookingOpen(true)} className="px-6 py-3 bg-black text-white rounded-xl hover:bg-gray-800 shadow-md transition-all font-bold uppercase text-xs tracking-widest flex items-center gap-2">
                                             <PlusIcon className="w-4 h-4" /> Book Lead
                                         </button>
-                                        <button onClick={() => exportBookingsToCSV(activeLeads.concat(rejectedLeads, archivedLeads), 'leads_report')} className="px-5 py-3 bg-white border border-gray-200 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center gap-2">
+                                        <button onClick={() => exportBookingsToCSV(allBookings, 'leads_report')} className="px-5 py-3 bg-white border border-gray-200 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center gap-2">
                                             <ArrowDownTrayIcon className="w-4 h-4" /> Export
                                         </button>
                                     </div>
@@ -1104,7 +1104,8 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                 <VendorPerformanceAnalytics bookings={analyticsBookings} vendors={vendors} />
                             </div>
                             
-                            <PerformanceLeadLog bookings={analyticsBookings} title="Comprehensive Analytics Lead Log" />
+                            {/* OVERHAULED LOG COMPONENT */}
+                            <PerformanceLeadLog bookings={analyticsBookings} bdms={bdms} title="Global Data Report Log" />
                           </div>
                         )}
                         {activeTab === 'users' && (
