@@ -162,7 +162,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ user, type, onClose, onSa
                         <div className="flex gap-2 mt-1">
                             <div className="relative flex-grow">
                                 <input type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} required className="block w-full border border-gray-300 rounded-md p-2 pr-10 shadow-sm" />
-                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-gray-600">{showPassword ? <EyeSlashIcon className="w-4 h-4"/> : <EyeIcon className="w-4 h-4"/>}</button>
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-indigo-600">{showPassword ? <EyeSlashIcon className="w-4 h-4"/> : <EyeIcon className="w-4 h-4"/>}</button>
                             </div>
                             <button type="button" onClick={handleGeneratePassword} className="px-3 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md hover:bg-indigo-100 text-xs font-bold whitespace-nowrap transition-colors">Gen</button>
                         </div>
@@ -394,12 +394,18 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         });
     }, [allBookings, analyticsDateRange]);
 
+    // PENDING REQUESTS: For callers or BDMs needing manual date approval
+    const pendingRequests = useMemo(() => {
+        return allBookings.filter(b => b.status === 'pending_approval' && !b.isBlocker)
+            .sort((a, b) => b.id - a.id);
+    }, [allBookings]);
+
     // 1. ACTIVE LEADS: Active, Pending, or Rescheduled (BDM)
     // Updated sort to descending: Newer leads on top, Older leads at bottom.
     const activeLeads = useMemo(() => {
         const lowerFilter = searchTerm.trim().toLowerCase();
         return visibleBookings.filter(b => {
-            const matchesStatus = ['active', 'pending_approval', 'rescheduled_bdm'].includes(b.status);
+            const matchesStatus = ['active', 'rescheduled_bdm'].includes(b.status);
             if (!matchesStatus) return false;
             
             if (!lowerFilter) return true;
@@ -911,6 +917,42 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                     <div className="mt-6">
                         {activeTab === 'bookings' && (
                             <>
+                                {pendingRequests.length > 0 && (
+                                    <div className="mb-10 animate-fadeIn">
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <div className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
+                                            <h2 className="text-sm font-black text-indigo-900 uppercase tracking-widest">Pending Manual Requests ({pendingRequests.length})</h2>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            {pendingRequests.map(req => (
+                                                <div key={req.id} className="bg-white rounded-xl border-2 border-indigo-100 p-4 shadow-md shadow-indigo-100/50 hover:border-indigo-300 transition-all flex flex-col justify-between">
+                                                    <div>
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <div className="text-xs font-black text-indigo-600 uppercase bg-indigo-50 px-2 py-0.5 rounded">{req.vendor.name}</div>
+                                                            <div className="text-[10px] font-bold text-gray-400 uppercase">{req.region}</div>
+                                                        </div>
+                                                        <div className="font-bold text-gray-900 leading-tight mb-1">{req.businessName}</div>
+                                                        <div className="text-xs text-gray-500 mb-3">{req.clientName}</div>
+                                                        <div className="flex items-center gap-2 text-xs font-bold text-gray-700 mb-3">
+                                                            <CalendarDaysIcon className="w-3.5 h-3.5 text-gray-400" />
+                                                            {new Date(req.date + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                            <span className="text-gray-300">|</span>
+                                                            <ClockIcon className="w-3.5 h-3.5 text-gray-400" />
+                                                            {req.time}
+                                                        </div>
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => setRequestToReview(req)}
+                                                        className="w-full py-2 bg-indigo-600 text-white rounded-lg font-black uppercase text-[10px] tracking-widest hover:bg-indigo-700 shadow-sm transition-all"
+                                                    >
+                                                        Review & Action
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="flex flex-col sm:flex-row items-end justify-between gap-4 mt-4">
                                     <div className="flex-grow max-w-2xl">
                                         <div className="relative flex items-center">
@@ -979,9 +1021,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                                             <td className="px-6 py-4 text-sm font-bold text-gray-900">{b.time}</td>
                                                                             <td className="px-6 py-4"><span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-gray-100 text-gray-600 uppercase">{b.region}</span></td>
                                                                             <td className="px-6 py-4">
-                                                                                {b.status === 'pending_approval' ? (
-                                                                                    <button onClick={() => setRequestToReview(b)} className="bg-purple-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-purple-700 animate-pulse">Needs Review</button>
-                                                                                ) : getStatusPill(b.status)}
+                                                                                {getStatusPill(b.status)}
                                                                             </td>
                                                                             <td className="px-6 py-4 text-right">
                                                                                 <div className="flex items-center justify-end gap-2">
@@ -1130,7 +1170,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                         <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody className="bg-white divide-y divide-gray-100">
+                                                <tbody className="bg-white divide-y divide-100">
                                                     {sortedBdms.map(b => (
                                                         <tr key={b.id} className="hover:bg-gray-50 transition-colors">
                                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">{b.name}</td>

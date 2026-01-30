@@ -372,7 +372,8 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
         </main>
         {bookingToUpdate && <BdmUpdateStatusModal booking={bookingToUpdate} onClose={() => setBookingToUpdate(null)} onSave={handleUpdateBookingStatus} />}
         {bookingToManageNotes && <BdmNoteReminderModal booking={bookingToManageNotes} onClose={() => setBookingToManageNotes(null)} onSave={handleSaveNoteAndReminder} />}
-        {isRequestModalOpen && <BdmBookingRequestModal currentUser={currentUser} vendors={vendors} onClose={() => setIsRequestModalOpen(false)} onRequestBooking={handleRequestBooking} prefillData={requestModalPrefill} regions={regions} />}
+        {/* FIX: Added missing 'appointmentTimes' prop required by BdmBookingRequestModal */}
+        {isRequestModalOpen && <BdmBookingRequestModal currentUser={currentUser} vendors={vendors} onClose={() => setIsRequestModalOpen(false)} onRequestBooking={handleRequestBooking} prefillData={requestModalPrefill} regions={regions} appointmentTimes={appointmentTimes} />}
       </div>
     </div>
   );

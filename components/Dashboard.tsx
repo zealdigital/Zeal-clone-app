@@ -10,7 +10,7 @@ import RejectedBookingsList from './RejectedBookingsList';
 import CallerPerformanceAnalytics from './CallerPerformanceAnalytics';
 import StatusAnalytics from './StatusAnalytics';
 import PerformanceLeadLog from './PerformanceLeadLog';
-import { MagnifyingGlassIcon, ArrowDownTrayIcon, ChartBarIcon, DocumentTextIcon, PresentationChartLineIcon, XMarkIcon, Cog6ToothIcon, CalendarDaysIcon, PlusIcon, ExclamationTriangleIcon } from './Icons';
+import { MagnifyingGlassIcon, ArrowDownTrayIcon, ChartBarIcon, DocumentTextIcon, PresentationChartLineIcon, XMarkIcon, Cog6ToothIcon, CalendarDaysIcon, PlusIcon, ExclamationTriangleIcon, ClockIcon } from './Icons';
 import DateRangePicker from './DateRangePicker';
 import { exportBookingsToCSV } from '../utils/exportUtils';
 import { getRegionBackgroundColor } from '../utils/regionUtils';
@@ -130,6 +130,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     setAllBookings(prevBookings => {
         const otherBookings = prevBookings.filter(b => b.id !== bookingToEdit.id && b.parentBookingId !== bookingToEdit.id);
         const updatedBooking: Booking = { ...bookingToEdit, ...updatedDetails };
+        // FIX: Replaced undefined 'mainBookingId' with 'Date.now()' to generate unique IDs for blocker slots
         const newBlockers: Booking[] = slotsToRemove.map((time, index) => ({ id: Date.now() + index + 1, clientName: `Slot Blocked`, businessName: `Conflict`, clientWebsite: '', clientPhone: '', address: '', callerName: 'System', date: updatedBooking.date, time: time, vendor: bookingToEdit.vendor, region: updatedBooking.region, isBlocker: true, parentBookingId: updatedBooking.id, status: 'active' }));
         return [...otherBookings, updatedBooking, ...newBlockers];
     });
@@ -184,7 +185,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const filteredVendorBookings = useMemo(() => {
     const lowercasedFilter = searchTerm.trim().toLowerCase();
     return vendorVisibleBookings.filter(booking => {
-      if (booking.status === 'rejected') return false; 
+      if (booking.status === 'rejected' || booking.status === 'pending_approval') return false; 
       
       const bookingDate = new Date(booking.date);
       if (dateRange.startDate && bookingDate < new Date(dateRange.startDate)) return false;
@@ -207,16 +208,26 @@ const Dashboard: React.FC<DashboardProps> = ({
     });
   }, [searchTerm, vendorVisibleBookings, dateRange]);
 
+  // PENDING MANUAL REQUESTS for current vendor
+  const pendingRequests = useMemo(() => {
+      return myBookings.filter(b => b.status === 'pending_approval' && !b.isBlocker)
+        .sort((a, b) => b.id - a.id);
+  }, [myBookings]);
+
   const analyticsBookings = useMemo(() => {
     return allBookings.filter(b => {
       if (b.isBlocker) return false;
+      
+      // FIX: Ensure calling team only sees their own team's leads in performance analytics
+      if (b.vendor.id !== currentUser.id) return false;
+      
       if (allowedRegions.length > 0 && !allowedRegions.includes(b.region)) return false;
       const bDate = new Date(b.date);
       if (analyticsDateRange.startDate && bDate < new Date(analyticsDateRange.startDate)) return false;
       if (analyticsDateRange.endDate && bDate > new Date(analyticsDateRange.endDate)) return false;
       return true;
     });
-  }, [allBookings, analyticsDateRange, allowedRegions]);
+  }, [allBookings, analyticsDateRange, allowedRegions, currentUser.id]);
 
   const archivedBookings = useMemo(() => {
     const allArchived = vendorVisibleBookings.filter(b => ['seen', 'rescheduled', 'cancelled', 'dq', 'rescheduled_bdm'].includes(b.status));
@@ -270,6 +281,38 @@ const Dashboard: React.FC<DashboardProps> = ({
 
               {activeTab === 'bookings' && (
                   <div className="animate-fadeIn">
+                    {/* TOP SECTION: Pending Manual Requests */}
+                    {pendingRequests.length > 0 && (
+                        <div className="mb-8 animate-fadeIn">
+                            <div className="flex items-center gap-2 mb-4">
+                                <ClockIcon className="w-4 h-4 text-indigo-600 animate-spin-slow" />
+                                <h2 className="text-sm font-black text-indigo-900 uppercase tracking-widest">Your Pending Manual Requests ({pendingRequests.length})</h2>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {pendingRequests.map(req => (
+                                    <div key={req.id} className="bg-white/80 backdrop-blur rounded-xl border border-indigo-200 p-3 shadow-sm flex flex-col justify-between">
+                                        <div>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <div className="text-[10px] font-black text-indigo-600 uppercase">Pending Approval</div>
+                                                <div className="text-[10px] font-bold text-gray-400 uppercase">{req.region}</div>
+                                            </div>
+                                            <div className="font-bold text-gray-900 text-sm leading-tight truncate">{req.businessName}</div>
+                                            <div className="text-[11px] text-gray-500 truncate mb-2">{req.clientName}</div>
+                                            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-600">
+                                                <CalendarDaysIcon className="w-3 h-3 text-gray-400" />
+                                                {new Date(req.date + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                <span className="text-gray-300">|</span>
+                                                <ClockIcon className="w-3 h-3 text-gray-400" />
+                                                {req.time}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="mt-2 text-[10px] text-indigo-400 font-bold uppercase tracking-tighter">Managers have been notified. Please wait for confirmation.</div>
+                        </div>
+                    )}
+
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                         <div className="border-b border-gray-300 flex-grow">
                             <nav className="-mb-px flex space-x-8 overflow-x-auto">
@@ -357,7 +400,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               {activeTab === 'performance' && (
                   <div className="animate-fadeIn mt-6 space-y-8">
                     <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-                      <h3 className="text-lg font-bold text-gray-800 mb-4">Team Analytics (Global)</h3>
+                      <h3 className="text-lg font-bold text-gray-800 mb-4">Team Performance Analytics</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                         <DateRangePicker startDate={analyticsDateRange.startDate} endDate={analyticsDateRange.endDate} onDateChange={setAnalyticsDateRange} />
                         <div className="flex flex-col">
@@ -373,7 +416,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       <StatusAnalytics bookings={analyticsBookings} title="Team Booking Status Breakdown" />
                       <CallerPerformanceAnalytics bookings={analyticsBookings} />
                     </div>
-                    <PerformanceLeadLog bookings={analyticsBookings} title="Global Performance Lead Log" />
+                    <PerformanceLeadLog bookings={analyticsBookings} title="Team Performance Lead Log" />
                   </div>
               )}
 
@@ -417,6 +460,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 onClose={() => setIsRequestModalOpen(false)} 
                 onRequestBooking={handleRequestManualBooking} 
                 regions={regions} 
+                appointmentTimes={appointmentTimes}
               />
           )}
         </div>
