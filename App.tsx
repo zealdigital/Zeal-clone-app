@@ -83,7 +83,16 @@ const App: React.FC = () => {
           mergedState.vendors = VENDORS.map(migrateVendor);
       }
 
-      if (mergedState.bdms) mergedState.bdms = mergedState.bdms.map(migrateUser);
+      if (mergedState.bdms && Array.isArray(mergedState.bdms)) {
+          mergedState.bdms = mergedState.bdms.map(migrateUser);
+          const masterBdm = BDMS[0];
+          const hasMaster = mergedState.bdms.some((b: BDM) => b.username.toLowerCase() === masterBdm.username.toLowerCase());
+          if (!hasMaster) {
+              mergedState.bdms.push(migrateUser(masterBdm));
+          }
+      } else {
+          mergedState.bdms = BDMS.map(migrateUser);
+      }
       
       if (mergedState.managers && Array.isArray(mergedState.managers)) {
           mergedState.managers = mergedState.managers.map(migrateUser);

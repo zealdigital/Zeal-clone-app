@@ -5,7 +5,7 @@ import { PhoneIcon } from './Icons';
 
 interface RejectedBookingsListProps {
   bookings: Booking[];
-  role: 'manager' | 'vendor';
+  role: 'manager' | 'vendor' | 'bdm';
   searchTerm?: string;
 }
 
@@ -30,7 +30,7 @@ const RejectedBookingsList: React.FC<RejectedBookingsListProps> = ({ bookings, r
               <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-gray-400 uppercase tracking-widest">Phone</th>
               <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-gray-400 uppercase tracking-widest">Date & Time</th>
               <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-gray-400 uppercase tracking-widest">Region</th>
-              <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-gray-400 uppercase tracking-widest">Booked By (Calling Team)</th>
+              {role !== 'bdm' && <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-gray-400 uppercase tracking-widest">Booked By (Calling Team)</th>}
               <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-gray-400 uppercase tracking-widest">Reason for Rejection</th>
               <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-gray-400 uppercase tracking-widest">Rejected By</th>
             </tr>
@@ -47,7 +47,10 @@ const RejectedBookingsList: React.FC<RejectedBookingsListProps> = ({ bookings, r
                   <div className="text-xs font-normal text-gray-500 mt-0.5">{booking.clientName}</div>
                 </td>
                 <td className="px-6 py-5 whitespace-nowrap">
-                   <PhoneIcon className="w-4 h-4 text-gray-300" />
+                   <div className="flex items-center gap-1">
+                      <PhoneIcon className="w-4 h-4 text-gray-300" />
+                      <span className="text-xs text-gray-500">{booking.clientPhone}</span>
+                   </div>
                 </td>
                 <td className="px-6 py-5 whitespace-nowrap">
                   <div className="text-sm font-normal text-gray-600">
@@ -60,9 +63,11 @@ const RejectedBookingsList: React.FC<RejectedBookingsListProps> = ({ bookings, r
                     {booking.region}
                   </span>
                 </td>
-                <td className="px-6 py-5 whitespace-nowrap text-sm font-normal text-gray-500">
-                   {booking.vendor.name}
-                </td>
+                {role !== 'bdm' && (
+                  <td className="px-6 py-5 whitespace-nowrap text-sm font-normal text-gray-500">
+                    {booking.vendor.name}
+                  </td>
+                )}
                 <td className="px-6 py-5 whitespace-normal text-sm font-normal text-red-500 max-w-xs leading-snug">
                     {booking.rejectionReason}
                 </td>

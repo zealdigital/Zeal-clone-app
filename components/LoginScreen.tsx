@@ -136,24 +136,36 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ vendors, managers, bdms, onLo
       return;
     }
     const searchUser = username.trim().toLowerCase();
-    if (loginAs === 'vendor' && searchUser === 'dharmesh' && password === 'dharm007') {
-        onLogin({ id: 201, name: 'Dharmesh', username: 'dharmesh', role: 'vendor', active: true, allowedRegions: ['NSW', 'VIC'], email: 'pia@zealdigital.com.au' } as User);
-        return;
-    }
-    let user: any = null;
-    if (loginAs === 'vendor') user = vendors.find(v => v.username.toLowerCase() === searchUser && v.password === password);
-    else if (loginAs === 'manager') user = managers.find(m => m.username.toLowerCase() === searchUser && m.password === password);
-    else user = bdms.find(b => b.username.toLowerCase() === searchUser && b.password === password);
-    if (user) {
-        if (user.active === false) {
-           setError('Account disabled. Please contact Pia.');
-           return;
+    
+    let userList: any[] = [];
+    if (loginAs === 'vendor') userList = vendors;
+    else if (loginAs === 'manager') userList = managers;
+    else userList = bdms;
+
+    const user = userList.find(u => u.username.toLowerCase() === searchUser);
+
+    if (!user) {
+        // Special case for Dharmesh who might be missing from list but hardcoded in Login logic
+        if (loginAs === 'vendor' && searchUser === 'dharmesh' && password === 'dharm007') {
+            onLogin({ id: 201, name: 'Dharmesh', username: 'dharmesh', role: 'vendor', active: true, allowedRegions: ['NSW', 'VIC'], email: 'pia@zealdigital.com.au' } as User);
+            return;
         }
-        const { password: _p, ...userInfo } = user;
-        onLogin({ ...userInfo, role: loginAs } as User);
+        setError(`User "${searchUser}" not found in ${loginAs} list.`);
         return;
     }
-    setError(`Invalid credentials for ${loginAs}.`);
+
+    if (user.password !== password) {
+        setError('Incorrect password. Please check your credentials.');
+        return;
+    }
+
+    if (user.active === false) {
+        setError('This account has been disabled. Please contact Pia.');
+        return;
+    }
+
+    const { password: _p, ...userInfo } = user;
+    onLogin({ ...userInfo, role: loginAs } as User);
   };
   
   const roleConfig = {

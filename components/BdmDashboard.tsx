@@ -17,6 +17,7 @@ import NotificationSettings from './NotificationSettings';
 import UnifiedCalendar from './UnifiedCalendar';
 import TrendAnalytics, { TimePeriod } from './TrendAnalytics';
 import StatusAnalytics from './StatusAnalytics';
+import RejectedBookingsList from './RejectedBookingsList';
 import { sendEmailNotification } from '../utils/emailService';
 
 interface BdmDashboardProps {
@@ -74,6 +75,14 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
       });
   }, [currentUser]);
 
+  // Rolling 7-day window calculation
+  const visibilityCutoff = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0); // Local midnight
+    d.setDate(d.getDate() - 7);
+    return d;
+  }, []);
+
   const handleSaveSettings = (e: React.FormEvent) => {
       e.preventDefault();
       onUpdateProfile({ ...currentUser, ...settingsForm } as any);
@@ -99,11 +108,30 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
 
   const myAssignedBookings = useMemo(() => myUniqueBookings.filter(b => b.status !== 'rejected' && b.status !== 'pending_approval'), [myUniqueBookings]);
   
-  // EXHAUSTIVE SEARCH FOR BDM
+  const pendingRequests = useMemo(() => {
+    return allBookings.filter(b => b.bdmId === currentUser.id && b.status === 'pending_approval' && !b.isBlocker)
+        .sort((a, b) => b.id - a.id);
+  }, [allBookings, currentUser.id]);
+
+  const rejectedBookings = useMemo(() => {
+    return allBookings.filter(b => b.bdmId === currentUser.id && b.status === 'rejected' && !b.isBlocker)
+        .sort((a, b) => b.id - a.id);
+  }, [allBookings, currentUser.id]);
+
+  // FRONT PAGE FILTER: 1 Week logic applied here
   const filteredBookings = useMemo(() => {
     const lowercasedFilter = searchTerm.trim().toLowerCase();
     return myAssignedBookings.filter(booking => {
-      const bookingDate = new Date(booking.date);
+      const [y, m, d] = booking.date.split('-').map(Number);
+      const bookingDate = new Date(y, m - 1, d); // Construct Local Date
+
+      // 7-Day Restriction logic for "front page" Appointments List
+      // Restriction is lifted if user provides a specific date range OR is searching
+      const isSearching = lowercasedFilter !== '' || dateRange.startDate || dateRange.endDate;
+      if (!isSearching && bookingDate < visibilityCutoff) {
+          return false;
+      }
+
       if (dateRange.startDate && bookingDate < new Date(dateRange.startDate)) return false;
       if (dateRange.endDate && bookingDate > new Date(dateRange.endDate)) return false;
       
@@ -124,18 +152,18 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
         booking.region.toLowerCase().includes(lowercasedFilter)
       );
     });
-  }, [searchTerm, myAssignedBookings, dateRange]);
+  }, [searchTerm, myAssignedBookings, dateRange, visibilityCutoff]);
 
   const analyticsBookings = useMemo(() => {
     return myUniqueBookings.filter(b => {
-      const bDate = new Date(b.date);
+      const [y, m, d] = b.date.split('-').map(Number);
+      const bDate = new Date(y, m - 1, d);
       if (analyticsDateRange.startDate && bDate < new Date(analyticsDateRange.startDate)) return false;
       if (analyticsDateRange.endDate && bDate > new Date(analyticsDateRange.endDate)) return false;
       return true;
     });
   }, [myUniqueBookings, analyticsDateRange]);
 
-  // Updated sort to descending: newest leads first.
   const groupedBookings = useMemo(() => {
     const sorted = [...filteredBookings].sort((a, b) => {
         const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
@@ -150,7 +178,6 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
     return groups;
   }, [filteredBookings]);
 
-  // Updated sort to descending for the group date headers
   const sortedDateKeys = useMemo(() => Object.keys(groupedBookings).sort((a, b) => new Date(b).getTime() - new Date(a).getTime()), [groupedBookings]);
 
   const handleUpdateBookingStatus = (bookingId: number, newStatus: Booking['status'], note: string) => {
@@ -240,7 +267,51 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
 
             {activeTab === 'dashboard' && (
                 <div className="animate-fadeIn">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4"><h1 className="text-3xl font-black text-gray-900">Your Appointments</h1><button onClick={() => handleOpenRequestModal(null)} className="flex items-center justify-center gap-2 px-6 py-2.5 bg-black text-white rounded-lg hover:bg-gray-800 shadow-md transition-all font-bold uppercase text-xs tracking-widest"><PlusIcon className="w-4 h-4" /> Request Booking</button></div>
+                    {/* Pending Approval Section */}
+                    {pendingRequests.length > 0 && (
+                        <div className="mb-8 animate-fadeIn">
+                            <div className="flex items-center gap-2 mb-4">
+                                <ClockIcon className="w-4 h-4 text-indigo-600 animate-spin-slow" />
+                                <h2 className="text-sm font-black text-indigo-900 uppercase tracking-widest">Pending Rebooking Approvals ({pendingRequests.length})</h2>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {pendingRequests.map(req => (
+                                    <div key={req.id} className="bg-white/80 backdrop-blur rounded-xl border border-indigo-200 p-3 shadow-sm flex flex-col justify-between">
+                                        <div>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <div className="text-[10px] font-black text-indigo-600 uppercase">Pending Review</div>
+                                                <div className="text-[10px] font-bold text-gray-400 uppercase">{req.region}</div>
+                                            </div>
+                                            <div className="font-bold text-gray-900 text-sm leading-tight truncate">{req.businessName}</div>
+                                            <div className="text-[11px] text-gray-500 truncate mb-2">{req.clientName}</div>
+                                            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-600">
+                                                <CalendarDaysIcon className="w-3 h-3 text-gray-400" />
+                                                {new Date(req.date + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                <span className="text-gray-300">|</span>
+                                                <ClockIcon className="w-3 h-3 text-gray-400" />
+                                                {req.time}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+                        <div>
+                            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Your Appointments</h1>
+                            {!searchTerm && !dateRange.startDate && (
+                                <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest mt-1 bg-indigo-50 inline-block px-2 py-0.5 rounded border border-indigo-100">
+                                    Showing last 7 days only
+                                </p>
+                            )}
+                        </div>
+                        <button onClick={() => handleOpenRequestModal(null)} className="flex items-center justify-center gap-2 px-6 py-2.5 bg-black text-white rounded-lg hover:bg-gray-800 shadow-md transition-all font-bold uppercase text-xs tracking-widest">
+                            <PlusIcon className="w-4 h-4" /> Request Booking
+                        </button>
+                    </div>
+                    
                     <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                         <DateRangePicker startDate={dateRange.startDate} endDate={dateRange.endDate} onDateChange={setDateRange} />
                         <div className="flex gap-2">
@@ -249,7 +320,7 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                                 <input 
                                     type="text" 
                                     className="block w-full rounded-md border-0 py-2.5 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-black" 
-                                    placeholder="Search Phone, Address, Website, Team..." 
+                                    placeholder="Search Leads..." 
                                     value={searchTerm} 
                                     onChange={e => setSearchTerm(e.target.value)} 
                                 />
@@ -266,13 +337,7 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                         </div>
                     </div>
                     
-                    {searchTerm.trim() !== '' ? (
-                        <div className="mt-8 mb-8 animate-fadeIn">
-                            <div className="bg-white rounded-xl shadow-md overflow-hidden border border-indigo-100">
-                                <PerformanceLeadLog bookings={filteredBookings} title="Matched Appointments" hideFilters={true} />
-                            </div>
-                        </div>
-                    ) : (
+                    <div className="space-y-12 pb-12">
                         <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
                             <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
@@ -288,11 +353,11 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
                                         {sortedDateKeys.length === 0 ? (
-                                            <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-500 italic">No appointments found.</td></tr>
+                                            <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-500 italic">No appointments found {(!searchTerm && !dateRange.startDate) ? 'in the last 7 days.' : 'matching your criteria.'}</td></tr>
                                         ) : (
                                             sortedDateKeys.map(dateKey => (
                                                 <React.Fragment key={dateKey}>
-                                                    <tr className="bg-gray-50 border-y border-gray-200"><td colSpan={6} className="px-6 py-3 text-sm font-bold text-gray-700 uppercase tracking-tight">{new Date(dateKey + 'T00:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</td></tr>
+                                                    <tr className="bg-gray-50 border-y border-gray-200"><td colSpan={6} className="px-6 py-3 text-sm font-bold text-gray-700 uppercase tracking-tight">{new Date(dateKey + 'T00:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}</td></tr>
                                                     {groupedBookings[dateKey].map(booking => (
                                                         <tr key={booking.id} className="hover:bg-blue-50/30 transition-colors">
                                                             <td className="px-6 py-5 align-top">
@@ -330,7 +395,20 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                                 </table>
                             </div>
                         </div>
-                    )}
+
+                        {/* Rejected Leads Section */}
+                        {rejectedBookings.length > 0 && (
+                            <div className="mt-12 animate-fadeIn">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <ExclamationTriangleIcon className="w-5 h-5 text-red-600" />
+                                    <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Rejected Booking Requests</h2>
+                                </div>
+                                <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+                                    <RejectedBookingsList bookings={rejectedBookings} role="bdm" searchTerm={searchTerm} />
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -352,7 +430,15 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                 <BdmAnalyticsDashboard bookings={analyticsBookings} />
                 <TrendAnalytics bookings={analyticsBookings} period={analyticsTimePeriod} />
                 <StatusAnalytics bookings={analyticsBookings} title="Your Outcome Stats" />
-                <PerformanceLeadLog bookings={analyticsBookings} title="Your Assignment Performance Log" />
+                
+                {/* UNRESTRICTED PERFORMANCE LOG */}
+                <div className="mt-12">
+                   <div className="mb-4">
+                      <h2 className="text-2xl font-black text-gray-900 tracking-tight">Your Full Assignment History</h2>
+                      <p className="text-sm text-gray-500 font-medium">Complete record of every lead assigned to your profile.</p>
+                   </div>
+                   <PerformanceLeadLog bookings={analyticsBookings} title="Full Assignment Performance Log" />
+                </div>
               </div>
             )}
             {activeTab === 'settings' && (
@@ -372,7 +458,6 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
         </main>
         {bookingToUpdate && <BdmUpdateStatusModal booking={bookingToUpdate} onClose={() => setBookingToUpdate(null)} onSave={handleUpdateBookingStatus} />}
         {bookingToManageNotes && <BdmNoteReminderModal booking={bookingToManageNotes} onClose={() => setBookingToManageNotes(null)} onSave={handleSaveNoteAndReminder} />}
-        {/* FIX: Added missing 'appointmentTimes' prop required by BdmBookingRequestModal */}
         {isRequestModalOpen && <BdmBookingRequestModal currentUser={currentUser} vendors={vendors} onClose={() => setIsRequestModalOpen(false)} onRequestBooking={handleRequestBooking} prefillData={requestModalPrefill} regions={regions} appointmentTimes={appointmentTimes} />}
       </div>
     </div>

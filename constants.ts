@@ -18,7 +18,18 @@ export const MANAGERS: Manager[] = [
     { id: 101, name: 'Admin Manager', username: 'manager', password: 'adminpassword', active: true }
 ];
 
-export const BDMS: BDM[] = [];
+// Default BDM account for Harry
+export const BDMS: BDM[] = [
+    { 
+        id: 301, 
+        name: 'Harry', 
+        username: 'harry', 
+        password: 'harrypassword2025', 
+        region: 'NSW', 
+        active: true,
+        email: 'pia@zealdigital.com.au'
+    }
+];
 
 export const DEFAULT_BRANDING: Branding = {
     companyName: "Zeal Digital's Caller Booking Portal",

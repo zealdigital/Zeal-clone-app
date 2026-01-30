@@ -24,7 +24,8 @@ const CallerPerformanceAnalytics: React.FC<CallerPerformanceAnalyticsProps> = ({
         }, {} as Record<string, { count: number, lastActive: number }>);
 
         // Sort by lastActive (most recent activity at the top)
-        const sortedCallers = Object.entries(callersMap)
+        // FIX: Explicitly cast Object.entries to resolve TypeScript errors where 'a', 'b', and 'data' are inferred as 'unknown'.
+        const sortedCallers = (Object.entries(callersMap) as [string, { count: number, lastActive: number }][])
             .sort(([, a], [, b]) => b.lastActive - a.lastActive)
             .map(([name, data]) => ({ 
                 name, 
