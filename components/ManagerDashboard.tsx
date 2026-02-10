@@ -1021,7 +1021,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                                                         href={b.clientWebsite.startsWith('http') ? b.clientWebsite : `https://${b.clientWebsite}`}
                                                                                         target="_blank"
                                                                                         rel="noopener noreferrer"
-                                                                                        className="text-[10px] text-indigo-500 hover:text-indigo-700 hover:underline truncate max-w-[150px] block transition-colors"
+                                                                                        className="text-[10px] text-indigo-500 hover:text-indigo-700 hover:underline truncate max-w-[150px] block transition-colors mt-0.5"
                                                                                     >
                                                                                         {b.clientWebsite}
                                                                                     </a>
