@@ -118,16 +118,36 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
         .sort((a, b) => b.id - a.id);
   }, [allBookings, currentUser.id]);
 
+  // Comprehensive Search Helper
+  const matchesSearch = (b: Booking, term: string) => {
+      if (!term) return true;
+      const s = term.trim().toLowerCase();
+      return (
+          b.clientName.toLowerCase().includes(s) ||
+          b.businessName.toLowerCase().includes(s) ||
+          b.clientPhone.toLowerCase().includes(s) ||
+          b.clientWebsite.toLowerCase().includes(s) ||
+          b.address.toLowerCase().includes(s) ||
+          b.callerName.toLowerCase().includes(s) ||
+          b.vendor.name.toLowerCase().includes(s) ||
+          (b.notes?.toLowerCase().includes(s)) ||
+          (b.bdmNote?.toLowerCase().includes(s)) ||
+          b.date.includes(s) ||
+          b.time.toLowerCase().includes(s) ||
+          b.region.toLowerCase().includes(s) ||
+          b.status.toLowerCase().includes(s)
+      );
+  };
+
   // FRONT PAGE FILTER: 1 Week logic applied here
   const filteredBookings = useMemo(() => {
-    const lowercasedFilter = searchTerm.trim().toLowerCase();
     return myAssignedBookings.filter(booking => {
       const [y, m, d] = booking.date.split('-').map(Number);
       const bookingDate = new Date(y, m - 1, d); // Construct Local Date
 
       // 7-Day Restriction logic for "front page" Appointments List
       // Restriction is lifted if user provides a specific date range OR is searching
-      const isSearching = lowercasedFilter !== '' || dateRange.startDate || dateRange.endDate;
+      const isSearching = searchTerm.trim() !== '' || dateRange.startDate || dateRange.endDate;
       if (!isSearching && bookingDate < visibilityCutoff) {
           return false;
       }
@@ -135,22 +155,7 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
       if (dateRange.startDate && bookingDate < new Date(dateRange.startDate)) return false;
       if (dateRange.endDate && bookingDate > new Date(dateRange.endDate)) return false;
       
-      if (!lowercasedFilter) return true;
-      
-      return (
-        booking.clientName.toLowerCase().includes(lowercasedFilter) || 
-        booking.businessName.toLowerCase().includes(lowercasedFilter) || 
-        booking.clientPhone.toLowerCase().includes(lowercasedFilter) || 
-        booking.clientWebsite.toLowerCase().includes(lowercasedFilter) ||
-        booking.address.toLowerCase().includes(lowercasedFilter) ||
-        booking.callerName.toLowerCase().includes(lowercasedFilter) ||
-        booking.vendor.name.toLowerCase().includes(lowercasedFilter) || 
-        (booking.notes?.toLowerCase().includes(lowercasedFilter)) ||
-        (booking.bdmNote?.toLowerCase().includes(lowercasedFilter)) ||
-        booking.date.includes(lowercasedFilter) ||
-        booking.time.toLowerCase().includes(lowercasedFilter) ||
-        booking.region.toLowerCase().includes(lowercasedFilter)
-      );
+      return matchesSearch(booking, searchTerm);
     });
   }, [searchTerm, myAssignedBookings, dateRange, visibilityCutoff]);
 
@@ -320,7 +325,7 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                                 <input 
                                     type="text" 
                                     className="block w-full rounded-md border-0 py-2.5 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-black" 
-                                    placeholder="Search Leads..." 
+                                    placeholder="Search by name, phone, website, address..." 
                                     value={searchTerm} 
                                     onChange={e => setSearchTerm(e.target.value)} 
                                 />

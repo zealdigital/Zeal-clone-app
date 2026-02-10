@@ -74,7 +74,7 @@ const triggerSystemAlert = (message: string) => {
     toast.className = 'fixed top-4 right-4 bg-indigo-600 text-white px-6 py-4 rounded-xl shadow-2xl z-[9999] animate-bounceIn flex items-center gap-4 border-2 border-white/20';
     toast.innerHTML = `<div class="bg-white/20 p-2 rounded-lg">🔔</div><div><p class="font-bold text-xs uppercase tracking-widest opacity-70">System Alert</p><p class="text-sm font-medium">${message}</p></div>`;
     document.body.appendChild(toast);
-    setTimeout(() => { toast.classList.add('opacity-0', 'translate-x-full'); setTimeout(() => document.body.removeChild(toast), 500); }, 5000);
+    setTimeout(() => { toast.classList.add('opacity-0', 'translate-x-full'); setTimeout(() => document.body.removeChild(toast), 500); }, 4000);
 };
 
 interface UserEditModalProps {
@@ -380,6 +380,27 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         });
     }, [allBookings, searchTerm, visibilityCutoff]);
 
+    // Global exhaustive search logic
+    const matchesGlobalSearch = (b: Booking, term: string) => {
+        if (!term) return true;
+        const s = term.trim().toLowerCase();
+        return (
+            b.clientName.toLowerCase().includes(s) ||
+            b.businessName.toLowerCase().includes(s) ||
+            b.clientPhone.toLowerCase().includes(s) ||
+            b.clientWebsite.toLowerCase().includes(s) ||
+            b.address.toLowerCase().includes(s) ||
+            b.callerName.toLowerCase().includes(s) ||
+            b.vendor.name.toLowerCase().includes(s) ||
+            (b.notes?.toLowerCase().includes(s)) ||
+            (b.bdmNote?.toLowerCase().includes(s)) ||
+            b.date.includes(s) ||
+            b.time.toLowerCase().includes(s) ||
+            b.region.toLowerCase().includes(s) ||
+            b.status.toLowerCase().includes(s)
+        );
+    };
+
     // Analytics Specific Data Filtering based on user chosen date range
     const analyticsBookings = useMemo(() => {
         return allBookings.filter(b => {
@@ -401,26 +422,15 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     }, [allBookings]);
 
     // 1. ACTIVE LEADS: Active, Pending, or Rescheduled (BDM)
-    // Updated sort to descending: Newer leads on top, Older leads at bottom.
     const activeLeads = useMemo(() => {
-        const lowerFilter = searchTerm.trim().toLowerCase();
         return visibleBookings.filter(b => {
             const matchesStatus = ['active', 'rescheduled_bdm'].includes(b.status);
             if (!matchesStatus) return false;
-            
-            if (!lowerFilter) return true;
-            return (
-                b.clientName.toLowerCase().includes(lowerFilter) || 
-                b.businessName.toLowerCase().includes(lowerFilter) || 
-                b.clientPhone.toLowerCase().includes(lowerFilter) ||
-                b.address.toLowerCase().includes(lowerFilter) ||
-                b.callerName.toLowerCase().includes(lowerFilter) ||
-                b.vendor.name.toLowerCase().includes(lowerFilter)
-            );
+            return matchesGlobalSearch(b, searchTerm);
         }).sort((a, b) => {
             const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
             if (dateDiff !== 0) return dateDiff;
-            return b.id - a.id; // tie-breaker: newest ID first
+            return b.id - a.id; 
         });
     }, [visibleBookings, searchTerm]);
 
@@ -430,33 +440,22 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         return groups;
     }, [activeLeads]);
 
-    // Updated sort to descending for the group date headers
     const sortedActiveDates = useMemo(() => Object.keys(groupedActiveLeads).sort((a, b) => new Date(b).getTime() - new Date(a).getTime()), [groupedActiveLeads]);
 
     // 2. REJECTED LEADS
     const rejectedLeads = useMemo(() => {
-        const lowerFilter = searchTerm.trim().toLowerCase();
         return visibleBookings.filter(b => {
             if (b.status !== 'rejected') return false;
-            if (!lowerFilter) return true;
-            return (
-                b.clientName.toLowerCase().includes(lowerFilter) || 
-                b.businessName.toLowerCase().includes(lowerFilter)
-            );
+            return matchesGlobalSearch(b, searchTerm);
         }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [visibleBookings, searchTerm]);
 
     // 3. ARCHIVED LEADS: Updated status (Completed, Sold, Cancelled, etc)
     const archivedLeads = useMemo(() => {
-        const lowerFilter = searchTerm.trim().toLowerCase();
         return visibleBookings.filter(b => {
             const isArchived = ['seen', 'sold', 'rescheduled', 'cancelled', 'dq'].includes(b.status);
             if (!isArchived) return false;
-            if (!lowerFilter) return true;
-            return (
-                b.clientName.toLowerCase().includes(lowerFilter) || 
-                b.businessName.toLowerCase().includes(lowerFilter)
-            );
+            return matchesGlobalSearch(b, searchTerm);
         }).sort((a, b) => b.id - a.id);
     }, [visibleBookings, searchTerm]);
 
@@ -960,7 +959,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                             <input 
                                                 type="text" 
                                                 className="block w-full rounded-xl border-0 py-3 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-black transition-all bg-white" 
-                                                placeholder="Search database..." 
+                                                placeholder="Search by name, phone, website, address..." 
                                                 value={searchTerm} 
                                                 onChange={e => setSearchTerm(e.target.value)} 
                                             />
@@ -996,6 +995,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                     <thead className="bg-gray-50">
                                                         <tr>
                                                             <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Client & Business</th>
+                                                            <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Contact & Address</th>
                                                             <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Team</th>
                                                             <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Time</th>
                                                             <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Region</th>
@@ -1010,12 +1010,31 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                             
                                                             return (
                                                                 <React.Fragment key={date}>
-                                                                    <tr className="bg-gray-50/50"><td colSpan={6} className="px-6 py-2 text-xs font-bold text-gray-500 uppercase tracking-tighter">{displayDate}</td></tr>
+                                                                    <tr className="bg-gray-50/50"><td colSpan={7} className="px-6 py-2 text-xs font-bold text-gray-500 uppercase tracking-tighter">{displayDate}</td></tr>
                                                                     {groupedActiveLeads[date].map(b => (
                                                                         <tr key={b.id} className="hover:bg-gray-50 transition-all">
                                                                             <td className="px-6 py-4">
                                                                                 <div className="text-sm font-bold text-gray-900">{b.clientName}</div>
                                                                                 <div className="text-xs text-gray-400">{b.businessName}</div>
+                                                                                {b.clientWebsite && (
+                                                                                    <a 
+                                                                                        href={b.clientWebsite.startsWith('http') ? b.clientWebsite : `https://${b.clientWebsite}`}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        className="text-[10px] text-indigo-500 hover:text-indigo-700 hover:underline truncate max-w-[150px] block transition-colors"
+                                                                                    >
+                                                                                        {b.clientWebsite}
+                                                                                    </a>
+                                                                                )}
+                                                                            </td>
+                                                                            <td className="px-6 py-4">
+                                                                                <div className="flex items-center gap-1.5 text-xs text-gray-900 font-bold mb-1">
+                                                                                    <PhoneIcon className="w-3.5 h-3.5 text-indigo-400" />
+                                                                                    <a href={`tel:${b.clientPhone}`} className="hover:text-indigo-600 transition-colors">{b.clientPhone}</a>
+                                                                                </div>
+                                                                                <div className="text-[10px] text-gray-500 max-w-[180px] leading-tight break-words">
+                                                                                    {b.address}
+                                                                                </div>
                                                                             </td>
                                                                             <td className="px-6 py-4 text-xs text-gray-500 font-bold">{b.vendor.name}</td>
                                                                             <td className="px-6 py-4 text-sm font-bold text-gray-900">{b.time}</td>
@@ -1039,7 +1058,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                                 </React.Fragment>
                                                             );
                                                         })}
-                                                        {activeLeads.length === 0 && <tr><td colSpan={6} className="p-12 text-center text-gray-400 italic">No active leads in current view.</td></tr>}
+                                                        {activeLeads.length === 0 && <tr><td colSpan={7} className="p-12 text-center text-gray-400 italic">No active leads in current view.</td></tr>}
                                                     </tbody>
                                                 </table>
                                             </div>

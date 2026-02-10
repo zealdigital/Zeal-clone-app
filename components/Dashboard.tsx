@@ -102,7 +102,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleEditFromModal = (booking: Booking) => { setSlotToManage(null); setBookingToEdit(booking); };
   const closeModal = () => { setSlotToManage(null); setBookingToEdit(null); };
 
-  const handleConfirmBooking = (bookingDetails: Omit<Booking, 'id' | 'vendor' | 'status'>, slotsToRemove: string[] = []) => {
+  const handleConfirmBooking = (bookingDetails: Omit<Booking, 'id' | 'vendor' | 'status'>, slotsToRemove: string[]) => {
     const mainBookingId = Date.now();
     const newBooking: Booking = { ...bookingDetails, id: mainBookingId, vendor: currentUser, status: 'active' };
     const newBlockers: Booking[] = slotsToRemove.map((time, index) => ({ id: mainBookingId + index + 1, clientName: `Slot Blocked`, businessName: `Conflict`, clientWebsite: '', clientPhone: '', address: '', callerName: 'System', date: bookingDetails.date, time: time, vendor: currentUser, region: bookingDetails.region, isBlocker: true, parentBookingId: mainBookingId, status: 'active' }));
@@ -130,7 +130,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     setAllBookings(prevBookings => {
         const otherBookings = prevBookings.filter(b => b.id !== bookingToEdit.id && b.parentBookingId !== bookingToEdit.id);
         const updatedBooking: Booking = { ...bookingToEdit, ...updatedDetails };
-        // FIX: Replaced undefined 'mainBookingId' with 'Date.now()' to generate unique IDs for blocker slots
         const newBlockers: Booking[] = slotsToRemove.map((time, index) => ({ id: Date.now() + index + 1, clientName: `Slot Blocked`, businessName: `Conflict`, clientWebsite: '', clientPhone: '', address: '', callerName: 'System', date: updatedBooking.date, time: time, vendor: bookingToEdit.vendor, region: updatedBooking.region, isBlocker: true, parentBookingId: updatedBooking.id, status: 'active' }));
         return [...otherBookings, updatedBooking, ...newBlockers];
     });
@@ -178,12 +177,32 @@ const Dashboard: React.FC<DashboardProps> = ({
       triggerSystemAlert("SMS request sent.");
   };
 
+  // Exhaustive Search Helper
+  const matchesGlobalSearch = (b: Booking, term: string) => {
+      if (!term) return true;
+      const s = term.trim().toLowerCase();
+      return (
+          b.clientName.toLowerCase().includes(s) ||
+          b.businessName.toLowerCase().includes(s) ||
+          b.clientPhone.toLowerCase().includes(s) ||
+          b.clientWebsite.toLowerCase().includes(s) ||
+          b.address.toLowerCase().includes(s) ||
+          b.callerName.toLowerCase().includes(s) ||
+          b.vendor.name.toLowerCase().includes(s) ||
+          (b.notes?.toLowerCase().includes(s)) ||
+          (b.bdmNote?.toLowerCase().includes(s)) ||
+          b.date.includes(s) ||
+          b.time.toLowerCase().includes(s) ||
+          b.region.toLowerCase().includes(s) ||
+          b.status.toLowerCase().includes(s)
+      );
+  };
+
   const myBookings = useMemo(() => allBookings.filter(b => b.vendor.id === currentUser.id), [allBookings, currentUser.id]);
   const vendorVisibleBookings = useMemo(() => myBookings.map(booking => (booking.status === 'sold' ? { ...booking, status: 'seen' as const } : booking)), [myBookings]);
   
   // EXHAUSTIVE SEARCH FOR VENDORS
   const filteredVendorBookings = useMemo(() => {
-    const lowercasedFilter = searchTerm.trim().toLowerCase();
     return vendorVisibleBookings.filter(booking => {
       if (booking.status === 'rejected' || booking.status === 'pending_approval') return false; 
       
@@ -191,20 +210,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       if (dateRange.startDate && bookingDate < new Date(dateRange.startDate)) return false;
       if (dateRange.endDate && bookingDate > new Date(dateRange.endDate)) return false;
       
-      if (!lowercasedFilter) return true;
-      
-      return (
-        booking.clientName.toLowerCase().includes(lowercasedFilter) || 
-        booking.businessName.toLowerCase().includes(lowercasedFilter) || 
-        booking.clientPhone.toLowerCase().includes(lowercasedFilter) ||
-        booking.clientWebsite.toLowerCase().includes(lowercasedFilter) ||
-        booking.address.toLowerCase().includes(lowercasedFilter) ||
-        booking.callerName.toLowerCase().includes(lowercasedFilter) ||
-        (booking.notes?.toLowerCase().includes(lowercasedFilter)) ||
-        booking.date.includes(lowercasedFilter) ||
-        booking.time.toLowerCase().includes(lowercasedFilter) ||
-        booking.region.toLowerCase().includes(lowercasedFilter)
-      );
+      return matchesGlobalSearch(booking, searchTerm);
     });
   }, [searchTerm, vendorVisibleBookings, dateRange]);
 
@@ -217,8 +223,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   const analyticsBookings = useMemo(() => {
     return allBookings.filter(b => {
       if (b.isBlocker) return false;
-      
-      // FIX: Ensure calling team only sees their own team's leads in performance analytics
       if (b.vendor.id !== currentUser.id) return false;
       
       if (allowedRegions.length > 0 && !allowedRegions.includes(b.region)) return false;
@@ -231,7 +235,9 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const archivedBookings = useMemo(() => {
     const allArchived = vendorVisibleBookings.filter(b => ['seen', 'rescheduled', 'cancelled', 'dq', 'rescheduled_bdm'].includes(b.status));
-    if (searchTerm.trim()) return allArchived;
+    if (searchTerm.trim()) {
+        return allArchived.filter(b => matchesGlobalSearch(b, searchTerm));
+    }
     const today = new Date(); today.setHours(0,0,0,0); const cutoff = new Date(today); cutoff.setDate(today.getDate() - 14);
     return allArchived.filter(b => { const bDate = new Date(b.date); return bDate >= cutoff; });
   }, [vendorVisibleBookings, searchTerm]);
@@ -240,14 +246,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   
   const rejectedBookings = useMemo(() => {
       const list = myBookings.filter(b => b.status === 'rejected' && !b.isBlocker);
-      const lowercasedFilter = searchTerm.trim().toLowerCase();
-      if (!lowercasedFilter) return list;
-      return list.filter(b => 
-        b.clientName.toLowerCase().includes(lowercasedFilter) || 
-        b.businessName.toLowerCase().includes(lowercasedFilter) ||
-        b.clientPhone.toLowerCase().includes(lowercasedFilter) ||
-        b.address.toLowerCase().includes(lowercasedFilter)
-      );
+      return list.filter(b => matchesGlobalSearch(b, searchTerm));
   }, [myBookings, searchTerm]);
 
   const myNotifications = useMemo(() => notifications.filter(n => n.vendorId === currentUser.id), [notifications, currentUser.id]);
@@ -339,7 +338,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                 <input 
                                     type="text" 
                                     className="block w-full rounded-md border-0 py-2.5 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-black" 
-                                    placeholder="Search Phone, Address, Website, Business..." 
+                                    placeholder="Search Leads..." 
                                     value={searchTerm} 
                                     onChange={e => setSearchTerm(e.target.value)} 
                                 />
