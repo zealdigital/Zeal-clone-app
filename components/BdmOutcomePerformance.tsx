@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { Booking, BDM } from '../types';
 import { ArrowDownTrayIcon } from './Icons';
 
@@ -8,8 +8,12 @@ interface BdmOutcomePerformanceProps {
   bdms: BDM[];
 }
 
+const ITEMS_PER_PAGE = 10;
+
 const BdmOutcomePerformance: React.FC<BdmOutcomePerformanceProps> = ({ bookings, bdms }) => {
-    const bdmPerformance = useMemo(() => {
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const allBdmPerformance = useMemo(() => {
         return bdms.map(bdm => {
             const bdmBookings = bookings.filter(b => b.bdmId === bdm.id);
             const total = bdmBookings.length;
@@ -35,11 +39,17 @@ const BdmOutcomePerformance: React.FC<BdmOutcomePerformanceProps> = ({ bookings,
         }).sort((a, b) => b.total - a.total);
     }, [bookings, bdms]);
 
+    const totalPages = Math.max(1, Math.ceil(allBdmPerformance.length / ITEMS_PER_PAGE));
+    const paginatedPerformance = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        return allBdmPerformance.slice(start, start + ITEMS_PER_PAGE);
+    }, [allBdmPerformance, currentPage]);
+
     const handleExport = () => {
         const headers = ['BDM Name', 'Region', 'Total Assigned', 'Sold', 'Seen', 'Resched (BDM)', 'Rescheduled', 'Cancelled', 'DQ', 'Sold %'];
         const csvContent = [
             headers.join(','),
-            ...bdmPerformance.map(p => [
+            ...allBdmPerformance.map(p => [
                 p.name, p.region, p.total, p.sold, p.seen, p.reschedBdm, p.resched, p.cancelled, p.dq, `"${p.soldRate}%"`
             ].join(','))
         ].join('\n');
@@ -60,7 +70,7 @@ const BdmOutcomePerformance: React.FC<BdmOutcomePerformanceProps> = ({ bookings,
                 <div>
                     <h3 className="text-xl font-black text-gray-900 tracking-tight">BDM Outcome Performance</h3>
                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
-                        Click the counts below to view specific leads
+                        Detailed efficiency stats for assigned leads
                     </p>
                 </div>
                 <button 
@@ -86,28 +96,52 @@ const BdmOutcomePerformance: React.FC<BdmOutcomePerformanceProps> = ({ bookings,
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-100">
-                        {bdmPerformance.map((p) => (
+                        {paginatedPerformance.map((p) => (
                             <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="text-sm font-bold text-gray-900">{p.name}</div>
                                     <div className="text-[10px] font-black text-gray-400 uppercase">{p.region}</div>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-600 underline decoration-gray-200 cursor-pointer">{p.total}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-black text-indigo-600 underline decoration-indigo-100 cursor-pointer">{p.sold}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-600 underline decoration-gray-200 cursor-pointer">{p.seen}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-600 underline decoration-gray-200 cursor-pointer">{p.reschedBdm}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-600">{p.total}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-black text-indigo-600">{p.sold}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-600">{p.seen}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-600">{p.reschedBdm}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-300">{p.resched}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-800">{p.cancelled}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-gray-200">{p.dq}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-black text-green-600">{p.soldRate}%</td>
                             </tr>
                         ))}
-                        {bdmPerformance.length === 0 && (
+                        {allBdmPerformance.length === 0 && (
                             <tr><td colSpan={9} className="p-12 text-center text-gray-400 italic">No BDMs found in database.</td></tr>
                         )}
                     </tbody>
                 </table>
             </div>
+            
+            {totalPages > 1 && (
+                <div className="p-4 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                        Page {currentPage} of {totalPages}
+                    </span>
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+                        >
+                            Prev
+                        </button>
+                        <button 
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import type { Booking, BDM } from '../types';
 import { getStatusPill } from '../utils/statusUtils';
 import { ArrowDownTrayIcon, MagnifyingGlassIcon } from './Icons';
@@ -10,29 +10,46 @@ interface PerformanceLeadLogProps {
   bdms?: BDM[];
   title?: string;
   hideFilters?: boolean;
+  role?: 'manager' | 'vendor' | 'bdm';
 }
 
-const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({ bookings, bdms = [], title = "Global Data Report Log", hideFilters = false }) => {
+const ITEMS_PER_PAGE = 10;
+
+const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({ 
+  bookings, 
+  bdms = [], 
+  title = "Global Data Report Log", 
+  hideFilters = false,
+  role = 'manager'
+}) => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [callerFilter, setCallerFilter] = useState<string>('all');
   const [bdmFilter, setBdmFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const isVendorRole = role === 'vendor';
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, callerFilter, bdmFilter, searchTerm]);
 
   const uniqueCallers = useMemo(() => {
     const callers = new Set<string>();
     bookings.forEach(b => {
-      const name = b.vendor?.name;
+      const name = isVendorRole ? b.callerName : b.vendor?.name;
       if (name) callers.add(name);
     });
     return Array.from(callers).sort((a, b) => a.localeCompare(b));
-  }, [bookings]);
+  }, [bookings, isVendorRole]);
 
-  const filteredLeads = useMemo(() => {
+  const allFilteredLeads = useMemo(() => {
     return bookings.filter(b => {
       const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
-      const matchesCaller = callerFilter === 'all' || (b.vendor?.name === callerFilter);
-      const matchesBdm = bdmFilter === 'all' || (b.bdmId?.toString() === bdmFilter);
-      
+      const nameToMatch = isVendorRole ? b.callerName : b.vendor?.name;
+      const matchesCaller = callerFilter === 'all' || (nameToMatch === callerFilter);
+      const matchesBdm = isVendorRole || bdmFilter === 'all' || (b.bdmId?.toString() === bdmFilter);
       const lowerSearch = searchTerm.toLowerCase();
       const matchesSearch = !searchTerm || (
         b.businessName.toLowerCase().includes(lowerSearch) || 
@@ -54,10 +71,16 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({ bookings, bdms 
         if (dateDiff !== 0) return dateDiff;
         return b.id - a.id;
     });
-  }, [bookings, statusFilter, callerFilter, bdmFilter, searchTerm]);
+  }, [bookings, statusFilter, callerFilter, bdmFilter, searchTerm, isVendorRole]);
+
+  const totalPages = Math.max(1, Math.ceil(allFilteredLeads.length / ITEMS_PER_PAGE));
+  const paginatedLeads = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return allFilteredLeads.slice(start, start + ITEMS_PER_PAGE);
+  }, [allFilteredLeads, currentPage]);
 
   const handleExport = () => {
-    exportBookingsToCSV(filteredLeads, 'global_report');
+    exportBookingsToCSV(allFilteredLeads, 'performance_log_report');
   };
 
   const getHistoryBadge = (lead: Booking) => {
@@ -74,6 +97,14 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({ bookings, bdms 
   };
 
   const getSourceDisplay = (lead: Booking) => {
+      if (isVendorRole) {
+          return (
+              <div className="flex flex-col">
+                  <span className="text-sm font-bold text-gray-700">{lead.callerName}</span>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">INDIVIDUAL CALLER</span>
+              </div>
+          );
+      }
       const isInternal = lead.vendor?.username === 'internal' || lead.vendor?.username === 'manual';
       const teamName = lead.vendor?.name || 'Internal';
       const subText = isInternal ? 'INTERNAL / SELF-GEN' : 'VENDOR TEAM';
@@ -92,7 +123,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({ bookings, bdms 
         <div>
           <h3 className="text-2xl font-black text-gray-900 tracking-tight">{title}</h3>
           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
-            Detailed breakdown of filtered leads & history
+            Detailed breakdown of your filtered leads & history
           </p>
         </div>
         
@@ -114,22 +145,24 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({ bookings, bdms 
               onChange={(e) => setCallerFilter(e.target.value)}
               className="border border-gray-200 rounded-xl py-2.5 px-4 text-sm font-bold bg-white text-gray-700 outline-none focus:ring-2 focus:ring-black transition-all cursor-pointer"
             >
-              <option value="all">All Calling Teams</option>
+              <option value="all">{isVendorRole ? 'All Individual Callers' : 'All Calling Teams'}</option>
               {uniqueCallers.map(name => (
                 <option key={name} value={name}>{name}</option>
               ))}
             </select>
 
-            <select 
-              value={bdmFilter}
-              onChange={(e) => setBdmFilter(e.target.value)}
-              className="border border-gray-200 rounded-xl py-2.5 px-4 text-sm font-bold bg-white text-gray-700 outline-none focus:ring-2 focus:ring-black transition-all cursor-pointer"
-            >
-              <option value="all">All BDMs</option>
-              {bdms.map(bdm => (
-                <option key={bdm.id} value={bdm.id.toString()}>{bdm.name}</option>
-              ))}
-            </select>
+            {!isVendorRole && (
+              <select 
+                value={bdmFilter}
+                onChange={(e) => setBdmFilter(e.target.value)}
+                className="border border-gray-200 rounded-xl py-2.5 px-4 text-sm font-bold bg-white text-gray-700 outline-none focus:ring-2 focus:ring-black transition-all cursor-pointer"
+              >
+                <option value="all">All BDMs</option>
+                {bdms.map(bdm => (
+                  <option key={bdm.id} value={bdm.id.toString()}>{bdm.name}</option>
+                ))}
+              </select>
+            )}
 
             <select 
               value={statusFilter}
@@ -164,14 +197,14 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({ bookings, bdms 
               <th scope="col" className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
               <th scope="col" className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Business, Client & URL</th>
               <th scope="col" className="px-6 py-5 text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">Lead History & Source</th>
-              <th scope="col" className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Calling Team / Source</th>
-              <th scope="col" className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Assigned BDM</th>
+              <th scope="col" className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">{isVendorRole ? 'Individual Caller' : 'Calling Team / Source'}</th>
+              {!isVendorRole && <th scope="col" className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Assigned BDM</th>}
               <th scope="col" className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Region</th>
               <th scope="col" className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
-            {filteredLeads.length > 0 ? filteredLeads.map((lead) => {
+            {paginatedLeads.length > 0 ? paginatedLeads.map((lead) => {
               const bdm = bdms.find(b => b.id === lead.bdmId);
               return (
                 <tr key={lead.id} className="hover:bg-gray-50 transition-colors group">
@@ -198,13 +231,15 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({ bookings, bdms 
                   <td className="px-6 py-6 whitespace-nowrap">
                     {getSourceDisplay(lead)}
                   </td>
-                  <td className="px-6 py-6 whitespace-nowrap">
-                    {bdm ? (
-                        <span className="text-sm font-bold text-gray-700">{bdm.name}</span>
-                    ) : (
-                        <span className="text-sm font-medium text-gray-300 italic">Unassigned</span>
-                    )}
-                  </td>
+                  {!isVendorRole && (
+                    <td className="px-6 py-6 whitespace-nowrap">
+                      {bdm ? (
+                          <span className="text-sm font-bold text-gray-700">{bdm.name}</span>
+                      ) : (
+                          <span className="text-sm font-medium text-gray-300 italic">Unassigned</span>
+                      )}
+                    </td>
+                  )}
                   <td className="px-6 py-6 whitespace-nowrap">
                     <span className="text-[10px] font-black text-gray-400 uppercase">{lead.region}</span>
                   </td>
@@ -215,7 +250,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({ bookings, bdms 
               );
             }) : (
               <tr>
-                <td colSpan={7} className="px-6 py-24 text-center">
+                <td colSpan={isVendorRole ? 6 : 7} className="px-6 py-24 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <MagnifyingGlassIcon className="w-12 h-12 text-gray-100" />
                     <p className="text-gray-400 font-bold italic">No records found matching your search criteria.</p>
@@ -226,10 +261,45 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({ bookings, bdms 
           </tbody>
         </table>
       </div>
-      <div className="p-6 bg-gray-50/50 border-t border-gray-100 flex justify-between items-center">
-        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-          Found {filteredLeads.length} total leads
+      
+      <div className="p-6 bg-gray-50/50 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest order-2 sm:order-1">
+          Showing {Math.min(allFilteredLeads.length, (currentPage - 1) * ITEMS_PER_PAGE + 1)} to {Math.min(allFilteredLeads.length, currentPage * ITEMS_PER_PAGE)} of {allFilteredLeads.length} total leads
         </span>
+        <div className="flex items-center gap-2 order-1 sm:order-2">
+            <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                Prev
+            </button>
+            <div className="flex gap-1">
+                {Array.from({ length: totalPages }).map((_, i) => {
+                    const p = i + 1;
+                    if (totalPages > 5 && Math.abs(p - currentPage) > 2 && p !== 1 && p !== totalPages) {
+                        if (Math.abs(p - currentPage) === 3) return <span key={p} className="px-1 text-gray-400">...</span>;
+                        return null;
+                    }
+                    return (
+                        <button 
+                            key={p} 
+                            onClick={() => setCurrentPage(p)}
+                            className={`w-8 h-8 text-xs font-bold rounded-md transition-all ${currentPage === p ? 'bg-black text-white' : 'border hover:bg-gray-100'}`}
+                        >
+                            {p}
+                        </button>
+                    );
+                })}
+            </div>
+            <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                Next
+            </button>
+        </div>
       </div>
     </div>
   );

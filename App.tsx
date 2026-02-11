@@ -287,6 +287,8 @@ const App: React.FC = () => {
             appointmentTimes={appointmentTimes}
             personalAppointments={managerAppointments}
             setPersonalAppointments={(val: any) => updateState('managerAppointments', val)}
+            publicHolidays={publicHolidays}
+            leaveDays={leaveDays}
           />
         );
       default: return null;

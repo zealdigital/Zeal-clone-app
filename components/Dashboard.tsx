@@ -415,7 +415,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       <StatusAnalytics bookings={analyticsBookings} title="Team Booking Status Breakdown" />
                       <CallerPerformanceAnalytics bookings={analyticsBookings} />
                     </div>
-                    <PerformanceLeadLog bookings={analyticsBookings} title="Team Performance Lead Log" />
+                    <PerformanceLeadLog bookings={analyticsBookings} role="vendor" title="Team Performance Lead Log" />
                   </div>
               )}
 

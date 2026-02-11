@@ -28,6 +28,7 @@ import { sendEmailNotification } from '../utils/emailService';
 import { DEFAULT_NOTIFICATION_PREFERENCES, MANAGERS, VENDORS, BDMS, PUBLIC_HOLIDAYS, APPOINTMENT_TIMES, DEFAULT_BRANDING, DEFAULT_REGION_COLORS } from '../constants';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const ITEMS_PER_PAGE = 10;
 
 interface ManagerDashboardProps {
     currentUser: Extract<User, { role: 'manager' }>;
@@ -299,6 +300,12 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const [isManualBookingOpen, setIsManualBookingOpen] = useState(false);
     const [importPreview, setImportPreview] = useState<{ newBookings: Booking[], stats: { imported: number, duplicates: number, skipped: number } } | null>(null);
     
+    // Pagination State
+    const [activeLeadsPage, setActiveLeadsPage] = useState(1);
+    const [vendorsPage, setVendorsPage] = useState(1);
+    const [bdmsPage, setBdmsPage] = useState(1);
+    const [managersPage, setManagersPage] = useState(1);
+
     const [visiblePasswords, setVisiblePasswords] = useState<Record<number, boolean>>({});
 
     const togglePasswordVisibility = (id: number) => {
@@ -359,28 +366,23 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
 
     const myNotifications = useMemo(() => notifications.filter(n => n.vendorId === 0), [notifications]);
 
-    // Data filtering for performance: Only show 7 days of data by default
     const visibilityCutoff = useMemo(() => {
         const d = new Date();
-        d.setHours(0, 0, 0, 0); // Start of today
-        d.setDate(d.getDate() - 7); // 7 days ago at local midnight
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() - 7);
         return d;
     }, []);
 
-    // Master filter used for UI sections
     const visibleBookings = useMemo(() => {
         return allBookings.filter(b => {
             if (b.isBlocker) return false;
-            // If searching, ignore time limit to allow finding old records.
             if (searchTerm.trim()) return true;
-            // Otherwise, apply 7-day visibility limit using component comparison
             const [y, m, d] = b.date.split('-').map(Number);
-            const bDate = new Date(y, m - 1, d); // Construct Local Date
+            const bDate = new Date(y, m - 1, d);
             return bDate >= visibilityCutoff;
         });
     }, [allBookings, searchTerm, visibilityCutoff]);
 
-    // Global exhaustive search logic
     const matchesGlobalSearch = (b: Booking, term: string) => {
         if (!term) return true;
         const s = term.trim().toLowerCase();
@@ -401,27 +403,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         );
     };
 
-    // Analytics Specific Data Filtering based on user chosen date range
-    const analyticsBookings = useMemo(() => {
-        return allBookings.filter(b => {
-            if (b.isBlocker) return false;
-            const [y, m, d] = b.date.split('-').map(Number);
-            const bDate = new Date(y, m - 1, d);
-            
-            if (analyticsDateRange.startDate && bDate < new Date(analyticsDateRange.startDate)) return false;
-            if (analyticsDateRange.endDate && bDate > new Date(analyticsDateRange.endDate)) return false;
-            
-            return true;
-        });
-    }, [allBookings, analyticsDateRange]);
-
-    // PENDING REQUESTS: For callers or BDMs needing manual date approval
-    const pendingRequests = useMemo(() => {
-        return allBookings.filter(b => b.status === 'pending_approval' && !b.isBlocker)
-            .sort((a, b) => b.id - a.id);
-    }, [allBookings]);
-
-    // 1. ACTIVE LEADS: Active, Pending, or Rescheduled (BDM)
     const activeLeads = useMemo(() => {
         return visibleBookings.filter(b => {
             const matchesStatus = ['active', 'rescheduled_bdm'].includes(b.status);
@@ -434,15 +415,20 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         });
     }, [visibleBookings, searchTerm]);
 
+    const totalActiveLeadsPages = Math.max(1, Math.ceil(activeLeads.length / ITEMS_PER_PAGE));
+    const paginatedActiveLeads = useMemo(() => {
+        const start = (activeLeadsPage - 1) * ITEMS_PER_PAGE;
+        return activeLeads.slice(start, start + ITEMS_PER_PAGE);
+    }, [activeLeads, activeLeadsPage]);
+
     const groupedActiveLeads = useMemo(() => {
         const groups: Record<string, Booking[]> = {};
-        activeLeads.forEach(b => { if (!groups[b.date]) groups[b.date] = []; groups[b.date].push(b); });
+        paginatedActiveLeads.forEach(b => { if (!groups[b.date]) groups[b.date] = []; groups[b.date].push(b); });
         return groups;
-    }, [activeLeads]);
+    }, [paginatedActiveLeads]);
 
     const sortedActiveDates = useMemo(() => Object.keys(groupedActiveLeads).sort((a, b) => new Date(b).getTime() - new Date(a).getTime()), [groupedActiveLeads]);
 
-    // 2. REJECTED LEADS
     const rejectedLeads = useMemo(() => {
         return visibleBookings.filter(b => {
             if (b.status !== 'rejected') return false;
@@ -450,7 +436,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [visibleBookings, searchTerm]);
 
-    // 3. ARCHIVED LEADS: Updated status (Completed, Sold, Cancelled, etc)
     const archivedLeads = useMemo(() => {
         return visibleBookings.filter(b => {
             const isArchived = ['seen', 'sold', 'rescheduled', 'cancelled', 'dq'].includes(b.status);
@@ -460,11 +445,39 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     }, [visibleBookings, searchTerm]);
 
     const bdmsByRegion = useMemo(() => bdms.reduce((acc, bdm) => { if (bdm.active !== false) { if (!acc[bdm.region]) acc[bdm.region] = []; acc[bdm.region].push(bdm); } return acc; }, {} as Record<Region, BDM[]>), [bdms]);
+    
+    // FIX: Added missing memoized state for manual requests, analytics filtering, and calendar data
+    const pendingRequests = useMemo(() => {
+        return allBookings.filter(b => b.status === 'pending_approval' && !b.isBlocker)
+            .sort((a, b) => b.id - a.id);
+    }, [allBookings]);
+
+    const analyticsBookings = useMemo(() => {
+        return allBookings.filter(b => {
+            if (b.isBlocker) return false;
+            const bDate = new Date(b.date);
+            if (analyticsDateRange.startDate && bDate < new Date(analyticsDateRange.startDate)) return false;
+            if (analyticsDateRange.endDate && bDate > new Date(analyticsDateRange.endDate)) return false;
+            return true;
+        });
+    }, [allBookings, analyticsDateRange]);
+
+    const allBookingsForCalendar = useMemo(() => {
+        return allBookings.filter(b => !b.isBlocker);
+    }, [allBookings]);
+
+    const blockedSlotsForEdit = useMemo(() => {
+        return bookingToEdit ? allBookings.filter(b => b.parentBookingId === bookingToEdit.id).map(b => b.time) : [];
+    }, [bookingToEdit, allBookings]);
+
     const sortedVendors = useMemo(() => [...vendors].sort((a, b) => (a.active !== false === b.active !== false) ? a.name.localeCompare(b.name) : (a.active !== false ? -1 : 1)), [vendors]);
     const sortedBdms = useMemo(() => [...bdms].sort((a, b) => (a.active !== false === b.active !== false) ? a.name.localeCompare(b.name) : (a.active !== false ? -1 : 1)), [bdms]);
     const sortedManagers = useMemo(() => [...managers].sort((a, b) => (a.active !== false === b.active !== false) ? a.name.localeCompare(b.name) : (a.active !== false ? -1 : 1)), [managers]);
-    const blockedSlotsForEdit = useMemo(() => bookingToEdit ? allBookings.filter(b => b.parentBookingId === bookingToEdit.id).map(b => b.time) : [], [bookingToEdit, allBookings]);
-    const allBookingsForCalendar = useMemo(() => allBookings.filter(b => !b.isBlocker), [allBookings]);
+    
+    // Paginated Users
+    const paginatedVendors = useMemo(() => sortedVendors.slice((vendorsPage - 1) * ITEMS_PER_PAGE, vendorsPage * ITEMS_PER_PAGE), [sortedVendors, vendorsPage]);
+    const paginatedBdms = useMemo(() => sortedBdms.slice((bdmsPage - 1) * ITEMS_PER_PAGE, bdmsPage * ITEMS_PER_PAGE), [sortedBdms, bdmsPage]);
+    const paginatedManagers = useMemo(() => sortedManagers.slice((managersPage - 1) * ITEMS_PER_PAGE, managersPage * ITEMS_PER_PAGE), [sortedManagers, managersPage]);
 
     const handleAssignBdm = (bookingId: number, bdmId: number) => { 
         setAllBookings(prev => prev.map(b => b.id === bookingId ? { ...b, bdmId } : b)); 
@@ -472,24 +485,10 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         const booking = allBookings.find(b => b.id === bookingId);
         
         if (bdm) {
-            setNotifications(prev => [...prev, { 
-                id: Date.now(), 
-                vendorId: bdm.id, 
-                bookingId, 
-                message: `New Lead Assigned: ${booking?.clientName} (${booking?.businessName})`, 
-                read: false, 
-                timestamp: new Date().toISOString() 
-            }]);
-            
+            setNotifications(prev => [...prev, { id: Date.now(), vendorId: bdm.id, bookingId, message: `New Lead Assigned: ${booking?.clientName} (${booking?.businessName})`, read: false, timestamp: new Date().toISOString() }]);
             if (bdm.notificationPreferences?.newAssignment) {
-                sendEmailNotification(
-                    bdm.email || '', 
-                    `New Lead Assigned: ${booking?.businessName}`, 
-                    booking || {}, 
-                    `Hello ${bdm.name}, you have been assigned a new lead for ${booking?.businessName}. Please review the details in your dashboard.`
-                );
+                sendEmailNotification(bdm.email || '', `New Lead Assigned: ${booking?.businessName}`, booking || {}, `Hello ${bdm.name}, you have been assigned a new lead for ${booking?.businessName}. Please review the details in your dashboard.`);
             }
-
             triggerSystemAlert(`Lead assigned to ${bdm.name}. Notification sent.`);
         }
         setBookingToManage(null); 
@@ -513,24 +512,10 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             return b; 
         }));
         
-        setNotifications(prev => [...prev, { 
-            id: Date.now(), 
-            vendorId: bookingToManage.vendor.id, 
-            bookingId: currentBookingId, 
-            message: `Your booking for ${bookingToManage.clientName} was rejected. Reason: ${reasonStr}`, 
-            read: false, 
-            timestamp: new Date().toISOString() 
-        }]);
-
+        setNotifications(prev => [...prev, { id: Date.now(), vendorId: bookingToManage.vendor.id, bookingId: currentBookingId, message: `Your booking for ${bookingToManage.clientName} was rejected. Reason: ${reasonStr}`, read: false, timestamp: new Date().toISOString() }]);
         if (bookingToManage.vendor.notificationPreferences?.statusChange) {
-            sendEmailNotification(
-                bookingToManage.vendor.email || '',
-                `Lead Rejected: ${bookingToManage.businessName}`,
-                bookingToManage,
-                `The lead for ${bookingToManage.businessName} was rejected. Reason: ${reasonStr}`
-            );
+            sendEmailNotification(bookingToManage.vendor.email || '', `Lead Rejected: ${bookingToManage.businessName}`, bookingToManage, `The lead for ${bookingToManage.businessName} was rejected. Reason: ${reasonStr}`);
         }
-
         setBookingToManage(null); 
         setRejectionReason('');
     };
@@ -561,25 +546,11 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
 
         if (approvedBooking) {
             const targetId = approvedBooking.bdmId || approvedBooking.vendor.id;
-            setNotifications(prev => [...prev, { 
-                id: Date.now(), 
-                vendorId: targetId, 
-                bookingId, 
-                message: `Request Approved: ${approvedBooking?.clientName} on ${approvedBooking?.date}`, 
-                read: false, 
-                timestamp: new Date().toISOString() 
-            }]);
-
+            setNotifications(prev => [...prev, { id: Date.now(), vendorId: targetId, bookingId, message: `Request Approved: ${approvedBooking?.clientName} on ${approvedBooking?.date}`, read: false, timestamp: new Date().toISOString() }]);
             const targetUser = approvedBooking.bdmId ? bdms.find(b => b.id === approvedBooking?.bdmId) : vendors.find(v => v.id === approvedBooking?.vendor.id);
             if (targetUser && targetUser.notificationPreferences?.requestDecision) {
-                 sendEmailNotification(
-                    targetUser.email || '',
-                    `Request Approved: ${approvedBooking.businessName}`,
-                    approvedBooking,
-                    `Your booking request for ${approvedBooking.businessName} has been approved and confirmed.`
-                );
+                 sendEmailNotification(targetUser.email || '', `Request Approved: ${approvedBooking.businessName}`, approvedBooking, `Your booking request for ${approvedBooking.businessName} has been approved and confirmed.`);
             }
-
             triggerSystemAlert(`Request approved and confirmed.`);
         }
         setRequestToReview(null);
@@ -597,58 +568,21 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
              return b;
          }));
 
-         setNotifications(prev => [...prev, { 
-            id: Date.now(), 
-            vendorId: targetId, 
-            bookingId, 
-            message: `Request Rejected for ${bookingId}. Reason: ${reason}`, 
-            read: false, 
-            timestamp: new Date().toISOString() 
-         }]);
-
+         setNotifications(prev => [...prev, { id: Date.now(), vendorId: targetId, bookingId, message: `Request Rejected for ${bookingId}. Reason: ${reason}`, read: false, timestamp: new Date().toISOString() }]);
          if (rejectedBooking) {
             const targetUser = rejectedBooking.bdmId ? bdms.find(b => b.id === rejectedBooking?.bdmId) : vendors.find(v => v.id === rejectedBooking?.vendor.id);
             if (targetUser && targetUser.notificationPreferences?.requestDecision) {
-                 sendEmailNotification(
-                    targetUser.email || '',
-                    `Request Rejected: ${rejectedBooking.businessName}`,
-                    rejectedBooking,
-                    `Your booking request for ${rejectedBooking.businessName} was rejected. Reason: ${reason}`
-                );
+                 sendEmailNotification(targetUser.email || '', `Request Rejected: ${rejectedBooking.businessName}`, rejectedBooking, `Your booking request for ${rejectedBooking.businessName} was rejected. Reason: ${reason}`);
             }
          }
-
          setRequestToReview(null);
     };
 
     const handleManualBookingEntry = (bookingDetails: Omit<Booking, 'id' | 'status'>, slotsToBlock: string[] = []) => {
         const mainBookingId = Date.now();
         const newBooking: Booking = { ...bookingDetails, id: mainBookingId, status: 'active' };
-
-        const blockers: Booking[] = slotsToBlock.map((time, index) => ({
-            id: mainBookingId + index + 1,
-            clientName: 'Slot Blocked',
-            businessName: 'Admin Manual Block',
-            clientWebsite: '',
-            clientPhone: '',
-            address: '',
-            callerName: 'System',
-            date: bookingDetails.date,
-            time: time,
-            vendor: newBooking.vendor,
-            region: bookingDetails.region,
-            isBlocker: true,
-            parentBookingId: mainBookingId,
-            status: 'active'
-        }));
-
-        sendEmailNotification(
-            "pia@zealdigital.com.au",
-            `New Lead Booked (Admin): ${bookingDetails.businessName}`,
-            newBooking,
-            `Hello, Admin ${currentUser.name} has manually entered a new lead for ${bookingDetails.clientName} at ${bookingDetails.businessName}.`
-        );
-
+        const blockers: Booking[] = slotsToBlock.map((time, index) => ({ id: mainBookingId + index + 1, clientName: 'Slot Blocked', businessName: 'Admin Manual Block', clientWebsite: '', clientPhone: '', address: '', callerName: 'System', date: bookingDetails.date, time: time, vendor: newBooking.vendor, region: bookingDetails.region, isBlocker: true, parentBookingId: mainBookingId, status: 'active' }));
+        sendEmailNotification("pia@zealdigital.com.au", `New Lead Booked (Admin): ${bookingDetails.businessName}`, newBooking, `Hello, Admin ${currentUser.name} has manually entered a new lead for ${bookingDetails.clientName} at ${bookingDetails.businessName}.`);
         setAllBookings(prev => [...prev, newBooking, ...blockers]);
         setIsManualBookingOpen(false);
         triggerSystemAlert(`Lead booked directly and ${slotsToBlock.length} slots blocked.`);
@@ -706,23 +640,17 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             if (mod === 'PM' && h !== 12) h += 12;
             if (mod === 'AM' && h === 12) h = 0;
             return h * 60 + m;
-        } catch (e) {
-            return 0;
-        }
+        } catch (e) { return 0; }
     };
 
-    const handleDeleteLeave = (id: number) => {
-        setLeaveDays(prev => prev.filter(l => l.id !== id));
-    };
+    const handleDeleteLeave = (id: number) => { setLeaveDays(prev => prev.filter(l => l.id !== id)); };
 
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
             setLogoFile(file);
             const reader = new FileReader();
-            reader.onloadend = () => {
-                setBrandingForm(prev => ({ ...prev, logoUrl: reader.result as string }));
-            };
+            reader.onloadend = () => { setBrandingForm(prev => ({ ...prev, logoUrl: reader.result as string })); };
             reader.readAsDataURL(file);
         }
     };
@@ -735,18 +663,12 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         setNewRegionName('');
     };
 
-    const handleRegionColorChange = (region: string, color: string) => {
-        setRegionColors(prev => ({ ...prev, [region]: color }));
-    };
+    const handleRegionColorChange = (region: string, color: string) => { setRegionColors(prev => ({ ...prev, [region]: color })); };
 
     const handleDeleteRegion = (region: string) => {
         if (window.confirm(`Delete region ${region}?`)) {
             setRegions(prev => prev.filter(r => r !== region));
-            setRegionColors(prev => {
-                const next = { ...prev };
-                delete next[region];
-                return next;
-            });
+            setRegionColors(prev => { const next = { ...prev }; delete next[region]; return next; });
         }
     };
 
@@ -754,20 +676,14 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         setAppointmentTimes(prev => {
             const config = prev[slotConfigRegion] || { base: [], overrides: { dayOfWeek: {}, date: {} } };
             if (config.base.includes(newBaseSlot)) return prev;
-            return {
-                ...prev,
-                [slotConfigRegion]: { ...config, base: [...config.base, newBaseSlot].sort((a,b) => parseTimeStringToMinutes(a) - parseTimeStringToMinutes(b)) }
-            };
+            return { ...prev, [slotConfigRegion]: { ...config, base: [...config.base, newBaseSlot].sort((a,b) => parseTimeStringToMinutes(a) - parseTimeStringToMinutes(b)) } };
         });
     };
 
     const handleRemoveBaseSlot = (slot: string) => {
         setAppointmentTimes(prev => {
             const config = prev[slotConfigRegion];
-            return {
-                ...prev,
-                [slotConfigRegion]: { ...config, base: config.base.filter(s => s !== slot) }
-            };
+            return { ...prev, [slotConfigRegion]: { ...config, base: config.base.filter(s => s !== slot) } };
         });
     };
 
@@ -777,25 +693,14 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         }
     };
 
-    const handleRemoveDaySlotFromStaging = (slot: string) => {
-        setNewDayOverrideSlots(prev => prev.filter(s => s !== slot));
-    };
+    const handleRemoveDaySlotFromStaging = (slot: string) => { setNewDayOverrideSlots(prev => prev.filter(s => s !== slot)); };
 
     const handleAddDayOverride = () => {
         if (newDayOverrideSlots.length === 0) return;
         const day = parseInt(newDayOverrideDay);
         setAppointmentTimes(prev => {
             const config = prev[slotConfigRegion];
-            return {
-                ...prev,
-                [slotConfigRegion]: {
-                    ...config,
-                    overrides: {
-                        ...config.overrides,
-                        dayOfWeek: { ...config.overrides.dayOfWeek, [day]: newDayOverrideSlots }
-                    }
-                }
-            };
+            return { ...prev, [slotConfigRegion]: { ...config, overrides: { ...config.overrides, dayOfWeek: { ...config.overrides.dayOfWeek, [day]: newDayOverrideSlots } } } };
         });
         setNewDayOverrideSlots([]);
     };
@@ -805,13 +710,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             const config = prev[slotConfigRegion];
             const nextDayOfWeek = { ...config.overrides.dayOfWeek };
             delete nextDayOfWeek[day];
-            return {
-                ...prev,
-                [slotConfigRegion]: {
-                    ...config,
-                    overrides: { ...config.overrides, dayOfWeek: nextDayOfWeek }
-                }
-            };
+            return { ...prev, [slotConfigRegion]: { ...config, overrides: { ...config.overrides, dayOfWeek: nextDayOfWeek } } };
         });
     };
 
@@ -821,24 +720,13 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         }
     };
 
-    const handleRemoveDateSlotFromStaging = (slot: string) => {
-        setNewDateOverrideSlots(prev => prev.filter(s => s !== slot));
-    };
+    const handleRemoveDateSlotFromStaging = (slot: string) => { setNewDateOverrideSlots(prev => prev.filter(s => s !== slot)); };
 
     const handleAddDateOverride = () => {
         if (!newDateOverrideDate || newDateOverrideSlots.length === 0) return;
         setAppointmentTimes(prev => {
             const config = prev[slotConfigRegion];
-            return {
-                ...prev,
-                [slotConfigRegion]: {
-                    ...config,
-                    overrides: {
-                        ...config.overrides,
-                        date: { ...config.overrides.date, [newDateOverrideDate]: newDateOverrideSlots }
-                    }
-                }
-            };
+            return { ...prev, [slotConfigRegion]: { ...config, overrides: { ...config.overrides, date: { ...config.overrides.date, [newDateOverrideDate]: newDateOverrideSlots } } } };
         });
         setNewDateOverrideDate('');
         setNewDateOverrideSlots([]);
@@ -849,56 +737,36 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             const config = prev[slotConfigRegion];
             const nextDate = { ...config.overrides.date };
             delete nextDate[date];
-            return {
-                ...prev,
-                [slotConfigRegion]: {
-                    ...config,
-                    overrides: { ...config.overrides, date: nextDate }
-                }
-            };
+            return { ...prev, [slotConfigRegion]: { ...config, overrides: { ...config.overrides, date: nextDate } } };
         });
     };
 
-    const toggleHolidayRegion = (region: Region) => {
-        setNewHolidayRegions(prev => prev.includes(region) ? prev.filter(r => r !== region) : [...prev, region]);
-    };
+    const toggleHolidayRegion = (region: Region) => { setNewHolidayRegions(prev => prev.includes(region) ? prev.filter(r => r !== region) : [...prev, region]); };
 
     const handleSaveHoliday = () => {
         if (!newHolidayName || !newHolidayStartDate || newHolidayRegions.length === 0) return;
-        const holiday: PublicHoliday = {
-            id: editingHolidayOriginal ? editingHolidayOriginal.id : Date.now(),
-            name: newHolidayName,
-            startDate: newHolidayStartDate,
-            endDate: newHolidayEndDate || newHolidayStartDate,
-            regions: newHolidayRegions
-        };
-        if (editingHolidayOriginal) {
-            setPublicHolidays(prev => prev.map(h => h.id === holiday.id ? holiday : h));
-        } else {
-            setPublicHolidays(prev => [...prev, holiday]);
-        }
-        setNewHolidayName('');
-        setNewHolidayStartDate('');
-        setNewHolidayEndDate('');
-        setNewHolidayRegions([]);
-        setEditingHolidayOriginal(null);
+        const holiday: PublicHoliday = { id: editingHolidayOriginal ? editingHolidayOriginal.id : Date.now(), name: newHolidayName, startDate: newHolidayStartDate, endDate: newHolidayEndDate || newHolidayStartDate, regions: newHolidayRegions };
+        if (editingHolidayOriginal) { setPublicHolidays(prev => prev.map(h => h.id === holiday.id ? holiday : h)); } else { setPublicHolidays(prev => [...prev, holiday]); }
+        setNewHolidayName(''); setNewHolidayStartDate(''); setNewHolidayEndDate(''); setNewHolidayRegions([]); setEditingHolidayOriginal(null);
     };
 
-    const handleEditHoliday = (holiday: PublicHoliday) => {
-        setEditingHolidayOriginal(holiday);
-        setNewHolidayName(holiday.name);
-        setNewHolidayStartDate(holiday.startDate);
-        setNewHolidayEndDate(holiday.endDate);
-        setNewHolidayRegions(holiday.regions);
-    };
-
-    const handleDeleteHoliday = (id: number) => {
-        setPublicHolidays(prev => prev.filter(h => h.id !== id));
-    };
-
+    const handleEditHoliday = (holiday: PublicHoliday) => { setEditingHolidayOriginal(holiday); setNewHolidayName(holiday.name); setNewHolidayStartDate(holiday.startDate); setNewHolidayEndDate(holiday.endDate); setNewHolidayRegions(holiday.regions); };
+    const handleDeleteHoliday = (id: number) => { setPublicHolidays(prev => prev.filter(h => h.id !== id)); };
     const handleSaveBranding = () => { if (logoFile) { const reader = new FileReader(); reader.onloadend = () => { setBranding({ ...brandingForm, logoUrl: reader.result as string }); }; reader.readAsDataURL(logoFile); } else setBranding(brandingForm); };
     const handleImportUpload = async () => { if (importFile) { const { newBookings, stats } = await processImportFile(importFile, allBookings, vendors, currentUser); setImportPreview({ newBookings, stats }); } };
     const handleUpdateMyProfile = (e: React.FormEvent) => { e.preventDefault(); onUpdateProfile({ ...currentUser, ...profileForm } as any); setShowProfileSuccess(true); setIsEditingPassword(false); setTimeout(() => setShowProfileSuccess(false), 3000); };
+
+    // --- Pagination Helper Component ---
+    const Pagination = ({ totalPages, currentPage, onPageChange, totalItems, label }: { totalPages: number, currentPage: number, onPageChange: (p: number) => void, totalItems: number, label: string }) => (
+        <div className="p-4 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{totalItems} {label}</span>
+            <div className="flex items-center gap-2">
+                <button onClick={() => onPageChange(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white">Prev</button>
+                <span className="text-xs font-bold text-gray-600">Page {currentPage} of {totalPages}</span>
+                <button onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages} className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white">Next</button>
+            </div>
+        </div>
+    );
 
     return (
         <div className="min-h-screen transition-colors duration-300" style={{ backgroundColor: dashboardBackground }}>
@@ -940,12 +808,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                             {req.time}
                                                         </div>
                                                     </div>
-                                                    <button 
-                                                        onClick={() => setRequestToReview(req)}
-                                                        className="w-full py-2 bg-indigo-600 text-white rounded-lg font-black uppercase text-[10px] tracking-widest hover:bg-indigo-700 shadow-sm transition-all"
-                                                    >
-                                                        Review & Action
-                                                    </button>
+                                                    <button onClick={() => setRequestToReview(req)} className="w-full py-2 bg-indigo-600 text-white rounded-lg font-black uppercase text-[10px] tracking-widest hover:bg-indigo-700 shadow-sm transition-all">Review & Action</button>
                                                 </div>
                                             ))}
                                         </div>
@@ -956,27 +819,15 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                     <div className="flex-grow max-w-2xl">
                                         <div className="relative flex items-center">
                                             <MagnifyingGlassIcon className="absolute left-3 w-5 h-5 text-gray-400" />
-                                            <input 
-                                                type="text" 
-                                                className="block w-full rounded-xl border-0 py-3 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-black transition-all bg-white" 
-                                                placeholder="Search by name, phone, website, address..." 
-                                                value={searchTerm} 
-                                                onChange={e => setSearchTerm(e.target.value)} 
-                                            />
+                                            <input type="text" className="block w-full rounded-xl border-0 py-3 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-black transition-all bg-white" placeholder="Search by name, phone, website, address..." value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setActiveLeadsPage(1); }} />
                                             {searchTerm && (
-                                                <button onClick={() => setSearchTerm('')} className="absolute right-3 p-1 text-gray-400 hover:text-gray-600 rounded-full">
-                                                    <XMarkIcon className="w-5 h-5" />
-                                                </button>
+                                                <button onClick={() => { setSearchTerm(''); setActiveLeadsPage(1); }} className="absolute right-3 p-1 text-gray-400 hover:text-gray-600 rounded-full"><XMarkIcon className="w-5 h-5" /></button>
                                             )}
                                         </div>
                                     </div>
                                     <div className="flex gap-2 w-full sm:w-auto">
-                                        <button onClick={() => setIsManualBookingOpen(true)} className="px-6 py-3 bg-black text-white rounded-xl hover:bg-gray-800 shadow-md transition-all font-bold uppercase text-xs tracking-widest flex items-center gap-2">
-                                            <PlusIcon className="w-4 h-4" /> Book Lead
-                                        </button>
-                                        <button onClick={() => exportBookingsToCSV(allBookings, 'leads_report')} className="px-5 py-3 bg-white border border-gray-200 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center gap-2">
-                                            <ArrowDownTrayIcon className="w-4 h-4" /> Export
-                                        </button>
+                                        <button onClick={() => setIsManualBookingOpen(true)} className="px-6 py-3 bg-black text-white rounded-xl hover:bg-gray-800 shadow-md transition-all font-bold uppercase text-xs tracking-widest flex items-center gap-2"><PlusIcon className="w-4 h-4" /> Book Lead</button>
+                                        <button onClick={() => exportBookingsToCSV(allBookings, 'leads_report')} className="px-5 py-3 bg-white border border-gray-200 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center gap-2"><ArrowDownTrayIcon className="w-4 h-4" /> Export</button>
                                     </div>
                                 </div>
 
@@ -984,9 +835,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                     {/* 1. ACTIVE LEADS */}
                                     <div>
                                         <div className="flex items-center justify-between mb-4 border-b pb-2">
-                                            <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
-                                                <ClockIcon className="w-5 h-5 text-indigo-600" /> Active Leads
-                                            </h2>
+                                            <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-2"><ClockIcon className="w-5 h-5 text-indigo-600" /> Active Leads</h2>
                                             <span className="text-[10px] font-bold bg-indigo-50 text-indigo-600 px-2 py-1 rounded">Rolling 7-Day Window</span>
                                         </div>
                                         <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
@@ -1007,7 +856,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                         {sortedActiveDates.map(date => {
                                                             const [y, m, d] = date.split('-').map(Number);
                                                             const displayDate = new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                                                            
                                                             return (
                                                                 <React.Fragment key={date}>
                                                                     <tr className="bg-gray-50/50"><td colSpan={7} className="px-6 py-2 text-xs font-bold text-gray-500 uppercase tracking-tighter">{displayDate}</td></tr>
@@ -1016,43 +864,14 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                                             <td className="px-6 py-4">
                                                                                 <div className="text-sm font-bold text-gray-900">{b.clientName}</div>
                                                                                 <div className="text-xs text-gray-400">{b.businessName}</div>
-                                                                                {b.clientWebsite && (
-                                                                                    <a 
-                                                                                        href={b.clientWebsite.startsWith('http') ? b.clientWebsite : `https://${b.clientWebsite}`}
-                                                                                        target="_blank"
-                                                                                        rel="noopener noreferrer"
-                                                                                        className="text-[10px] text-indigo-500 hover:text-indigo-700 hover:underline truncate max-w-[150px] block transition-colors mt-0.5"
-                                                                                    >
-                                                                                        {b.clientWebsite}
-                                                                                    </a>
-                                                                                )}
+                                                                                {b.clientWebsite && (<a href={b.clientWebsite.startsWith('http') ? b.clientWebsite : `https://${b.clientWebsite}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-500 hover:text-indigo-700 hover:underline truncate max-w-[150px] block transition-colors mt-0.5">{b.clientWebsite}</a>)}
                                                                             </td>
-                                                                            <td className="px-6 py-4">
-                                                                                <div className="flex items-center gap-1.5 text-xs text-gray-900 font-bold mb-1">
-                                                                                    <PhoneIcon className="w-3.5 h-3.5 text-indigo-400" />
-                                                                                    <a href={`tel:${b.clientPhone}`} className="hover:text-indigo-600 transition-colors">{b.clientPhone}</a>
-                                                                                </div>
-                                                                                <div className="text-[10px] text-gray-500 max-w-[180px] leading-tight break-words">
-                                                                                    {b.address}
-                                                                                </div>
-                                                                            </td>
+                                                                            <td className="px-6 py-4"><div className="flex items-center gap-1.5 text-xs text-gray-900 font-bold mb-1"><PhoneIcon className="w-3.5 h-3.5 text-indigo-400" /><a href={`tel:${b.clientPhone}`} className="hover:text-indigo-600 transition-colors">{b.clientPhone}</a></div><div className="text-[10px] text-gray-500 max-w-[180px] leading-tight break-words">{b.address}</div></td>
                                                                             <td className="px-6 py-4 text-xs text-gray-500 font-bold">{b.vendor.name}</td>
                                                                             <td className="px-6 py-4 text-sm font-bold text-gray-900">{b.time}</td>
                                                                             <td className="px-6 py-4"><span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-gray-100 text-gray-600 uppercase">{b.region}</span></td>
-                                                                            <td className="px-6 py-4">
-                                                                                {getStatusPill(b.status)}
-                                                                            </td>
-                                                                            <td className="px-6 py-4 text-right">
-                                                                                <div className="flex items-center justify-end gap-2">
-                                                                                    <select className="text-[10px] border-gray-200 rounded-lg p-1 font-bold outline-none" value={b.bdmId || ''} onChange={(e) => handleAssignBdm(b.id, Number(e.target.value))}>
-                                                                                        <option value="">Assign BDM</option>
-                                                                                        {bdmsByRegion[b.region]?.map(bdm => (<option key={bdm.id} value={bdm.id}>{bdm.name}</option>))}
-                                                                                    </select>
-                                                                                    <button onClick={() => setBookingToManage(b)} className="text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-all" title="Reject"><XMarkIcon className="w-4 h-4" /></button>
-                                                                                    <button onClick={() => setBookingToEdit(b)} className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-all" title="Edit"><PencilSquareIcon className="w-4 h-4" /></button>
-                                                                                    <button onClick={() => handleDeleteBooking(b.id)} className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg transition-all" title="Delete"><TrashIcon className="w-4 h-4" /></button>
-                                                                                </div>
-                                                                            </td>
+                                                                            <td className="px-6 py-4">{getStatusPill(b.status)}</td>
+                                                                            <td className="px-6 py-4 text-right"><div className="flex items-center justify-end gap-2"><select className="text-[10px] border-gray-200 rounded-lg p-1 font-bold outline-none" value={b.bdmId || ''} onChange={(e) => handleAssignBdm(b.id, Number(e.target.value))}><option value="">Assign BDM</option>{bdmsByRegion[b.region]?.map(bdm => (<option key={bdm.id} value={bdm.id}>{bdm.name}</option>))}</select><button onClick={() => setBookingToManage(b)} className="text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-all" title="Reject"><XMarkIcon className="w-4 h-4" /></button><button onClick={() => setBookingToEdit(b)} className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-all" title="Edit"><PencilSquareIcon className="w-4 h-4" /></button><button onClick={() => handleDeleteBooking(b.id)} className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg transition-all" title="Delete"><TrashIcon className="w-4 h-4" /></button></div></td>
                                                                         </tr>
                                                                     ))}
                                                                 </React.Fragment>
@@ -1062,34 +881,26 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                     </tbody>
                                                 </table>
                                             </div>
+                                            <Pagination totalPages={totalActiveLeadsPages} currentPage={activeLeadsPage} onPageChange={setActiveLeadsPage} totalItems={activeLeads.length} label="Active Leads" />
                                         </div>
                                     </div>
 
                                     {/* 2. REJECTED LEADS */}
                                     <div>
-                                        <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-4 flex items-center gap-2">
-                                            <ExclamationTriangleIcon className="w-5 h-5 text-red-600" /> Rejected Leads
-                                        </h2>
-                                        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-                                            <RejectedBookingsList bookings={rejectedLeads} role="manager" searchTerm={searchTerm} />
-                                        </div>
+                                        <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-4 flex items-center gap-2"><ExclamationTriangleIcon className="w-5 h-5 text-red-600" /> Rejected Leads</h2>
+                                        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden"><RejectedBookingsList bookings={rejectedLeads} role="manager" searchTerm={searchTerm} /></div>
                                     </div>
 
                                     {/* 3. ARCHIVED LEADS */}
                                     <div>
-                                        <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-4 flex items-center gap-2">
-                                            <CheckBadgeIcon className="w-5 h-5 text-emerald-600" /> Archived Leads (History)
-                                        </h2>
-                                        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-                                            <ArchivedBookingsList bookings={archivedLeads} role="manager" searchTerm={searchTerm} />
-                                        </div>
+                                        <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-4 flex items-center gap-2"><CheckBadgeIcon className="w-5 h-5 text-emerald-600" /> Archived Leads (History)</h2>
+                                        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden"><ArchivedBookingsList bookings={archivedLeads} role="manager" searchTerm={searchTerm} /></div>
                                     </div>
                                 </div>
                             </>
                         )}
                         {activeTab === 'analytics' && (
                           <div className="space-y-8 animate-fadeIn pb-20">
-                            {/* Analytics Controls Section */}
                             <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
                                 <h3 className="text-lg font-bold text-gray-800 mb-4">Analytics Controls</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
@@ -1097,34 +908,12 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                     <div className="flex flex-col">
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Trend Grouping</label>
                                         <div className="flex rounded-md shadow-sm">
-                                            {['daily', 'weekly', 'monthly', 'yearly'].map(p => (
-                                                <button 
-                                                    key={p} 
-                                                    onClick={() => setAnalyticsTimePeriod(p as any)} 
-                                                    className={`flex-1 py-2 text-sm border capitalize transition-all ${analyticsTimePeriod === p ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
-                                                >
-                                                    {p}
-                                                </button>
-                                            ))}
+                                            {['daily', 'weekly', 'monthly', 'yearly'].map(p => (<button key={p} onClick={() => setAnalyticsTimePeriod(p as any)} className={`flex-1 py-2 text-sm border capitalize transition-all ${analyticsTimePeriod === p ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>{p}</button>))}
                                         </div>
                                     </div>
                                 </div>
                             </div>
-
-                            <AnalyticsDashboard bookings={analyticsBookings} isManager={true} />
-                            
-                            {/* New BDM Performance Table */}
-                            <BdmOutcomePerformance bookings={analyticsBookings} bdms={bdms} />
-
-                            <TrendAnalytics bookings={analyticsBookings} period={analyticsTimePeriod} />
-                            
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                <StatusAnalytics bookings={analyticsBookings} title="Database Distribution" />
-                                <VendorPerformanceAnalytics bookings={analyticsBookings} vendors={vendors} />
-                            </div>
-                            
-                            {/* OVERHAULED LOG COMPONENT */}
-                            <PerformanceLeadLog bookings={analyticsBookings} bdms={bdms} title="Global Data Report Log" />
+                            <AnalyticsDashboard bookings={analyticsBookings} isManager={true} /><BdmOutcomePerformance bookings={analyticsBookings} bdms={bdms} /><TrendAnalytics bookings={analyticsBookings} period={analyticsTimePeriod} /><div className="grid grid-cols-1 lg:grid-cols-2 gap-8"><StatusAnalytics bookings={analyticsBookings} title="Database Distribution" /><VendorPerformanceAnalytics bookings={analyticsBookings} vendors={vendors} /></div><PerformanceLeadLog bookings={analyticsBookings} bdms={bdms} title="Global Data Report Log" />
                           </div>
                         )}
                         {activeTab === 'users' && (
@@ -1153,25 +942,21 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                     </tr>
                                                 </thead>
                                                 <tbody className="bg-white divide-y divide-100">
-                                                    {sortedVendors.map(v => (
+                                                    {paginatedVendors.map(v => (
                                                         <tr key={v.id} className="hover:bg-gray-50 transition-colors">
                                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">{v.name}</td>
                                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{v.username}</td>
                                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-xs">{visiblePasswords[v.id] ? v.password : '••••••••'}</span>
-                                                                    <button type="button" onClick={() => togglePasswordVisibility(v.id)} className="text-gray-400 hover:text-indigo-600 transition-colors">{visiblePasswords[v.id] ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}</button>
-                                                                </div>
+                                                                <div className="flex items-center gap-2"><span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-xs">{visiblePasswords[v.id] ? v.password : '••••••••'}</span><button type="button" onClick={() => togglePasswordVisibility(v.id)} className="text-gray-400 hover:text-indigo-600 transition-colors">{visiblePasswords[v.id] ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}</button></div>
                                                             </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                <div className="flex flex-wrap gap-2">{v.allowedRegions?.map(r => (<span key={r} className="text-[10px] px-2 py-0.5 border border-gray-200 bg-gray-50 text-gray-500 rounded font-bold uppercase tracking-tight">{r}</span>)) || <span className="text-[10px] text-gray-400">ALL</span>}</div>
-                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap"><div className="flex flex-wrap gap-2">{v.allowedRegions?.map(r => (<span key={r} className="text-[10px] px-2 py-0.5 border border-gray-200 bg-gray-50 text-gray-500 rounded font-bold uppercase tracking-tight">{r}</span>)) || <span className="text-[10px] text-gray-400">ALL</span>}</div></td>
                                                             <td className="px-6 py-4 whitespace-nowrap">{v.active !== false ? <span className="text-emerald-600 font-bold text-[10px] bg-emerald-50 px-2 py-1 rounded-full uppercase">Active</span> : <span className="text-red-600 font-bold text-[10px] bg-red-50 px-2 py-1 rounded-full uppercase">Inactive</span>}</td>
                                                             <td className="px-6 py-4 text-right"><div className="flex justify-end gap-3"><button onClick={() => setEditingUser({user: v, type: 'vendor'})} className="text-gray-400 hover:text-indigo-600 transition-colors p-1"><PencilSquareIcon className="w-4 h-4" /></button></div></td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
                                             </table>
+                                            <Pagination totalPages={Math.ceil(sortedVendors.length/ITEMS_PER_PAGE)} currentPage={vendorsPage} onPageChange={setVendorsPage} totalItems={sortedVendors.length} label="Calling Teams" />
                                         </div>
                                     </div>
                                 )}
@@ -1191,7 +976,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                     </tr>
                                                 </thead>
                                                 <tbody className="bg-white divide-y divide-100">
-                                                    {sortedBdms.map(b => (
+                                                    {paginatedBdms.map(b => (
                                                         <tr key={b.id} className="hover:bg-gray-50 transition-colors">
                                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">{b.name}</td>
                                                             <td className="px-6 py-4 whitespace-nowrap"><span className="text-[10px] px-2 py-0.5 border border-gray-200 bg-gray-50 text-gray-500 rounded font-bold uppercase tracking-tight">{b.region}</span></td>
@@ -1205,32 +990,13 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                     ))}
                                                 </tbody>
                                             </table>
+                                            <Pagination totalPages={Math.ceil(sortedBdms.length/ITEMS_PER_PAGE)} currentPage={bdmsPage} onPageChange={setBdmsPage} totalItems={sortedBdms.length} label="BDMs" />
                                         </div>
                                     </div>
                                 )}
                                 {userMgmtTab === 'managers' && (
                                     <div className="space-y-8 animate-fadeIn">
-                                        <div className="bg-white p-6 rounded-xl shadow border border-gray-200">
-                                            <h4 className="font-bold mb-4 uppercase tracking-widest text-xs text-gray-400">Add New Manager</h4>
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                                                <div>
-                                                    <label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Name</label>
-                                                    <input type="text" value={newManagerName} onChange={e => setNewManagerName(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Username</label>
-                                                    <input type="text" value={newManagerUsername} onChange={e => setNewManagerUsername(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Password</label>
-                                                    <div className="flex gap-2">
-                                                        <input type="text" value={newManagerPassword} onChange={e => setNewManagerPassword(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/>
-                                                        <button onClick={() => setNewManagerPassword(generateSecurePassword())} className="bg-gray-100 border px-3 rounded hover:bg-gray-200 text-xs font-bold">Gen</button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <button onClick={handleAddManager} className="w-full mt-6 bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 uppercase tracking-widest text-xs shadow-md shadow-indigo-100">Register Manager Account</button>
-                                        </div>
+                                        <div className="bg-white p-6 rounded-xl shadow border border-gray-200"><h4 className="font-bold mb-4 uppercase tracking-widest text-xs text-gray-400">Add New Manager</h4><div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end"><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Name</label><input type="text" value={newManagerName} onChange={e => setNewManagerName(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/></div><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Username</label><input type="text" value={newManagerUsername} onChange={e => setNewManagerUsername(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/></div><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Password</label><div className="flex gap-2"><input type="text" value={newManagerPassword} onChange={e => setNewManagerPassword(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/><button onClick={() => setNewManagerPassword(generateSecurePassword())} className="bg-gray-100 border px-3 rounded hover:bg-gray-200 text-xs font-bold">Gen</button></div></div></div><button onClick={handleAddManager} className="w-full mt-6 bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 uppercase tracking-widest text-xs shadow-md shadow-indigo-100">Register Manager Account</button></div>
                                         <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
                                             <table className="min-w-full divide-y divide-gray-200">
                                                 <thead className="bg-gray-50 border-b border-gray-200">
@@ -1243,26 +1009,18 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                     </tr>
                                                 </thead>
                                                 <tbody className="bg-white divide-y divide-100">
-                                                    {sortedManagers.map(m => (
+                                                    {paginatedManagers.map(m => (
                                                         <tr key={m.id} className="hover:bg-gray-50 transition-colors">
                                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">{m.name}</td>
                                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{m.username}</td>
-                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-xs">{visiblePasswords[m.id] ? m.password : '••••••••'}</span>
-                                                                    <button type="button" onClick={() => togglePasswordVisibility(m.id)} className="text-gray-400 hover:text-indigo-600 transition-colors">{visiblePasswords[m.id] ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}</button>
-                                                                </div>
-                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600"><div className="flex items-center gap-2"><span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-xs">{visiblePasswords[m.id] ? m.password : '••••••••'}</span><button type="button" onClick={() => togglePasswordVisibility(m.id)} className="text-gray-400 hover:text-indigo-600 transition-colors">{visiblePasswords[m.id] ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}</button></div></td>
                                                             <td className="px-6 py-4 whitespace-nowrap">{m.active !== false ? <span className="text-emerald-600 font-bold text-[10px] bg-emerald-50 px-2 py-1 rounded-full uppercase">Active</span> : <span className="text-red-600 font-bold text-[10px] bg-red-50 px-2 py-1 rounded-full uppercase">Inactive</span>}</td>
-                                                            <td className="px-6 py-4 text-right">
-                                                                <div className="flex justify-end gap-3">
-                                                                    <button onClick={() => setEditingUser({user: m, type: 'manager'})} className="text-gray-400 hover:text-indigo-600 transition-colors p-1"><PencilSquareIcon className="w-4 h-4" /></button>
-                                                                </div>
-                                                            </td>
+                                                            <td className="px-6 py-4 text-right"><div className="flex justify-end gap-3"><button onClick={() => setEditingUser({user: m, type: 'manager'})} className="text-gray-400 hover:text-indigo-600 transition-colors p-1"><PencilSquareIcon className="w-4 h-4" /></button></div></td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
                                             </table>
+                                            <Pagination totalPages={Math.ceil(sortedManagers.length/ITEMS_PER_PAGE)} currentPage={managersPage} onPageChange={setManagersPage} totalItems={sortedManagers.length} label="Managers" />
                                         </div>
                                     </div>
                                 )}
@@ -1278,97 +1036,15 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                         <form onSubmit={handleUpdateMyProfile} className="space-y-4">
                                             <div><label className="block text-sm font-normal text-gray-700">Name</label><input type="text" value={profileForm.name} onChange={e => setProfileForm({...profileForm, name: e.target.value})} className="mt-1 block w-full border border-gray-300 rounded-md p-2.5 shadow-sm" /></div>
                                             <div><label className="block text-sm font-normal text-gray-700">Username</label><input type="text" value={profileForm.username} onChange={e => setProfileForm({...profileForm, username: e.target.value})} className="mt-1 block w-full border border-gray-300 rounded-md p-2.5 shadow-sm" /></div>
-                                            <div>
-                                                <label className="block text-sm font-normal text-gray-700">Password</label>
-                                                <div className="flex gap-2 mt-1">
-                                                    <div className="relative flex-grow">
-                                                        <input 
-                                                            type={showProfilePassword ? "text" : "password"} 
-                                                            value={profileForm.password} 
-                                                            onChange={e => setProfileForm({...profileForm, password: e.target.value})} 
-                                                            className={`block w-full border border-gray-300 rounded-md p-2 pr-10 shadow-sm ${!isEditingPassword ? 'bg-gray-50' : ''}`} 
-                                                            disabled={!isEditingPassword && profileForm.password !== ''}
-                                                        />
-                                                        <button type="button" onClick={() => setShowProfilePassword(!showProfilePassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-indigo-600">{showProfilePassword ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}</button>
-                                                    </div>
-                                                    {(!isEditingPassword && profileForm.password !== '') ? (
-                                                        <button type="button" onClick={() => setIsEditingPassword(true)} className="px-3 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md hover:bg-indigo-100 text-xs font-normal whitespace-nowrap flex items-center gap-1"><PencilSquareIcon className="w-3 h-3" /> Edit</button>
-                                                    ) : (
-                                                        <button type="button" onClick={() => setProfileForm({...profileForm, password: generateSecurePassword()})} className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 text-xs font-normal">Gen</button>
-                                                    )}
-                                                </div>
-                                            </div>
+                                            <div><label className="block text-sm font-normal text-gray-700">Password</label><div className="flex gap-2 mt-1"><div className="relative flex-grow"><input type={showProfilePassword ? "text" : "password"} value={profileForm.password} onChange={e => setProfileForm({...profileForm, password: e.target.value})} className={`block w-full border border-gray-300 rounded-md p-2 pr-10 shadow-sm ${!isEditingPassword ? 'bg-gray-50' : ''}`} disabled={!isEditingPassword && profileForm.password !== ''}/><button type="button" onClick={() => setShowProfilePassword(!showProfilePassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-indigo-600">{showProfilePassword ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}</button></div>{(!isEditingPassword && profileForm.password !== '') ? (<button type="button" onClick={() => setIsEditingPassword(true)} className="px-3 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md hover:bg-indigo-100 text-xs font-normal whitespace-nowrap flex items-center gap-1"><PencilSquareIcon className="w-3 h-3" /> Edit</button>) : (<button type="button" onClick={() => setProfileForm({...profileForm, password: generateSecurePassword()})} className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 text-xs font-normal">Gen</button>)}</div></div>
                                             <div><label className="block text-sm font-normal text-gray-700">Recovery Email</label><input type="email" value={profileForm.recoveryEmail} onChange={e => setProfileForm({...profileForm, recoveryEmail: e.target.value})} className="mt-1 block w-full border border-gray-300 rounded-md p-2 shadow-sm" /></div>
-                                            <div>
-                                                <label className="block text-sm font-normal text-gray-700">Contact Emails (for Notifications)</label>
-                                                <div className="flex gap-2 mt-1">
-                                                    <input type="email" value={emailInput} onChange={e => setEmailInput(e.target.value)} className="block w-full border border-gray-300 rounded-md shadow-sm" placeholder="Enter email address..." />
-                                                    <button type="button" onClick={() => { if(emailInput && !profileForm.email.includes(emailInput)) { setProfileForm({...profileForm, email: profileForm.email ? `${profileForm.email},${emailInput}` : emailInput}); setEmailInput(''); } }} className="bg-black text-white px-4 py-2 rounded-md font-normal text-sm">Add</button>
-                                                </div>
-                                                <div className="mt-2 flex flex-wrap gap-2">
-                                                    {profileForm.email.split(',').filter(Boolean).map(email => (
-                                                        <span key={email} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2 py-1 rounded-md text-xs font-normal border border-indigo-100">
-                                                            {email}
-                                                            <button type="button" onClick={() => setProfileForm({...profileForm, email: profileForm.email.split(',').filter(e => e !== email).join(',')})} className="text-indigo-400 hover:text-indigo-600"><XMarkIcon className="w-3 h-3" /></button>
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                                <p className="text-[10px] text-gray-400 mt-1 italic">Add multiple email addresses to receive notifications at all of them simultaneously.</p>
-                                            </div>
-                                            <div className="pt-4 flex flex-col gap-3">
-                                                <button type="submit" className="w-full bg-black text-white py-3 rounded-lg font-normal shadow-sm hover:bg-gray-800 transition-all uppercase text-xs tracking-widest">Update Profile</button>
-                                                {showProfileSuccess && <p className="text-center text-xs font-normal text-green-600">✅ Profile updated successfully!</p>}
-                                            </div>
+                                            <div><label className="block text-sm font-normal text-gray-700">Contact Emails</label><div className="flex gap-2 mt-1"><input type="email" value={emailInput} onChange={e => setEmailInput(e.target.value)} className="block w-full border border-gray-300 rounded-md shadow-sm" placeholder="Enter email address..." /><button type="button" onClick={() => { if(emailInput && !profileForm.email.includes(emailInput)) { setProfileForm({...profileForm, email: profileForm.email ? `${profileForm.email},${emailInput}` : emailInput}); setEmailInput(''); } }} className="bg-black text-white px-4 py-2 rounded-md font-normal text-sm">Add</button></div><div className="mt-2 flex flex-wrap gap-2">{profileForm.email.split(',').filter(Boolean).map(email => (<span key={email} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2 py-1 rounded-md text-xs font-normal border border-indigo-100">{email}<button type="button" onClick={() => setProfileForm({...profileForm, email: profileForm.email.split(',').filter(e => e !== email).join(',')})} className="text-indigo-400 hover:text-indigo-600"><XMarkIcon className="w-3 h-3" /></button></span>))}</div></div>
+                                            <div className="pt-4 flex flex-col gap-3"><button type="submit" className="w-full bg-black text-white py-3 rounded-lg font-normal shadow-sm hover:bg-gray-800 transition-all uppercase text-xs tracking-widest">Update Profile</button>{showProfileSuccess && <p className="text-center text-xs font-normal text-green-600">✅ Profile updated successfully!</p>}</div>
                                         </form>
-                                        <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 h-fit">
-                                            <h4 className="font-normal text-gray-800 mb-4">Email Notifications</h4>
-                                            <NotificationSettings preferences={profileForm.notificationPreferences} onChange={(p) => setProfileForm({...profileForm, notificationPreferences: p})} role="manager" />
-                                        </div>
+                                        <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 h-fit"><h4 className="font-normal text-gray-800 mb-4">Email Notifications</h4><NotificationSettings preferences={profileForm.notificationPreferences} onChange={(p) => setProfileForm({...profileForm, notificationPreferences: p})} role="manager" /></div>
                                     </div>
                                 </div>
-
-                                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-                                    <h3 className="text-xl font-normal mb-6 flex items-center gap-2"><ChartBarIcon className="w-6 h-6" /> Branding & Appearance</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                        <div><label className="block text-sm font-normal text-gray-700 mb-2">Company Name</label><input type="text" value={brandingForm.companyName} onChange={e => setBrandingForm({...brandingForm, companyName: e.target.value})} className="w-full border p-2.5 rounded-md" /></div>
-                                        <div><label className="block text-sm font-normal text-gray-700 mb-2">Primary Brand Color</label><div className="flex items-center gap-3"><input type="color" value={brandingForm.primaryColor} onChange={e => setBrandingForm({...brandingForm, primaryColor: e.target.value})} className="w-12 h-10 border p-1 rounded cursor-pointer" /><span className="text-sm font-mono text-gray-500 uppercase">{brandingForm.primaryColor}</span></div></div>
-                                        <div><label className="block text-sm font-normal text-gray-700 mb-2">Logo Upload</label><input type="file" accept="image/*" onChange={handleLogoUpload} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-normal file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />{branding.logoUrl && <img src={branding.logoUrl} alt="Preview" className="h-12 mt-2 object-contain bg-black p-1 rounded" />}</div>
-                                    </div>
-                                    <div className="mt-8 pt-4 border-t flex justify-end"><button onClick={handleSaveBranding} className="px-8 py-2.5 bg-black text-white font-normal rounded-lg hover:bg-gray-800 uppercase tracking-widest text-xs">Save Branding</button></div>
-                                </div>
-
-                                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-                                    <h3 className="text-xl font-normal mb-6">Region Management</h3>
-                                    <div className="flex gap-2 mb-6"><input type="text" value={newRegionName} onChange={e => setNewRegionName(e.target.value)} placeholder="New Region Name (e.g. QLD)" className="border p-2 rounded-md w-64" /><button onClick={handleAddRegion} className="bg-black text-white px-4 py-2 rounded-md font-normal text-sm">Add Region</button></div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{regions.map(r => (<div key={r} className="p-4 border rounded-lg bg-gray-50 flex items-center justify-between"><span className="font-normal text-gray-800">{r}</span><div className="flex items-center gap-3"><input type="color" value={getRegionBackgroundColor(r, regionColors)} onChange={e => handleRegionColorChange(r, e.target.value)} className="w-8 h-8 rounded border-0 cursor-pointer" title="Dashboard Color" /><button onClick={() => handleDeleteRegion(r)} className="text-red-500 hover:text-red-700 p-1"><TrashIcon className="w-4 h-4" /></button></div></div>))}</div>
-                                </div>
-
-                                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-                                    <h3 className="text-xl font-normal mb-6">Appointment Slot Configuration</h3>
-                                    <div className="flex gap-4 mb-8 overflow-x-auto pb-2">{regions.map(r => (<button key={r} onClick={() => setSlotConfigRegion(r)} className={`px-4 py-2 rounded-full font-normal text-sm transition-all ${slotConfigRegion === r ? 'bg-black text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{r}</button>))}</div>
-                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                        <div className="border p-4 rounded-lg bg-gray-50/50"><h4 className="font-normal text-sm uppercase text-gray-500 mb-4 tracking-widest">Base Availability ({slotConfigRegion})</h4><div className="flex gap-2 mb-4"><TimePicker value={newBaseSlot} onChange={setNewBaseSlot}/><button onClick={handleAddBaseSlot} className="bg-green-600 text-white p-2 rounded-md"><PlusIcon className="w-5 h-5"/></button></div><div className="space-y-2 border p-2 rounded-md bg-white max-h-60 overflow-y-auto">{appointmentTimes[slotConfigRegion]?.base.map(slot => (<div key={slot} className="flex justify-between items-center p-2 border-b last:border-0 hover:bg-gray-50 transition-colors"><span className="text-sm font-normal">{slot}</span><button onClick={() => handleRemoveBaseSlot(slot)} className="text-red-500 hover:text-red-700"><XMarkIcon className="w-4 h-4"/></button></div>))}</div></div>
-                                        <div className="border p-4 rounded-lg bg-gray-50/50"><h4 className="font-normal text-sm uppercase text-gray-500 mb-4 tracking-widest">Day Specific Overrides</h4><select value={newDayOverrideDay} onChange={e => setNewDayOverrideDay(e.target.value)} className="w-full border p-2 rounded-md mb-4">{[1,2,3,4,5,6,0].map(d => <option key={d} value={d}>{DAYS_OF_WEEK[d]}</option>)}</select><div className="flex gap-2 mb-4"><TimePicker value={tempDaySlot} onChange={setTempDaySlot}/><button onClick={handleAddDaySlotToStaging} className="bg-gray-200 p-2 rounded-md hover:bg-gray-300">+</button></div><div className="flex flex-wrap gap-2 mb-4">{newDayOverrideSlots.map(s => <span key={s} className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md text-xs flex items-center gap-1">{s}<button onClick={() => handleRemoveDaySlotFromStaging(s)}><XMarkIcon className="w-3 h-3"/></button></span>)}</div><button onClick={handleAddDayOverride} className="w-full bg-gray-500 text-white py-2 rounded-md text-sm font-normal hover:bg-gray-600">Save Override</button><div className="mt-6 space-y-2">{Object.entries(appointmentTimes[slotConfigRegion]?.overrides.dayOfWeek || {}).map(([day, slots]) => (<div key={day} className="bg-white border p-2 rounded-md text-xs flex justify-between items-center group"><div><span className="font-normal text-indigo-600">{DAYS_OF_WEEK[parseInt(day)]}:</span> <span className="text-gray-600">{(slots as string[]).join(', ')}</span></div><button onClick={() => handleRemoveDayOverride(parseInt(day))} className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><TrashIcon className="w-4 h-4"/></button></div>))}</div></div>
-                                        <div className="border p-4 rounded-lg bg-gray-50/50"><h4 className="font-normal text-sm uppercase text-gray-500 mb-4 tracking-widest">Specific Date Overrides</h4><input type="date" value={newDateOverrideDate} onChange={e => setNewDateOverrideDate(e.target.value)} className="w-full border p-2 rounded-md mb-4" /><div className="flex gap-2 mb-4"><TimePicker value={tempDateSlot} onChange={setTempDateSlot}/><button onClick={handleAddDateSlotToStaging} className="bg-gray-200 p-2 rounded-md hover:bg-gray-300">+</button></div><div className="flex flex-wrap gap-2 mb-4">{newDateOverrideSlots.map(s => <span key={s} className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md text-xs flex items-center gap-1">{s}<button onClick={() => handleRemoveDateSlotFromStaging(s)}><XMarkIcon className="w-3 h-3"/></button></span>)}</div><button onClick={handleAddDateOverride} className="w-full bg-gray-500 text-white py-2 rounded-md text-sm font-normal hover:bg-gray-600">Save Override</button><div className="mt-6 space-y-2">{Object.entries(appointmentTimes[slotConfigRegion]?.overrides.date || {}).map(([date, slots]) => (<div key={date} className="bg-white border p-2 rounded-md text-xs flex justify-between items-center group"><div><span className="font-normal text-indigo-600">{date}:</span> <span className="text-gray-600">{(slots as string[]).join(', ')}</span></div><button onClick={() => handleRemoveDateOverride(date)} className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><TrashIcon className="w-4 h-4"/></button></div>))}</div></div>
-                                    </div>
-                                </div>
-
-                                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-                                    <h3 className="text-xl font-normal mb-6">Holiday & Event Management</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                                        <div className="space-y-4"><h4 className="font-normal text-gray-700">{editingHolidayOriginal ? 'Edit Holiday' : 'Add Holiday'}</h4><input type="text" value={newHolidayName} onChange={e => setNewHolidayName(e.target.value)} placeholder="Name" className="w-full border p-2 rounded-md" /><div className="grid grid-cols-2 gap-4"><input type="date" value={newHolidayStartDate} onChange={e => setNewHolidayStartDate(e.target.value)} className="w-full border p-2 rounded-md" /><input type="date" value={newHolidayEndDate} onChange={e => setNewHolidayEndDate(e.target.value)} min={newHolidayStartDate} className="w-full border p-2 rounded-md" /></div><div className="flex gap-4">{regions.map(r => <label key={r} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={newHolidayRegions.includes(r)} onChange={() => toggleHolidayRegion(r)} className="rounded text-indigo-600" />{r}</label>)}</div><button onClick={handleSaveHoliday} className="w-full bg-black text-white py-2.5 rounded-md font-normal uppercase tracking-widest text-xs">{editingHolidayOriginal ? 'Update' : 'Add'}</button>{editingHolidayOriginal && <button onClick={() => setEditingHolidayOriginal(null)} className="w-full text-gray-500 text-sm py-1">Cancel Edit</button>}</div>
-                                        <div className="space-y-4">{publicHolidays.map(h => (<div key={h.id} className="flex justify-between items-center p-3 border-b hover:bg-gray-50 transition-colors group"><div><p className="font-normal text-gray-900">{h.name}</p><p className="text-xs text-gray-500">{h.startDate} {h.endDate !== h.startDate ? `- ${h.endDate}` : ''} | <span className="text-indigo-600 italic">{h.regions.join(', ')}</span></p></div><div className="flex gap-2"><button onClick={() => handleEditHoliday(h)} className="text-gray-400 hover:text-indigo-600 p-1"><PencilSquareIcon className="w-4 h-4" /></button>
-                                        <button onClick={() => handleDeleteHoliday(h.id)} className="text-gray-400 hover:text-red-600 p-1"><TrashIcon className="w-4 h-4" /></button></div></div>))}</div>
-                                    </div>
-                                </div>
-
-                                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-                                    <h3 className="text-xl font-normal mb-6">Data Management</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                                        <div><h4 className="font-normal mb-2">Bulk Import Legacy Data</h4><p className="text-xs text-gray-500 mb-4">1. Download Template. 2. Edit in Excel. 3. Upload.</p><div className="flex flex-wrap gap-4 items-center"><button onClick={() => { const csv = generateImportTemplate(); const blob = new Blob([csv]); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'template.csv'; link.click(); }} className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 text-sm font-normal"><DocumentArrowDownIcon className="w-4 h-4" /> Download Template</button><div className="flex items-center gap-3"><label className="cursor-pointer bg-indigo-50 text-indigo-700 px-4 py-2 rounded-full text-sm font-normal hover:bg-indigo-100 transition-all border border-indigo-200">Choose File<input type="file" accept=".csv" onChange={(e) => { if(e.target.files?.[0]) setImportFile(e.target.files[0]); }} className="hidden"/></label><span className="text-xs text-gray-400 max-w-[150px] truncate">{importFile ? importFile.name : 'No file chosen'}</span><button onClick={handleImportUpload} disabled={!importFile} className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm font-normal disabled:opacity-50 disabled:cursor-not-allowed"><CloudArrowUpIcon className="w-4 h-4" /> Upload & Preview</button></div></div></div>
-                                        <div><h4 className="font-normal mb-2">Export Data</h4><p className="text-xs text-gray-500 mb-4">Download all system data matching the Import format for re-upload.</p><button onClick={() => exportBookingsToCSV(allBookings, 'full_database')} className="flex items-center gap-2 px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-md font-normal uppercase text-xs tracking-widest transition-all"><ArrowDownTrayIcon className="w-4 h-4" /> Export Full Database</button></div>
-                                    </div>
-                                </div>
+                                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200"><h3 className="text-xl font-normal mb-6 flex items-center gap-2"><ChartBarIcon className="w-6 h-6" /> Branding & Appearance</h3><div className="grid grid-cols-1 md:grid-cols-3 gap-8"><div><label className="block text-sm font-normal text-gray-700 mb-2">Company Name</label><input type="text" value={brandingForm.companyName} onChange={e => setBrandingForm({...brandingForm, companyName: e.target.value})} className="w-full border p-2.5 rounded-md" /></div><div><label className="block text-sm font-normal text-gray-700 mb-2">Primary Brand Color</label><div className="flex items-center gap-3"><input type="color" value={brandingForm.primaryColor} onChange={e => setBrandingForm({...brandingForm, primaryColor: e.target.value})} className="w-12 h-10 border p-1 rounded cursor-pointer" /><span className="text-sm font-mono text-gray-500 uppercase">{brandingForm.primaryColor}</span></div></div><div><label className="block text-sm font-normal text-gray-700 mb-2">Logo Upload</label><input type="file" accept="image/*" onChange={handleLogoUpload} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-normal file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />{branding.logoUrl && <img src={branding.logoUrl} alt="Preview" className="h-12 mt-2 object-contain bg-black p-1 rounded" />}</div></div><div className="mt-8 pt-4 border-t flex justify-end"><button onClick={handleSaveBranding} className="px-8 py-2.5 bg-black text-white font-normal rounded-lg hover:bg-gray-800 uppercase tracking-widest text-xs">Save Branding</button></div></div>
                             </div>
                         )}
                     </div>
@@ -1378,20 +1054,11 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             {bookingToManage && (
                 <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-[100] p-4">
                     <div className="bg-white rounded-lg shadow-2xl w-full max-w-md animate-fadeIn">
-                        <div className="flex justify-between items-center p-4 border-b bg-red-600 text-white rounded-t-lg">
-                            <h2 className="text-xl font-normal">Reject Appointment</h2>
-                            <button onClick={() => setBookingToManage(null)} className="text-red-100 hover:text-white"><XMarkIcon className="w-6 h-6" /></button>
-                        </div>
+                        <div className="flex justify-between items-center p-4 border-b bg-red-600 text-white rounded-t-lg"><h2 className="text-xl font-normal">Reject Appointment</h2><button onClick={() => setBookingToManage(null)} className="text-red-100 hover:text-white"><XMarkIcon className="w-6 h-6" /></button></div>
                         <div className="p-6 space-y-4">
                             <p className="text-sm text-gray-600 font-normal">Rejecting lead for <strong>{bookingToManage.clientName}</strong>.</p>
-                            <div>
-                                <label className="block text-sm font-normal text-gray-700 mb-1">Reason for Rejection</label>
-                                <textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} rows={4} required className="w-full border border-gray-300 rounded-md p-3 text-sm focus:ring-red-500 focus:border-red-500" placeholder="Explain the rejection..." />
-                            </div>
-                            <div className="flex justify-end gap-3 pt-2">
-                                <button onClick={() => setBookingToManage(null)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 font-normal text-sm">Cancel</button>
-                                <button onClick={handleRejectBooking} disabled={!rejectionReason.trim()} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-normal text-sm disabled:opacity-50">Confirm Rejection</button>
-                            </div>
+                            <div><label className="block text-sm font-normal text-gray-700 mb-1">Reason for Rejection</label><textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} rows={4} required className="w-full border border-gray-300 rounded-md p-3 text-sm focus:ring-red-500 focus:border-red-500" placeholder="Explain the rejection..." /></div>
+                            <div className="flex justify-end gap-3 pt-2"><button onClick={() => setBookingToManage(null)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 font-normal text-sm">Cancel</button><button onClick={handleRejectBooking} disabled={!rejectionReason.trim()} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-normal text-sm disabled:opacity-50">Confirm Rejection</button></div>
                         </div>
                     </div>
                 </div>

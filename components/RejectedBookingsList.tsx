@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Booking } from '../types';
 import { PhoneIcon } from './Icons';
 
@@ -9,7 +9,25 @@ interface RejectedBookingsListProps {
   searchTerm?: string;
 }
 
+const ITEMS_PER_PAGE = 10;
+
 const RejectedBookingsList: React.FC<RejectedBookingsListProps> = ({ bookings, role, searchTerm }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  const sortedBookings = useMemo(() => {
+    return [...bookings].sort((a, b) => b.id - a.id);
+  }, [bookings]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedBookings.length / ITEMS_PER_PAGE));
+  const paginatedBookings = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return sortedBookings.slice(start, start + ITEMS_PER_PAGE);
+  }, [sortedBookings, currentPage]);
+
   if (bookings.length === 0) {
     return (
       <div className="text-center py-12 bg-white">
@@ -17,8 +35,6 @@ const RejectedBookingsList: React.FC<RejectedBookingsListProps> = ({ bookings, r
       </div>
     );
   }
-
-  const sortedBookings = [...bookings].sort((a, b) => b.id - a.id);
 
   return (
     <div className="bg-white">
@@ -36,7 +52,7 @@ const RejectedBookingsList: React.FC<RejectedBookingsListProps> = ({ bookings, r
             </tr>
           </thead>
           <tbody className="bg-white">
-            {sortedBookings.map((booking) => (
+            {paginatedBookings.map((booking) => (
               <tr 
                 key={booking.id} 
                 className="group border-2 border-transparent transition-all duration-200"
@@ -79,6 +95,31 @@ const RejectedBookingsList: React.FC<RejectedBookingsListProps> = ({ bookings, r
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="p-4 bg-gray-50 border-t flex justify-between items-center">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                {sortedBookings.length} total rejections
+            </span>
+            <div className="flex items-center gap-2">
+                <button 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+                >
+                    Prev
+                </button>
+                <span className="text-xs font-bold text-gray-600">Page {currentPage} of {totalPages}</span>
+                <button 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+                >
+                    Next
+                </button>
+            </div>
+        </div>
+      )}
     </div>
   );
 };

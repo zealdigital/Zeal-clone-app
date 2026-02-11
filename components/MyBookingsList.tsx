@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import type { Booking } from '../types';
 import { PencilSquareIcon, TrashIcon, ClockIcon, CheckBadgeIcon, PhoneIcon, ChatBubbleLeftRightIcon, CalendarDaysIcon } from './Icons';
 import { getStatusPill } from '../utils/statusUtils';
@@ -14,8 +14,16 @@ interface MyBookingsListProps {
   onRequestSms?: (bookingId: number, type: string, message: string) => void;
 }
 
+const ITEMS_PER_PAGE = 10;
+
 const MyBookingsList: React.FC<MyBookingsListProps> = ({ bookings, onEditBooking, onDeleteBooking, searchTerm, onRequestSms }) => {
   const [smsModalBooking, setSmsModalBooking] = useState<Booking | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Reset page on search
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const uniqueBookings = useMemo(() => {
       const nonBlockers = bookings.filter(b => !b.isBlocker);
@@ -42,14 +50,20 @@ const MyBookingsList: React.FC<MyBookingsListProps> = ({ bookings, onEditBooking
       });
   }, [bookings]);
 
+  const totalPages = Math.max(1, Math.ceil(uniqueBookings.length / ITEMS_PER_PAGE));
+  const paginatedUniqueBookings = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return uniqueBookings.slice(start, start + ITEMS_PER_PAGE);
+  }, [uniqueBookings, currentPage]);
+
   const groupedBookings = useMemo(() => {
       const groups: Record<string, Booking[]> = {};
-      uniqueBookings.forEach(b => {
+      paginatedUniqueBookings.forEach(b => {
           if (!groups[b.date]) groups[b.date] = [];
           groups[b.date].push(b);
       });
       return groups;
-  }, [uniqueBookings]);
+  }, [paginatedUniqueBookings]);
 
   const sortedGroupKeys = useMemo(() => {
       return Object.keys(groupedBookings).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
@@ -93,7 +107,7 @@ const MyBookingsList: React.FC<MyBookingsListProps> = ({ bookings, onEditBooking
   }
 
   return (
-    <div className="mt-4 bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="mt-4 bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -161,6 +175,30 @@ const MyBookingsList: React.FC<MyBookingsListProps> = ({ bookings, onEditBooking
           </tbody>
         </table>
       </div>
+      
+      <div className="p-4 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
+        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            {uniqueBookings.length} total records
+        </span>
+        <div className="flex items-center gap-2">
+            <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+            >
+                Prev
+            </button>
+            <span className="text-xs font-bold text-gray-600">Page {currentPage} of {totalPages}</span>
+            <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+            >
+                Next
+            </button>
+        </div>
+      </div>
+
       {smsModalBooking && <SmsRequestModal booking={smsModalBooking} onClose={() => setSmsModalBooking(null)} onSubmit={handleSmsSubmit} />}
     </div>
   );

@@ -1,8 +1,10 @@
 
 import React, { useState, useMemo } from 'react';
-import type { Booking, User, ManagerAppointment } from '../types';
-import { PlusIcon, UserGroupIcon, BellIcon, TrashIcon, PencilSquareIcon } from './Icons';
+import type { Booking, User, ManagerAppointment, Region, PublicHoliday, LeaveDay, AppointmentSlotsConfig } from '../types';
+import { PlusIcon, UserGroupIcon, BellIcon, TrashIcon, ClockIcon } from './Icons';
 import ManagerAppointmentModal from './ManagerAppointmentModal';
+import { formatDateForStorage } from '../utils/dateUtils';
+import { getAppointmentSlotsForDay } from '../utils/slotUtils';
 
 interface UnifiedCalendarProps {
   bookings: Booking[];
@@ -10,6 +12,13 @@ interface UnifiedCalendarProps {
   onUpdateStatus?: (booking: Booking) => void;
   appointments?: ManagerAppointment[];
   setAppointments?: React.Dispatch<React.SetStateAction<ManagerAppointment[]>>;
+  // Availability Props
+  allBookingsForAvailability?: Booking[];
+  salespeopleCount?: Record<Region, number>;
+  publicHolidays?: PublicHoliday[];
+  appointmentTimes?: Record<Region, AppointmentSlotsConfig>;
+  leaveDays?: LeaveDay[];
+  region?: Region;
 }
 
 type CalendarItem = 
@@ -20,7 +29,13 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
   bookings, 
   currentUser, 
   appointments = [], 
-  setAppointments 
+  setAppointments,
+  allBookingsForAvailability = [],
+  salespeopleCount = {},
+  publicHolidays = [],
+  appointmentTimes = {},
+  leaveDays = [],
+  region
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week'>('week');
@@ -71,6 +86,34 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
     map.forEach(list => list.sort((a, b) => a.sortTime - b.sortTime));
     return map;
   }, [bookings, appointments]);
+
+  // Global availability logic
+  const getDayAvailability = (date: Date) => {
+    if (!region || !appointmentTimes[region] || !salespeopleCount[region]) return null;
+    
+    const dateStr = formatDateForStorage(date);
+    const slots = getAppointmentSlotsForDay(date, region, appointmentTimes);
+    const dayBookings = allBookingsForAvailability.filter(b => b.date === dateStr && b.region === region && b.status === 'active');
+    
+    let totalCapacity = 0;
+    let totalBooked = 0;
+
+    const bdmCount = salespeopleCount[region] || 0;
+    const dayLeaves = leaveDays.filter(l => l.date === dateStr && l.region === region);
+
+    slots.forEach(slot => {
+        const allDayLeaves = dayLeaves.filter(l => !l.slots || l.slots.length === 0).length;
+        const slotLeaves = dayLeaves.filter(l => l.slots?.includes(slot)).length;
+        const capacityForSlot = Math.max(0, bdmCount - (allDayLeaves + slotLeaves));
+        
+        const bookedInSlot = dayBookings.filter(b => b.time === slot).length;
+        
+        totalCapacity += capacityForSlot;
+        totalBooked += bookedInSlot;
+    });
+
+    return { totalCapacity, totalBooked, free: Math.max(0, totalCapacity - totalBooked) };
+  };
 
   const handlePrev = () => {
     const newDate = new Date(currentDate);
@@ -146,12 +189,20 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
           const dateStr = getDateKey(fullDate);
           const dayItems = mixedItemsByDate.get(dateStr) || [];
           const isToday = getDateKey(new Date()) === dateStr;
+          const availability = getDayAvailability(fullDate);
 
           return (
             <div key={dayNum} className="bg-white p-1.5 min-h-28 relative group">
-              <span className={`text-xs font-bold ${isToday ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-full' : 'text-gray-700'}`}>{dayNum}</span>
+              <div className="flex justify-between items-start">
+                  <span className={`text-xs font-bold ${isToday ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-full' : 'text-gray-700'}`}>{dayNum}</span>
+                  {availability && (
+                      <div className={`text-[9px] font-black uppercase px-1 rounded ${availability.free > 0 ? 'text-green-600 bg-green-50' : 'text-gray-400 bg-gray-50'}`}>
+                          {availability.free} Free
+                      </div>
+                  )}
+              </div>
               {setAppointments && (
-                <button onClick={() => openAddModal(fullDate)} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-indigo-500 text-white rounded-full p-1 hover:bg-indigo-600 z-10">
+                <button onClick={() => openAddModal(fullDate)} className="absolute top-6 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-indigo-500 text-white rounded-full p-1 hover:bg-indigo-600 z-10">
                   <PlusIcon className="w-4 h-4" />
                 </button>
               )}
@@ -161,10 +212,10 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                     const booking = item.data;
                     const styleClass = booking.region === 'NSW' ? 'bg-green-50 text-green-900 border-green-200' : booking.region === 'VIC' ? 'bg-blue-50 text-blue-900 border-blue-200' : 'bg-purple-50 text-purple-900 border-purple-200';
                     return (
-                      <div key={`bk-${booking.id}-${idx}`} className={`w-full text-left text-xs p-1 rounded border ${styleClass} select-none shadow-sm`}>
+                      <div key={`bk-${booking.id}-${idx}`} className={`w-full text-left text-[10px] p-1 rounded border ${styleClass} select-none shadow-sm`}>
                         <div className="flex items-center gap-1 overflow-hidden">
-                          <UserGroupIcon className="w-3 h-3 opacity-50 flex-shrink-0" />
-                          <span className="font-mono font-bold text-[10px] flex-shrink-0">{booking.time.split(' ')[0]}</span>
+                          <UserGroupIcon className="w-2.5 h-2.5 opacity-50 flex-shrink-0" />
+                          <span className="font-mono font-bold flex-shrink-0">{booking.time.split(' ')[0]}</span>
                           <span className="truncate font-medium flex-grow">{booking.clientName}</span>
                         </div>
                       </div>
@@ -172,7 +223,7 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                   } else {
                     const app = item.data;
                     return (
-                      <div key={`app-${app.id}`} onClick={() => openEditModal(app)} className="w-full text-left text-xs p-1 bg-indigo-100 text-indigo-800 rounded border border-indigo-200 hover:bg-indigo-200 cursor-pointer truncate select-none shadow-sm">
+                      <div key={`app-${app.id}`} onClick={() => openEditModal(app)} className="w-full text-left text-[10px] p-1 bg-indigo-100 text-indigo-800 rounded border border-indigo-200 hover:bg-indigo-200 cursor-pointer truncate select-none shadow-sm">
                         {new Date(app.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} {app.title}
                       </div>
                     );
@@ -202,12 +253,19 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                 const dateKey = getDateKey(day);
                 const dayItems = mixedItemsByDate.get(dateKey) || [];
                 const isToday = dateKey === getDateKey(new Date());
+                const availability = getDayAvailability(day);
 
                 return (
                     <div key={dateKey} className="grid grid-cols-12 border-b border-gray-200">
                         <div className={`col-span-2 p-3 border-r border-gray-200 ${isToday ? 'bg-indigo-50' : 'bg-gray-50'}`}>
                            <p className={`text-sm font-semibold ${isToday ? 'text-indigo-600' : 'text-gray-700'}`}>{day.toLocaleDateString('en-US', { weekday: 'short' })}</p>
                            <p className={`text-2xl font-bold ${isToday ? 'text-indigo-600' : 'text-gray-800'}`}>{day.getDate()}</p>
+                           {availability && (
+                               <div className="mt-2 flex items-center gap-1">
+                                   <div className={`w-1.5 h-1.5 rounded-full ${availability.free > 0 ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                   <span className="text-[10px] font-black text-gray-500 uppercase">{availability.free} Slots Free</span>
+                               </div>
+                           )}
                         </div>
                         <div className="col-span-10 p-3 space-y-2 relative group min-h-[80px]">
                             {dayItems.length > 0 ? dayItems.map((item, idx) => {
@@ -269,8 +327,13 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
     <div className="bg-white p-6 rounded-lg shadow-xl border border-gray-100 relative overflow-hidden">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div>
-          <h2 className="text-2xl font-black text-gray-900 tracking-tight">My Calendar</h2>
-          <p className="text-sm font-medium text-gray-500">Scheduled appointments and personal reminders.</p>
+          <div className="flex items-center gap-3">
+             <h2 className="text-2xl font-black text-gray-900 tracking-tight">My Calendar</h2>
+             {region && (
+                 <span className="bg-indigo-600 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded tracking-widest">{region}</span>
+             )}
+          </div>
+          <p className="text-sm font-medium text-gray-500">Scheduled appointments and availability for your region.</p>
         </div>
         <div className="w-full sm:w-auto flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex-shrink-0 bg-gray-100 rounded-xl p-1.5 flex gap-1 border border-gray-200">
