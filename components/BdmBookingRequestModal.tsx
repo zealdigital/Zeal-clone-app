@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Booking, Region, BDM, Vendor, User, AppointmentSlotsConfig } from '../types';
-import { XMarkIcon } from './Icons';
+import { XMarkIcon, ClockIcon, CalendarDaysIcon, UserGroupIcon, DocumentTextIcon } from './Icons';
 import { getAppointmentSlotsForDay } from '../utils/slotUtils';
 
 interface BdmBookingRequestModalProps {
@@ -23,13 +23,6 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
   const isVendor = currentUser.role === 'vendor';
   const isBdm = currentUser.role === 'bdm';
 
-  // Determine Title based on Role
-  const getTitle = () => {
-    if (isManager) return "Book Lead";
-    if (isVendor) return "Request Manual Date";
-    return "Request Booking Approval";
-  };
-
   const [formData, setFormData] = useState({
     clientName: '',
     businessName: '',
@@ -43,17 +36,10 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
   });
 
   const [slotsToBlock, setSlotsToBlock] = useState<string[]>([]);
-
-  // Split time state for neat dropdowns
-  const [timeState, setTimeState] = useState({
-    hour: '10',
-    minute: '00',
-    period: 'AM'
-  });
+  const [timeState, setTimeState] = useState({ hour: '10', minute: '00', period: 'AM' });
 
   useEffect(() => {
     if (prefillData) {
-        // Attempt to parse existing time if present
         let h = '10', m = '00', p = 'AM';
         if (prefillData.time) {
             const match = prefillData.time.match(/^(\d{2}):(\d{2})\s(AM|PM)$/);
@@ -77,7 +63,6 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
     }
   }, [prefillData, currentUser, isVendor, isBdm, regions]);
 
-  // Determine standard slots for the selected date/region
   const standardSlotsForDay = useMemo(() => {
     if (!formData.date || !formData.region) return [];
     try {
@@ -142,151 +127,159 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
-        <div className="flex justify-between items-center p-4 border-b bg-black text-white rounded-t-lg">
-          <h2 className="text-xl font-black uppercase tracking-tight">{getTitle()}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white"><XMarkIcon className="w-6 h-6" /></button>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden animate-scaleIn">
+        {/* Header */}
+        <div className="flex justify-between items-center p-5 border-b bg-gray-50/80">
+          <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
+            <DocumentTextIcon className="w-6 h-6 text-indigo-600" />
+            {isManager ? 'Book Lead Directly' : 'Request Booking Approval'}
+          </h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors p-1"><XMarkIcon className="w-6 h-6" /></button>
         </div>
-        <form onSubmit={handleSubmit} className="overflow-y-auto p-6 space-y-4">
-            {!isManager && (
-                <p className="text-xs text-gray-500 bg-gray-50 p-3 rounded border border-gray-200 italic">
-                    {isVendor 
-                        ? "Use this form to request a booking outside standard logic (e.g. Same Day). Manager approval required."
-                        : "Submit this form to the Managers. Once approved, the appointment will be confirmed."}
-                </p>
-            )}
-            
-             <div>
-                <label htmlFor="vendorId" className="block text-sm font-bold text-gray-700">Calling Team</label>
-                {isVendor ? (
-                    <div className="mt-1 block w-full bg-gray-100 border border-gray-200 rounded-md p-2 text-sm text-gray-600 font-medium">
-                        {currentUser.name}
+
+        <form onSubmit={handleSubmit} className="overflow-y-auto flex-1">
+            <div className="p-6 space-y-6">
+                {/* Summary Card Logic */}
+                <div className="bg-gray-50 p-5 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+                    <div className="grid grid-cols-2 gap-y-2 text-sm">
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Client:</span>
+                            <span className="font-bold text-gray-800">{formData.clientName || '---'}</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Business:</span>
+                            <span className="font-bold text-gray-800">{formData.businessName || '---'}</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Date:</span>
+                            <span className="font-bold text-gray-800 flex items-center gap-1.5">
+                                <CalendarDaysIcon className="w-3.5 h-3.5 text-gray-400" />
+                                {formData.date || '---'}
+                            </span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Requested Time:</span>
+                            <span className="font-black text-indigo-600 flex items-center gap-1.5">
+                                <ClockIcon className="w-3.5 h-3.5" />
+                                {timeState.hour}:{timeState.minute} {timeState.period}
+                            </span>
+                        </div>
                     </div>
-                ) : (
-                    <select 
-                        name="vendorId" 
-                        id="vendorId" 
-                        value={formData.vendorId} 
-                        onChange={handleChange} 
-                        disabled={!!prefillData?.vendor?.id}
-                        className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 sm:text-sm ${!!prefillData?.vendor?.id ? 'bg-gray-100' : ''}`}
-                    >
-                        <option value="">-- Internal / Self-Generated --</option>
-                        {vendors.map(v => (
-                            <option key={v.id} value={v.id}>{v.name}</option>
-                        ))}
-                    </select>
-                )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label htmlFor="clientName" className="block text-sm font-bold text-gray-700">Client Name *</label>
-                    <input type="text" name="clientName" id="clientName" value={formData.clientName} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 sm:text-sm" />
+                    {formData.notes && (
+                        <div className="pt-3 border-t border-gray-200">
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Notes:</span>
+                            <p className="text-xs text-gray-600 italic leading-relaxed">{formData.notes}</p>
+                        </div>
+                    )}
                 </div>
-                <div>
-                     <label htmlFor="region" className="block text-sm font-bold text-gray-700">Region *</label>
-                     <select name="region" id="region" value={formData.region} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 sm:text-sm">
-                        {regions.map(r => <option key={r} value={r}>{r}</option>)}
-                     </select>
-                </div>
-            </div>
 
-             <div>
-                <label htmlFor="businessName" className="block text-sm font-bold text-gray-700">Business Name *</label>
-                <input type="text" name="businessName" id="businessName" value={formData.businessName} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 sm:text-sm" />
-            </div>
-
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <div>
-                    <label htmlFor="date" className="block text-sm font-bold text-gray-700">Date *</label>
-                    <input type="date" name="date" id="date" value={formData.date} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 sm:text-sm h-[38px]" />
-                </div>
-                <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Time *</label>
-                    <div className="flex items-center gap-1">
-                        <select 
-                            value={timeState.hour} 
-                            onChange={(e) => handleTimeChange('hour', e.target.value)}
-                            className="block w-full border border-gray-300 rounded-md shadow-sm p-1.5 sm:text-sm focus:ring-black focus:border-black"
-                        >
-                            {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
-                        </select>
-                        <span className="font-bold text-gray-400">:</span>
-                        <select 
-                            value={timeState.minute} 
-                            onChange={(e) => handleTimeChange('minute', e.target.value)}
-                            className="block w-full border border-gray-300 rounded-md shadow-sm p-1.5 sm:text-sm focus:ring-black focus:border-black"
-                        >
-                            {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
-                        </select>
-                        <select 
-                            value={timeState.period} 
-                            onChange={(e) => handleTimeChange('period', e.target.value)}
-                            className="block w-full border border-gray-300 rounded-md shadow-sm p-1.5 sm:text-sm focus:ring-black focus:border-black"
-                        >
-                            {PERIODS.map(p => <option key={p} value={p}>{p}</option>)}
+                {/* Input Fields */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="col-span-full md:col-span-1">
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Team Assignment</label>
+                        {isVendor ? (
+                            <div className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-sm text-gray-600 font-bold">{currentUser.name}</div>
+                        ) : (
+                            <select name="vendorId" value={formData.vendorId} onChange={handleChange} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none">
+                                <option value="">Internal / Self-Generated</option>
+                                {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                            </select>
+                        )}
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Region</label>
+                        <select name="region" value={formData.region} onChange={handleChange} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none">
+                            {regions.map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
                     </div>
+                    <div className="col-span-full">
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Client Name *</label>
+                        <input type="text" name="clientName" value={formData.clientName} onChange={handleChange} required className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" />
+                    </div>
+                    <div className="col-span-full">
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Business Name *</label>
+                        <input type="text" name="businessName" value={formData.businessName} onChange={handleChange} required className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" />
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Date *</label>
+                        <input type="date" name="date" value={formData.date} onChange={handleChange} required className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2 text-sm font-bold focus:border-indigo-500 transition-all outline-none" />
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Appointment Time *</label>
+                        <div className="flex gap-1">
+                            <select value={timeState.hour} onChange={(e) => handleTimeChange('hour', e.target.value)} className="flex-1 border-2 border-gray-100 bg-gray-50 rounded-xl px-2 py-2 text-sm font-bold focus:border-indigo-500 transition-all outline-none">
+                                {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
+                            </select>
+                            <select value={timeState.minute} onChange={(e) => handleTimeChange('minute', e.target.value)} className="flex-1 border-2 border-gray-100 bg-gray-50 rounded-xl px-2 py-2 text-sm font-bold focus:border-indigo-500 transition-all outline-none">
+                                {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
+                            </select>
+                            <select value={timeState.period} onChange={(e) => handleTimeChange('period', e.target.value)} className="flex-1 border-2 border-gray-100 bg-gray-50 rounded-xl px-2 py-2 text-sm font-bold focus:border-indigo-500 transition-all outline-none">
+                                {PERIODS.map(p => <option key={p} value={p}>{p}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Website *</label>
+                        <input type="text" name="clientWebsite" value={formData.clientWebsite} onChange={handleChange} required placeholder="example.com" className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" />
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Phone</label>
+                        <input type="tel" name="clientPhone" value={formData.clientPhone} onChange={handleChange} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" />
+                    </div>
+                    <div className="col-span-full">
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Notes</label>
+                        <textarea name="notes" value={formData.notes} onChange={handleChange} rows={2} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-medium focus:border-indigo-500 transition-all outline-none" placeholder="Context for the BDM..." />
+                    </div>
                 </div>
-             </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label htmlFor="clientPhone" className="block text-sm font-bold text-gray-700">Phone</label>
-                    <input type="tel" name="clientPhone" id="clientPhone" value={formData.clientPhone} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 sm:text-sm" />
-                </div>
-                <div>
-                    <label htmlFor="clientWebsite" className="block text-sm font-bold text-gray-700">Website *</label>
-                    <input type="text" name="clientWebsite" id="clientWebsite" value={formData.clientWebsite} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 sm:text-sm" />
-                </div>
-            </div>
-
-            <div>
-                <label htmlFor="address" className="block text-sm font-bold text-gray-700">Address</label>
-                <textarea name="address" id="address" value={formData.address} onChange={handleChange} rows={2} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 sm:text-sm" />
-            </div>
-
-            <div>
-                <label htmlFor="notes" className="block text-sm font-bold text-gray-700">Notes</label>
-                <textarea name="notes" id="notes" value={formData.notes} onChange={handleChange} rows={3} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 sm:text-sm" />
-            </div>
-
-            {isManager && (
-                <div className="pt-4 border-t border-gray-100">
-                    <label className="block text-sm font-bold text-gray-700 mb-3">Select standard slots to remove/block (if any):</label>
-                    {standardSlotsForDay.length > 0 ? (
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                            <div className="grid grid-cols-2 gap-4">
+                {/* Slot Removal Logic for Managers */}
+                {isManager && (
+                    <div className="pt-6 border-t border-gray-100 animate-fadeIn">
+                        <div className="mb-4">
+                            <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Select standard slots to remove/block (if any):</h3>
+                            <p className="text-[10px] text-gray-400 font-medium">Selected slots will be marked as 'Blocked' on the Caller Dashboard to prevent overlap.</p>
+                        </div>
+                        {standardSlotsForDay.length > 0 ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                 {standardSlotsForDay.map(slot => (
-                                    <label key={slot} className="flex items-center gap-3 cursor-pointer group">
-                                        <div className="relative flex items-center justify-center">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={slotsToBlock.includes(slot)} 
-                                                onChange={() => handleToggleSlotBlock(slot)}
-                                                className="w-5 h-5 rounded border-gray-300 text-black focus:ring-black transition-all"
-                                            />
-                                        </div>
-                                        <span className="text-sm font-bold text-gray-700">{slot}</span>
+                                    <label key={slot} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${slotsToBlock.includes(slot) ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-gray-50 bg-gray-50/50 hover:border-gray-200'}`}>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={slotsToBlock.includes(slot)} 
+                                            onChange={() => handleToggleSlotBlock(slot)}
+                                            className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-0 transition-all"
+                                        />
+                                        <span className={`text-sm font-bold ${slotsToBlock.includes(slot) ? 'text-indigo-700' : 'text-gray-600'}`}>{slot}</span>
                                     </label>
                                 ))}
                             </div>
-                            <p className="mt-4 text-[11px] text-gray-400 font-medium italic">Selected slots will be marked as 'Blocked' on the Vendor Dashboard.</p>
-                        </div>
-                    ) : (
-                        <p className="text-xs text-gray-400 italic px-1">Please select a date with configured slots to block them.</p>
-                    )}
-                </div>
-            )}
-
-            <div className="pt-4 flex justify-end gap-3">
-                <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 font-bold text-sm">Cancel</button>
-                <button type="submit" className="px-8 py-2 bg-black text-white font-black rounded-md hover:bg-gray-800 uppercase tracking-widest text-xs">
-                    {isManager ? 'Confirm Approval' : 'Send Request'}
-                </button>
+                        ) : (
+                            <div className="text-center py-8 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                                <ClockIcon className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                                <p className="text-xs text-gray-400 italic">Please select a valid Date and Region above to manage available slots.</p>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </form>
+
+        {/* Footer Actions */}
+        <div className="p-5 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="flex items-center gap-2 text-xs text-amber-600 font-bold bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
+                <span role="img" aria-label="info">ℹ️</span> 
+                {isManager ? 'Direct entry creates active leads and blocks slots.' : 'Requests require manager review before confirmation.'}
+            </div>
+            <div className="flex gap-3 w-full sm:w-auto">
+                <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-100 font-bold text-sm shadow-sm transition-all">Cancel</button>
+                <button 
+                    onClick={handleSubmit}
+                    className={`flex-1 sm:flex-none px-10 py-2.5 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg transition-all active:scale-95 ${isManager ? 'bg-green-600 hover:bg-green-700 shadow-green-100' : 'bg-black hover:bg-gray-800'}`}
+                >
+                    {isManager ? 'Book Now' : 'Send Request'}
+                </button>
+            </div>
+        </div>
       </div>
     </div>
   );
