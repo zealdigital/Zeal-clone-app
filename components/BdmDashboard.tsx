@@ -48,7 +48,7 @@ const triggerSystemAlert = (message: string) => {
     toast.className = 'fixed top-4 right-4 bg-indigo-600 text-white px-6 py-4 rounded-xl shadow-2xl z-[9999] animate-bounceIn flex items-center gap-4 border-2 border-white/20';
     toast.innerHTML = `<div class="bg-white/20 p-2 rounded-lg">🔔</div><div><p class="font-bold text-xs uppercase tracking-widest opacity-70">System Alert</p><p class="text-sm font-medium">${message}</p></div>`;
     document.body.appendChild(toast);
-    setTimeout(() => { toast.classList.add('opacity-0', 'translate-x-full'); setTimeout(() => document.body.removeChild(toast), 500); }, 4000);
+    setTimeout(() => { toast.classList.add('opacity-0', 'translate-x-full'); setTimeout(() => document.body.removeChild(toast), 4000); }, 4000);
 };
 
 const BdmDashboard: React.FC<BdmDashboardProps> = ({ 
@@ -162,7 +162,7 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
     });
   }, [searchTerm, myAssignedBookings, dateRange, visibilityCutoff]);
 
-  // FIX: Added missing analyticsBookings memoized state for performance tracking
+  // analyticsBookings memoized state for performance tracking
   const analyticsBookings = useMemo(() => {
     return myAssignedBookings.filter(b => {
       const bDate = new Date(b.date);
@@ -217,17 +217,54 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
   const handleOpenRequestModal = (prefill: Booking | null = null) => { setRequestModalPrefill(prefill); setIsRequestModalOpen(true); };
   
   const handleRequestBooking = (bookingDetails: Omit<Booking, 'id' | 'status'>) => {
-      const newBooking: Booking = { ...bookingDetails, id: Date.now(), status: 'pending_approval' };
+      const requestId = Date.now();
+      
+      // Duplicate Check
+      const normalizedBusiness = bookingDetails.businessName.toLowerCase().trim();
+      const normalizedClient = bookingDetails.clientName.toLowerCase().trim();
+      const normalizedPhone = bookingDetails.clientPhone.replace(/\D/g, '');
+      const normalizedEmail = bookingDetails.clientEmail?.toLowerCase().trim() || '';
+
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+      const existingMatch = allBookings.find(b => {
+          if (b.isBlocker || b.status === 'rejected') return false;
+          const bDate = new Date(b.date);
+          if (bDate < oneYearAgo) return false;
+          const bPhone = b.clientPhone.replace(/\D/g, '');
+          const bEmail = b.clientEmail?.toLowerCase().trim() || '';
+          return (
+              (normalizedBusiness && b.businessName.toLowerCase().trim() === normalizedBusiness) ||
+              (normalizedClient && b.clientName.toLowerCase().trim() === normalizedClient) ||
+              (normalizedPhone && bPhone === normalizedPhone) ||
+              (normalizedEmail && bEmail === normalizedEmail)
+          );
+      });
+
+      const newBooking: Booking = { 
+          ...bookingDetails, 
+          id: requestId, 
+          status: 'pending_approval',
+          isDuplicate: !!existingMatch,
+          duplicateOfBookingId: existingMatch?.id
+      };
+
       managers.forEach(m => { 
         if (m.notificationPreferences?.bookingRequest) {
-            sendEmailNotification(m.email || '', `BDM Request: Approval Required`, newBooking, `BDM ${currentUser.name} is requesting approval for a booking with ${bookingDetails.businessName}. Please review it in your dashboard.`);
+            sendEmailNotification(
+                m.email || '', 
+                `BDM Request: Approval Required${existingMatch ? ' (DUPLICATE)' : ''}`, 
+                newBooking, 
+                `BDM ${currentUser.name} is requesting approval for a booking with ${bookingDetails.businessName}.${existingMatch ? ' WARNING: This appears to be a duplicate lead.' : ''} Please review it in your dashboard.`
+            );
         }
       });
-      const managerNotif: Notification = { id: Date.now(), vendorId: 0, bookingId: newBooking.id, message: `New Request from BDM ${currentUser.name}: ${bookingDetails.clientName}`, read: false, timestamp: new Date().toISOString() };
+      const managerNotif: Notification = { id: Date.now(), vendorId: 0, bookingId: requestId, message: `New Request from BDM ${currentUser.name}: ${bookingDetails.clientName}${existingMatch ? ' (Duplicate)' : ''}`, read: false, timestamp: new Date().toISOString() };
       setNotifications(prev => [...prev, managerNotif]);
       setAllBookings(prev => [...prev, newBooking]);
       setIsRequestModalOpen(false); 
-      triggerSystemAlert("Booking request sent to Managers.");
+      triggerSystemAlert(existingMatch ? "Request sent (Duplicate detected)." : "Booking request sent to Managers.");
   };
   
   const bgColor = getRegionBackgroundColor(currentUser.region, regionColors);
@@ -254,8 +291,25 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                             <div className="flex items-center gap-2 mb-4"><ClockIcon className="w-4 h-4 text-indigo-600 animate-spin-slow" /><h2 className="text-sm font-black text-indigo-900 uppercase tracking-widest">Pending Rebooking Approvals ({pendingRequests.length})</h2></div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                 {pendingRequests.map(req => (
-                                    <div key={req.id} className="bg-white/80 backdrop-blur rounded-xl border border-indigo-200 p-3 shadow-sm flex flex-col justify-between">
-                                        <div><div className="flex justify-between items-center mb-1"><div className="text-[10px] font-black text-indigo-600 uppercase">Pending Review</div><div className="text-[10px] font-bold text-gray-400 uppercase">{req.region}</div></div><div className="font-bold text-gray-900 text-sm leading-tight truncate">{req.businessName}</div><div className="text-[11px] text-gray-500 truncate mb-2">{req.clientName}</div><div className="flex items-center gap-2 text-[10px] font-bold text-gray-600"><CalendarDaysIcon className="w-3 h-3 text-gray-400" />{new Date(req.date + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}<span className="text-gray-300">|</span><ClockIcon className="w-3 h-3 text-gray-400" />{req.time}</div></div>
+                                    <div key={req.id} className={`bg-white/80 backdrop-blur rounded-xl border p-3 shadow-sm flex flex-col justify-between ${req.isDuplicate ? 'border-amber-400 bg-amber-50/50' : 'border-indigo-200'}`}>
+                                        <div>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <div className="flex items-center gap-1">
+                                                    <div className="text-[10px] font-black text-indigo-600 uppercase">Pending Review</div>
+                                                    {req.isDuplicate && <span className="text-[8px] bg-amber-200 text-amber-800 px-1 rounded font-black">DUPLICATE</span>}
+                                                </div>
+                                                <div className="text-[10px] font-bold text-gray-400 uppercase">{req.region}</div>
+                                            </div>
+                                            <div className="font-bold text-gray-900 text-sm leading-tight truncate">{req.businessName}</div>
+                                            <div className="text-[11px] text-gray-500 truncate mb-2">{req.clientName}</div>
+                                            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-600">
+                                                <CalendarDaysIcon className="w-3 h-3 text-gray-400" />
+                                                {new Date(req.date + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                <span className="text-gray-300">|</span>
+                                                <ClockIcon className="w-3 h-3 text-gray-400" />
+                                                {req.time}
+                                            </div>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -297,7 +351,7 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
         </main>
         {bookingToUpdate && <BdmUpdateStatusModal booking={bookingToUpdate} onClose={() => setBookingToUpdate(null)} onSave={handleUpdateBookingStatus} />}
         {bookingToManageNotes && <BdmNoteReminderModal booking={bookingToManageNotes} onClose={() => setBookingToManageNotes(null)} onSave={handleSaveNoteAndReminder} />}
-        {isRequestModalOpen && <BdmBookingRequestModal currentUser={currentUser} vendors={vendors} onClose={() => setIsRequestModalOpen(false)} onRequestBooking={handleRequestBooking} prefillData={requestModalPrefill} regions={regions} appointmentTimes={appointmentTimes} />}
+        {isRequestModalOpen && <BdmBookingRequestModal currentUser={currentUser} vendors={vendors} onClose={() => setIsRequestModalOpen(false)} onRequestBooking={handleRequestBooking} prefillData={requestModalPrefill} regions={regions} appointmentTimes={appointmentTimes} allBookings={allBookings} />}
       </div>
     </div>
   );

@@ -104,25 +104,57 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleConfirmBooking = (bookingDetails: Omit<Booking, 'id' | 'vendor' | 'status'>, slotsToRemove: string[]) => {
     const mainBookingId = Date.now();
-    const newBooking: Booking = { ...bookingDetails, id: mainBookingId, vendor: currentUser, status: 'active' };
-    const newBlockers: Booking[] = slotsToRemove.map((time, index) => ({ id: mainBookingId + index + 1, clientName: `Slot Blocked`, businessName: `Conflict`, clientWebsite: '', clientPhone: '', address: '', callerName: 'System', date: bookingDetails.date, time: time, vendor: currentUser, region: bookingDetails.region, isBlocker: true, parentBookingId: mainBookingId, status: 'active' }));
+    
+    // Duplicate Check
+    const normalizedBusiness = bookingDetails.businessName.toLowerCase().trim();
+    const normalizedClient = bookingDetails.clientName.toLowerCase().trim();
+    const normalizedPhone = bookingDetails.clientPhone.replace(/\D/g, '');
+    const normalizedEmail = bookingDetails.clientEmail?.toLowerCase().trim() || '';
+
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+    const existingMatch = allBookings.find(b => {
+        if (b.isBlocker || b.status === 'rejected') return false;
+        const bDate = new Date(b.date);
+        if (bDate < oneYearAgo) return false;
+        const bPhone = b.clientPhone.replace(/\D/g, '');
+        const bEmail = b.clientEmail?.toLowerCase().trim() || '';
+        return (
+            (normalizedBusiness && b.businessName.toLowerCase().trim() === normalizedBusiness) ||
+            (normalizedClient && b.clientName.toLowerCase().trim() === normalizedClient) ||
+            (normalizedPhone && bPhone === normalizedPhone) ||
+            (normalizedEmail && bEmail === normalizedEmail)
+        );
+    });
+
+    const newBooking: Booking = { 
+        ...bookingDetails, 
+        id: mainBookingId, 
+        vendor: currentUser, 
+        status: 'active',
+        isDuplicate: !!existingMatch,
+        duplicateOfBookingId: existingMatch?.id
+    };
+
+    const newBlockers: Booking[] = slotsToRemove.map((time, index) => ({ id: Date.now() + index + 1, clientName: `Slot Blocked`, businessName: `Conflict`, clientWebsite: '', clientPhone: '', address: '', callerName: 'System', date: bookingDetails.date, time: time, vendor: currentUser, region: bookingDetails.region, isBlocker: true, parentBookingId: mainBookingId, status: 'active' }));
     
     // NOTIFY MANAGERS VIA EMAIL
     managers.forEach(m => {
         if (m.notificationPreferences?.newBooking && m.email) {
             sendEmailNotification(
                 m.email,
-                `New Booking: ${bookingDetails.businessName}`,
+                `New Booking: ${bookingDetails.businessName}${existingMatch ? ' (DUPLICATE)' : ''}`,
                 newBooking,
-                `Hello Admin, a new booking has been confirmed by ${currentUser.name} for ${bookingDetails.clientName} at ${bookingDetails.businessName}.`
+                `Hello Admin, a new booking has been confirmed by ${currentUser.name} for ${bookingDetails.clientName} at ${bookingDetails.businessName}.${existingMatch ? ' WARNING: This appears to be a duplicate lead.' : ''}`
             );
         }
     });
 
-    setNotifications(prev => [...prev, { id: Date.now(), vendorId: 0, bookingId: mainBookingId, message: `New Booking: ${bookingDetails.clientName} by ${currentUser.name}`, read: false, timestamp: new Date().toISOString() }]);
+    setNotifications(prev => [...prev, { id: Date.now(), vendorId: 0, bookingId: mainBookingId, message: `New Booking: ${bookingDetails.clientName} by ${currentUser.name}${existingMatch ? ' (Duplicate)' : ''}`, read: false, timestamp: new Date().toISOString() }]);
     setAllBookings(prev => [...prev, newBooking, ...newBlockers]);
     closeModal();
-    triggerSystemAlert("Booking confirmed. Admins notified.");
+    triggerSystemAlert(existingMatch ? "Booking confirmed (Duplicate detected)." : "Booking confirmed. Admins notified.");
   };
   
   const handleUpdateBooking = (updatedDetails: any, slotsToRemove: string[]) => {
@@ -137,21 +169,52 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const handleRequestManualBooking = (bookingDetails: Omit<Booking, 'id' | 'status'>) => {
-      const newBooking: Booking = { ...bookingDetails, id: Date.now(), status: 'pending_approval' };
+      const requestId = Date.now();
+      
+      // Duplicate Check
+      const normalizedBusiness = bookingDetails.businessName.toLowerCase().trim();
+      const normalizedClient = bookingDetails.clientName.toLowerCase().trim();
+      const normalizedPhone = bookingDetails.clientPhone.replace(/\D/g, '');
+      const normalizedEmail = bookingDetails.clientEmail?.toLowerCase().trim() || '';
+
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+      const existingMatch = allBookings.find(b => {
+          if (b.isBlocker || b.status === 'rejected') return false;
+          const bDate = new Date(b.date);
+          if (bDate < oneYearAgo) return false;
+          const bPhone = b.clientPhone.replace(/\D/g, '');
+          const bEmail = b.clientEmail?.toLowerCase().trim() || '';
+          return (
+              (normalizedBusiness && b.businessName.toLowerCase().trim() === normalizedBusiness) ||
+              (normalizedClient && b.clientName.toLowerCase().trim() === normalizedClient) ||
+              (normalizedPhone && bPhone === normalizedPhone) ||
+              (normalizedEmail && bEmail === normalizedEmail)
+          );
+      });
+
+      const newBooking: Booking = { 
+          ...bookingDetails, 
+          id: requestId, 
+          status: 'pending_approval',
+          isDuplicate: !!existingMatch,
+          duplicateOfBookingId: existingMatch?.id
+      };
       
       // NOTIFY MANAGERS VIA EMAIL
       managers.forEach(m => { 
         if (m.notificationPreferences?.bookingRequest && m.email) {
             sendEmailNotification(
                 m.email,
-                `ACTION REQUIRED: Manual Date Request`,
+                `ACTION REQUIRED: Manual Date Request${existingMatch ? ' (DUPLICATE)' : ''}`,
                 newBooking,
-                `Hello, ${currentUser.name} is requesting approval for a manual appointment date with ${bookingDetails.businessName}. Please review this in your dashboard.`
+                `Hello, ${currentUser.name} is requesting approval for a manual appointment date with ${bookingDetails.businessName}.${existingMatch ? ' WARNING: This contact info matches an existing lead.' : ''} Please review this in your dashboard.`
             );
         }
       });
 
-      setNotifications(prev => [...prev, { id: Date.now(), vendorId: 0, bookingId: newBooking.id, message: `Manual Request from ${currentUser.name}: ${bookingDetails.clientName}`, read: false, timestamp: new Date().toISOString() }]);
+      setNotifications(prev => [...prev, { id: Date.now(), vendorId: 0, bookingId: requestId, message: `Manual Request from ${currentUser.name}: ${bookingDetails.clientName}${existingMatch ? ' (Duplicate)' : ''}`, read: false, timestamp: new Date().toISOString() }]);
       setAllBookings(prev => [...prev, newBooking]);
       setIsRequestModalOpen(false); 
       triggerSystemAlert("Manual request sent to Admin.");
@@ -289,10 +352,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                 {pendingRequests.map(req => (
-                                    <div key={req.id} className="bg-white/80 backdrop-blur rounded-xl border border-indigo-200 p-3 shadow-sm flex flex-col justify-between">
+                                    <div key={req.id} className={`bg-white/80 backdrop-blur rounded-xl border p-3 shadow-sm flex flex-col justify-between ${req.isDuplicate ? 'border-amber-400 bg-amber-50/50' : 'border-indigo-200'}`}>
                                         <div>
                                             <div className="flex justify-between items-center mb-1">
-                                                <div className="text-[10px] font-black text-indigo-600 uppercase">Pending Approval</div>
+                                                <div className="flex items-center gap-1">
+                                                    <div className="text-[10px] font-black text-indigo-600 uppercase">Pending Approval</div>
+                                                    {req.isDuplicate && <span className="text-[8px] bg-amber-200 text-amber-800 px-1 rounded font-black">DUPLICATE</span>}
+                                                </div>
                                                 <div className="text-[10px] font-bold text-gray-400 uppercase">{req.region}</div>
                                             </div>
                                             <div className="font-bold text-gray-900 text-sm leading-tight truncate">{req.businessName}</div>
@@ -460,6 +526,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 onRequestBooking={handleRequestManualBooking} 
                 regions={regions} 
                 appointmentTimes={appointmentTimes}
+                allBookings={allBookings}
               />
           )}
         </div>

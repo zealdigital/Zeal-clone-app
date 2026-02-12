@@ -6,8 +6,6 @@ const normalize = (str: string) => str ? str.trim().toLowerCase() : '';
 
 /**
  * Robust date and time parser for CSV imports.
- * Handles YYYY-MM-DD, DD/MM/YYYY, and optional time suffixes.
- * Uses LOCAL time components to avoid UTC timezone shifts.
  */
 const parseDateTime = (dateTimeStr: string): { date: string, time: string } => {
     const now = new Date();
@@ -67,7 +65,7 @@ const parseDateTime = (dateTimeStr: string): { date: string, time: string } => {
 
 export const generateImportTemplate = () => {
     const headers = [
-        'Calling team', 'Website', 'Booked Date', 'Appt Date', 'Status', 'Caller', 'Notes',
+        'Calling team', 'Website', 'Email', 'Booked Date', 'Appt Date', 'Status', 'Caller', 'Notes',
         'Business Name (Required)', 'Client Name (Required)', 'Region (NSW/VIC)', 'Address', 'Phone'
     ];
     return headers.join(',');
@@ -120,9 +118,18 @@ export const processImportFile = async (
             let imported = 0;
             let skipped = 0;
 
-            const existingBusinessMap = new Map<string, number>();
+            const existingMap = new Map<string, number>();
             existingBookings.forEach(b => {
-                if (!b.isBlocker) existingBusinessMap.set(normalize(b.businessName), b.id);
+                if (b.isBlocker || b.status === 'rejected') return;
+                const bizKey = normalize(b.businessName);
+                const clientKey = normalize(b.clientName);
+                const phoneKey = b.clientPhone.replace(/\D/g, '');
+                const emailKey = normalize(b.clientEmail || '');
+
+                if (bizKey) existingMap.set('biz_' + bizKey, b.id);
+                if (clientKey) existingMap.set('cli_' + clientKey, b.id);
+                if (phoneKey) existingMap.set('pho_' + phoneKey, b.id);
+                if (emailKey) existingMap.set('eml_' + emailKey, b.id);
             });
 
             const baseId = Date.now();
@@ -133,29 +140,25 @@ export const processImportFile = async (
 
                 const cols = parseCSVLine(line);
                 
-                let businessName = cols[7]; 
-                if (!businessName || businessName.trim() === '') {
-                    businessName = cols[7] || cols[8] || cols[6] || '';
-                }
+                let businessName = cols[8]; 
+                let clientName = cols[9];
+                let phone = cols[12];
+                let email = cols[2];
+                let website = cols[1];
+                let callingTeam = cols[0] || 'Imported';
+                let apptDateRaw = cols[4] || cols[3] || '';
+                let statusRaw = cols[5] || 'active';
+                let callerName = cols[6] || callingTeam;
+                let notes = cols[7] || '';
+                let regionRaw = cols[10] || 'NSW';
+                let address = cols[11] || '';
 
                 if (!businessName || businessName.trim() === '') {
                     skipped++;
                     return;
                 }
 
-                const callingTeam = cols[0] || 'Imported';
-                const website = cols[1] || '';
-                const bookedDate = cols[2] || '';
-                const apptDateRaw = cols[3] || '';
-                const statusRaw = cols[4] || 'active';
-                const callerName = cols[5] || callingTeam;
-                const notes = cols[6] || '';
-                const clientName = cols[8] || 'Imported Lead';
-                const regionRaw = cols[9] || 'NSW';
-                const address = cols[10] || '';
-                const phone = cols[11] || '';
-
-                const { date, time } = parseDateTime(apptDateRaw || bookedDate);
+                const { date, time } = parseDateTime(apptDateRaw);
                 
                 let matchedVendor = vendors.find(v => normalize(v.name) === normalize(callingTeam));
                 if (!matchedVendor) {
@@ -167,15 +170,20 @@ export const processImportFile = async (
                 const s = normalize(statusRaw);
                 if (['active', 'rejected', 'seen', 'rescheduled', 'cancelled', 'dq', 'sold', 'pending_approval'].includes(s)) {
                     status = s as Booking['status'];
-                } else if (s === 'done' || s === 'completed' || s === 'met') {
-                    status = 'seen';
                 }
 
-                const normalizedBusiness = normalize(businessName);
-                const isDuplicate = existingBusinessMap.has(normalizedBusiness);
-                const duplicateId = existingBusinessMap.get(normalizedBusiness);
+                const normBiz = normalize(businessName);
+                const normCli = normalize(clientName);
+                const normPho = phone ? phone.replace(/\D/g, '') : '';
+                const normEml = normalize(email);
 
-                if (isDuplicate) duplicates++;
+                const duplicateId = 
+                    existingMap.get('biz_' + normBiz) || 
+                    existingMap.get('cli_' + normCli) || 
+                    (normPho ? existingMap.get('pho_' + normPho) : undefined) || 
+                    (normEml ? existingMap.get('eml_' + normEml) : undefined);
+
+                if (duplicateId) duplicates++;
 
                 newBookings.push({
                     id: baseId + index,
@@ -185,17 +193,22 @@ export const processImportFile = async (
                     time,
                     region,
                     address,
-                    clientPhone: phone,
-                    clientWebsite: website,
+                    clientPhone: phone || '',
+                    clientEmail: email || '',
+                    clientWebsite: website || '',
                     vendor: matchedVendor,
                     callerName: callerName,
-                    notes: notes || `Imported: ${bookedDate}`,
+                    notes: notes || `Imported Lead`,
                     status,
-                    isDuplicate: !!isDuplicate,
+                    isDuplicate: !!duplicateId,
                     duplicateOfBookingId: duplicateId,
                 });
                 imported++;
-                existingBusinessMap.set(normalizedBusiness, baseId + index);
+                
+                if (normBiz) existingMap.set('biz_' + normBiz, baseId + index);
+                if (normCli) existingMap.set('cli_' + normCli, baseId + index);
+                if (normPho) existingMap.set('pho_' + normPho, baseId + index);
+                if (normEml) existingMap.set('eml_' + normEml, baseId + index);
             });
 
             resolve({ newBookings, stats: { imported, duplicates, skipped } });

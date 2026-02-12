@@ -15,6 +15,7 @@ export const exportBookingsToCSV = (bookings: Booking[], filename: string) => {
     const headers = [
         'Calling team',
         'Website',
+        'Email',
         'Booked Date',
         'Appt Date',
         'Status',
@@ -61,6 +62,7 @@ export const exportBookingsToCSV = (bookings: Booking[], filename: string) => {
         return [
             clean(b.vendor?.name || 'System'),
             clean(b.clientWebsite || ''),
+            clean(b.clientEmail || ''),
             forceText(bookedDate),           
             forceText(`${apptDate} ${b.time}`), 
             clean(b.status.toUpperCase()),

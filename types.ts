@@ -64,6 +64,7 @@ export interface Booking {
   businessName: string;
   clientWebsite: string;
   clientPhone: string;
+  clientEmail?: string; // New field for email duplicate checking
   address: string;
   callerName: string;
   date: string; // YYYY-MM-DD format

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Booking, Region, BDM, Vendor, User, AppointmentSlotsConfig } from '../types';
-import { XMarkIcon, ClockIcon, CalendarDaysIcon, UserGroupIcon, DocumentTextIcon } from './Icons';
+import { XMarkIcon, ClockIcon, CalendarDaysIcon, UserGroupIcon, DocumentTextIcon, ExclamationTriangleIcon } from './Icons';
 import { getAppointmentSlotsForDay } from '../utils/slotUtils';
 
 interface BdmBookingRequestModalProps {
@@ -12,13 +12,14 @@ interface BdmBookingRequestModalProps {
   prefillData?: Booking | null;
   regions: Region[];
   appointmentTimes: Record<Region, AppointmentSlotsConfig>;
+  allBookings: Booking[];
 }
 
 const HOURS = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
 const MINUTES = ['00', '15', '30', '45'];
 const PERIODS = ['AM', 'PM'];
 
-const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ currentUser, vendors, onClose, onRequestBooking, prefillData, regions, appointmentTimes }) => {
+const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ currentUser, vendors, onClose, onRequestBooking, prefillData, regions, appointmentTimes, allBookings }) => {
   const isManager = currentUser.role === 'manager';
   const isVendor = currentUser.role === 'vendor';
   const isBdm = currentUser.role === 'bdm';
@@ -28,6 +29,7 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
     businessName: '',
     clientWebsite: '',
     clientPhone: '',
+    clientEmail: '',
     address: '',
     date: '',
     notes: '',
@@ -37,6 +39,35 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
 
   const [slotsToBlock, setSlotsToBlock] = useState<string[]>([]);
   const [timeState, setTimeState] = useState({ hour: '10', minute: '00', period: 'AM' });
+
+  // Real-time Duplicate Detection (Expanded to include Name, Phone, Email)
+  const duplicateWarning = useMemo(() => {
+    const normalizedBusiness = formData.businessName.toLowerCase().trim();
+    const normalizedClient = formData.clientName.toLowerCase().trim();
+    const normalizedPhone = formData.clientPhone.replace(/\D/g, '');
+    const normalizedEmail = formData.clientEmail.toLowerCase().trim();
+
+    if (!normalizedBusiness && !normalizedClient && !normalizedPhone && !normalizedEmail) return null;
+    
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+    const match = allBookings.find(b => {
+        if (b.isBlocker || b.status === 'rejected') return false;
+        
+        const bookingDate = new Date(b.date);
+        if (bookingDate < oneYearAgo) return false;
+
+        const businessMatch = normalizedBusiness && b.businessName.toLowerCase().trim() === normalizedBusiness;
+        const clientMatch = normalizedClient && b.clientName.toLowerCase().trim() === normalizedClient;
+        const phoneMatch = normalizedPhone && b.clientPhone.replace(/\D/g, '') === normalizedPhone;
+        const emailMatch = normalizedEmail && b.clientEmail?.toLowerCase().trim() === normalizedEmail;
+
+        return businessMatch || clientMatch || phoneMatch || emailMatch;
+    });
+
+    return match || null;
+  }, [formData, allBookings]);
 
   useEffect(() => {
     if (prefillData) {
@@ -53,6 +84,7 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
             businessName: prefillData.businessName || '',
             clientWebsite: prefillData.clientWebsite || '',
             clientPhone: prefillData.clientPhone || '',
+            clientEmail: prefillData.clientEmail || '',
             address: prefillData.address || '',
             date: '',
             notes: '',
@@ -111,6 +143,7 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
         businessName: formData.businessName,
         clientWebsite: formData.clientWebsite,
         clientPhone: formData.clientPhone,
+        clientEmail: formData.clientEmail,
         address: formData.address,
         callerName: currentUser.name,
         date: formData.date,
@@ -139,6 +172,17 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
 
         <form onSubmit={handleSubmit} className="overflow-y-auto flex-1">
             <div className="p-6 space-y-6">
+                {duplicateWarning && (
+                    <div className="p-4 bg-amber-50 border-2 border-amber-400 rounded-xl flex items-start gap-3 animate-pulse shadow-sm">
+                        <ExclamationTriangleIcon className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
+                        <div className="text-sm text-amber-900">
+                            <p className="font-bold uppercase tracking-tight">Duplicate Lead Alert</p>
+                            <p>This business (<strong>"{duplicateWarning.businessName}"</strong>) or contact info has already been booked.</p>
+                            <p className="text-xs mt-1 opacity-75 italic">Managers will see this lead highlighted as a duplicate.</p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Summary Card Logic */}
                 <div className="bg-gray-50 p-5 rounded-2xl border border-gray-200 shadow-sm space-y-3">
                     <div className="grid grid-cols-2 gap-y-2 text-sm">
@@ -225,6 +269,10 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
                     <div>
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Phone</label>
                         <input type="tel" name="clientPhone" value={formData.clientPhone} onChange={handleChange} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" />
+                    </div>
+                    <div className="col-span-full">
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Client Email</label>
+                        <input type="email" name="clientEmail" value={formData.clientEmail} onChange={handleChange} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" placeholder="client@example.com" />
                     </div>
                     <div className="col-span-full">
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Notes</label>

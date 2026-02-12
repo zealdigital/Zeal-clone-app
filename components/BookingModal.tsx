@@ -32,7 +32,7 @@ interface BookingFormProps {
     isCustom: boolean;
     formData: {
         clientName: string; businessName: string; clientWebsite: string;
-        clientPhone: string; address: string; customTime: string; customReason: string;
+        clientPhone: string; clientEmail: string; address: string; customTime: string; customReason: string;
         callerName: string; notes: string;
     };
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
@@ -57,7 +57,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 <ExclamationTriangleIcon className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-amber-900">
                     <p className="font-bold uppercase tracking-tight">Duplicate Lead Alert</p>
-                    <p>This business (<strong>"{duplicateWarning.businessName}"</strong>) has already been booked in our database.</p>
+                    <p>This business (<strong>"{duplicateWarning.businessName}"</strong>) or contact information has already been booked in our database.</p>
                     <p className="text-xs mt-1 opacity-75 italic">Please verify if this is a fresh lead before submitting.</p>
                 </div>
             </div>
@@ -109,9 +109,15 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 <input type="tel" name="clientPhone" id="clientPhone" value={formData.clientPhone} onChange={onChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
             </div>
         </div>
-         <div>
-            <label htmlFor="clientWebsite" className="block text-sm font-medium text-gray-700">Client's Website</label>
-            <input type="text" name="clientWebsite" id="clientWebsite" value={formData.clientWebsite} onChange={onChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="e.g., example.com"/>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label htmlFor="clientWebsite" className="block text-sm font-medium text-gray-700">Client's Website</label>
+                <input type="text" name="clientWebsite" id="clientWebsite" value={formData.clientWebsite} onChange={onChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="e.g., example.com"/>
+            </div>
+            <div>
+                <label htmlFor="clientEmail" className="block text-sm font-medium text-gray-700">Client Email</label>
+                <input type="email" name="clientEmail" id="clientEmail" value={formData.clientEmail} onChange={onChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="e.g., client@email.com"/>
+            </div>
         </div>
         <div>
             <label htmlFor="address" className="block text-sm font-medium text-gray-700">Address</label>
@@ -165,7 +171,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
   
   const [activeTab, setActiveTab] = useState<'book' | 'view'>('book');
   const [formData, setFormData] = useState({
-    clientName: '', businessName: '', clientWebsite: '', clientPhone: '', address: '', customTime: '10:00 AM', customReason: '', callerName: '', notes: '',
+    clientName: '', businessName: '', clientWebsite: '', clientPhone: '', clientEmail: '', address: '', customTime: '10:00 AM', customReason: '', callerName: '', notes: '',
   });
   const [slotsToRemove, setSlotsToRemove] = useState<string[]>([]);
   const [error, setError] = useState('');
@@ -199,27 +205,34 @@ const BookingModal: React.FC<BookingModalProps> = ({
     return { bookingsInSlot: activeBookingsInSlot, availableSlots: available, canBookNew: available > 0 };
   }, [allBookings, date, time, region, salespeopleCount]);
 
-  // Real-time Duplicate Detection (within 1 year)
+  // Real-time Duplicate Detection (Expanded to Name, Phone, Email)
   const duplicateWarning = useMemo(() => {
-    if (isEditMode || !formData.businessName.trim() || formData.businessName.length < 3) return null;
+    const normalizedBusiness = formData.businessName.toLowerCase().trim();
+    const normalizedClient = formData.clientName.toLowerCase().trim();
+    const normalizedPhone = formData.clientPhone.replace(/\D/g, '');
+    const normalizedEmail = formData.clientEmail.toLowerCase().trim();
+
+    if (isEditMode || (!normalizedBusiness && !normalizedClient && !normalizedPhone && !normalizedEmail)) return null;
     
-    const normalizedInput = formData.businessName.toLowerCase().trim();
     const oneYearAgo = new Date();
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
     const match = allBookings.find(b => {
-        if (b.isBlocker) return false;
-        if (b.status === 'rejected') return false;
+        if (b.isBlocker || b.status === 'rejected') return false;
         
         const bookingDate = new Date(b.date);
-        return (
-            b.businessName.toLowerCase().trim() === normalizedInput &&
-            bookingDate >= oneYearAgo
-        );
+        if (bookingDate < oneYearAgo) return false;
+
+        const businessMatch = normalizedBusiness && b.businessName.toLowerCase().trim() === normalizedBusiness;
+        const clientMatch = normalizedClient && b.clientName.toLowerCase().trim() === normalizedClient;
+        const phoneMatch = normalizedPhone && b.clientPhone.replace(/\D/g, '') === normalizedPhone;
+        const emailMatch = normalizedEmail && b.clientEmail?.toLowerCase().trim() === normalizedEmail;
+
+        return businessMatch || clientMatch || phoneMatch || emailMatch;
     });
 
     return match || null;
-  }, [formData.businessName, allBookings, isEditMode]);
+  }, [formData, allBookings, isEditMode]);
   
   useEffect(() => {
     if (isEditMode && bookingToEdit) {
@@ -227,6 +240,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
       setFormData({
         clientName: bookingToEdit.clientName, businessName: bookingToEdit.businessName,
         clientWebsite: bookingToEdit.clientWebsite, clientPhone: bookingToEdit.clientPhone,
+        clientEmail: bookingToEdit.clientEmail || '',
         address: bookingToEdit.address, customTime: isCustom ? bookingToEdit.time : '10:00 AM',
         customReason: bookingToEdit.customReason || '',
         callerName: bookingToEdit.callerName || '',
@@ -234,7 +248,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
       });
       setSlotsToRemove(blockedSlotsForEdit);
     } else if (slotInfo) {
-      setFormData({ clientName: '', businessName: '', clientWebsite: '', clientPhone: '', address: '', customTime: '10:00 AM', customReason: '', callerName: '', notes: '' });
+      setFormData({ clientName: '', businessName: '', clientWebsite: '', clientPhone: '', clientEmail: '', address: '', customTime: '10:00 AM', customReason: '', callerName: '', notes: '' });
       setSlotsToRemove([]);
       setError('');
       setActiveTab(canBookNew || !!slotInfo.isCustom ? 'book' : 'view');

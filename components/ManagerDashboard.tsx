@@ -143,7 +143,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ user, type, onClose, onSa
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     <div><label className="block text-sm font-bold text-gray-700">Name</label><input type="text" name="name" value={formData.name} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-indigo-500 focus:border-indigo-500" /></div>
-                    {type === 'bdm' && (<div><label className="block text-sm font-bold text-gray-700">Region</label><select name="region" value={formData.region} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md p-2 shadow-sm">{regions.map(r => <option key={r} value={r}>{r}</option>)}</select></div>)}
+                    {type === 'bdm' && (<div><label className="block text-sm font-bold text-gray-700 Region">Region</label><select name="region" value={formData.region} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md p-2 shadow-sm">{regions.map(r => <option key={r} value={r}>{r}</option>)}</select></div>)}
                     {type === 'vendor' && (
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-2">Allowed Regions</label>
@@ -300,7 +300,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const [isManualBookingOpen, setIsManualBookingOpen] = useState(false);
     const [importPreview, setImportPreview] = useState<{ newBookings: Booking[], stats: { imported: number, duplicates: number, skipped: number } } | null>(null);
     
-    // Pagination State
     const [activeLeadsPage, setActiveLeadsPage] = useState(1);
     const [vendorsPage, setVendorsPage] = useState(1);
     const [bdmsPage, setBdmsPage] = useState(1);
@@ -446,7 +445,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
 
     const bdmsByRegion = useMemo(() => bdms.reduce((acc, bdm) => { if (bdm.active !== false) { if (!acc[bdm.region]) acc[bdm.region] = []; acc[bdm.region].push(bdm); } return acc; }, {} as Record<Region, BDM[]>), [bdms]);
     
-    // FIX: Added missing memoized state for manual requests, analytics filtering, and calendar data
     const pendingRequests = useMemo(() => {
         return allBookings.filter(b => b.status === 'pending_approval' && !b.isBlocker)
             .sort((a, b) => b.id - a.id);
@@ -474,7 +472,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const sortedBdms = useMemo(() => [...bdms].sort((a, b) => (a.active !== false === b.active !== false) ? a.name.localeCompare(b.name) : (a.active !== false ? -1 : 1)), [bdms]);
     const sortedManagers = useMemo(() => [...managers].sort((a, b) => (a.active !== false === b.active !== false) ? a.name.localeCompare(b.name) : (a.active !== false ? -1 : 1)), [managers]);
     
-    // Paginated Users
     const paginatedVendors = useMemo(() => sortedVendors.slice((vendorsPage - 1) * ITEMS_PER_PAGE, vendorsPage * ITEMS_PER_PAGE), [sortedVendors, vendorsPage]);
     const paginatedBdms = useMemo(() => sortedBdms.slice((bdmsPage - 1) * ITEMS_PER_PAGE, bdmsPage * ITEMS_PER_PAGE), [sortedBdms, bdmsPage]);
     const paginatedManagers = useMemo(() => sortedManagers.slice((managersPage - 1) * ITEMS_PER_PAGE, managersPage * ITEMS_PER_PAGE), [sortedManagers, managersPage]);
@@ -580,12 +577,67 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
 
     const handleManualBookingEntry = (bookingDetails: Omit<Booking, 'id' | 'status'>, slotsToBlock: string[] = []) => {
         const mainBookingId = Date.now();
-        const newBooking: Booking = { ...bookingDetails, id: mainBookingId, status: 'active' };
-        const blockers: Booking[] = slotsToBlock.map((time, index) => ({ id: mainBookingId + index + 1, clientName: 'Slot Blocked', businessName: 'Admin Manual Block', clientWebsite: '', clientPhone: '', address: '', callerName: 'System', date: bookingDetails.date, time: time, vendor: newBooking.vendor, region: bookingDetails.region, isBlocker: true, parentBookingId: mainBookingId, status: 'active' }));
+        
+        const normalizedBusiness = bookingDetails.businessName.toLowerCase().trim();
+        const normalizedClient = bookingDetails.clientName.toLowerCase().trim();
+        const normalizedPhone = bookingDetails.clientPhone.replace(/\D/g, '');
+        const normalizedEmail = bookingDetails.clientEmail?.toLowerCase().trim() || '';
+
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+        const existingMatch = allBookings.find(b => {
+            if (b.isBlocker || b.status === 'rejected') return false;
+            
+            const bDate = new Date(b.date);
+            if (bDate < oneYearAgo) return false;
+
+            const bPhone = b.clientPhone.replace(/\D/g, '');
+            const bEmail = b.clientEmail?.toLowerCase().trim() || '';
+
+            return (
+                (normalizedBusiness && b.businessName.toLowerCase().trim() === normalizedBusiness) ||
+                (normalizedClient && b.clientName.toLowerCase().trim() === normalizedClient) ||
+                (normalizedPhone && bPhone === normalizedPhone) ||
+                (normalizedEmail && bEmail === normalizedEmail)
+            );
+        });
+
+        const newBooking: Booking = { 
+            ...bookingDetails, 
+            id: mainBookingId, 
+            status: 'active',
+            date: bookingDetails.date.trim(),
+            time: bookingDetails.time.trim(),
+            isDuplicate: !!existingMatch,
+            duplicateOfBookingId: existingMatch?.id
+        };
+
+        const targetRegion = bookingDetails.region;
+        const targetDate = bookingDetails.date.trim();
+
+        const blockers: Booking[] = slotsToBlock.map((slotTime, index) => ({
+            id: mainBookingId + (index + 1),
+            clientName: 'Slot Blocked',
+            businessName: 'Manual Block',
+            clientWebsite: '',
+            clientPhone: '',
+            address: '',
+            callerName: 'Manager Adjustment',
+            date: targetDate,
+            time: slotTime.trim(),
+            vendor: newBooking.vendor,
+            region: targetRegion,
+            isBlocker: true,
+            parentBookingId: mainBookingId,
+            status: 'active'
+        }));
+
         sendEmailNotification("pia@zealdigital.com.au", `New Lead Booked (Admin): ${bookingDetails.businessName}`, newBooking, `Hello, Admin ${currentUser.name} has manually entered a new lead for ${bookingDetails.clientName} at ${bookingDetails.businessName}.`);
+        
         setAllBookings(prev => [...prev, newBooking, ...blockers]);
         setIsManualBookingOpen(false);
-        triggerSystemAlert(`Lead booked directly and ${slotsToBlock.length} slots blocked.`);
+        triggerSystemAlert(existingMatch ? `Lead booked (Duplicate Detected).` : `Lead booked directly.`);
     };
 
     const handleSaveUser = (updatedUser: Vendor | BDM | Manager) => {
@@ -753,10 +805,8 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const handleEditHoliday = (holiday: PublicHoliday) => { setEditingHolidayOriginal(holiday); setNewHolidayName(holiday.name); setNewHolidayStartDate(holiday.startDate); setNewHolidayEndDate(holiday.endDate); setNewHolidayRegions(holiday.regions); };
     const handleDeleteHoliday = (id: number) => { setPublicHolidays(prev => prev.filter(h => h.id !== id)); };
     const handleSaveBranding = () => { if (logoFile) { const reader = new FileReader(); reader.onloadend = () => { setBranding({ ...brandingForm, logoUrl: reader.result as string }); }; reader.readAsDataURL(logoFile); } else setBranding(brandingForm); };
-    const handleImportUpload = async () => { if (importFile) { const { newBookings, stats } = await processImportFile(importFile, allBookings, vendors, currentUser); setImportPreview({ newBookings, stats }); } };
     const handleUpdateMyProfile = (e: React.FormEvent) => { e.preventDefault(); onUpdateProfile({ ...currentUser, ...profileForm } as any); setShowProfileSuccess(true); setIsEditingPassword(false); setTimeout(() => setShowProfileSuccess(false), 3000); };
 
-    // --- Pagination Helper Component ---
     const Pagination = ({ totalPages, currentPage, onPageChange, totalItems, label }: { totalPages: number, currentPage: number, onPageChange: (p: number) => void, totalItems: number, label: string }) => (
         <div className="p-4 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{totalItems} {label}</span>
@@ -792,10 +842,17 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                             {pendingRequests.map(req => (
-                                                <div key={req.id} className="bg-white rounded-xl border-2 border-indigo-100 p-4 shadow-md shadow-indigo-100/50 hover:border-indigo-300 transition-all flex flex-col justify-between">
+                                                <div key={req.id} className={`bg-white rounded-xl border-2 p-4 shadow-md transition-all flex flex-col justify-between ${req.isDuplicate ? 'border-amber-400 shadow-amber-100/50 bg-amber-50/30' : 'border-indigo-100 shadow-indigo-100/50 hover:border-indigo-300'}`}>
                                                     <div>
                                                         <div className="flex justify-between items-start mb-2">
-                                                            <div className="text-xs font-black text-indigo-600 uppercase bg-indigo-50 px-2 py-0.5 rounded">{req.vendor.name}</div>
+                                                            <div className="flex flex-col gap-1">
+                                                                <div className="text-xs font-black text-indigo-600 uppercase bg-indigo-50 px-2 py-0.5 rounded w-fit">{req.vendor.name}</div>
+                                                                {req.isDuplicate && (
+                                                                    <div className="flex items-center gap-1 text-[8px] font-black text-amber-700 bg-amber-200 px-1.5 py-0.5 rounded uppercase tracking-tighter w-fit animate-pulse">
+                                                                        <ExclamationTriangleIcon className="w-2.5 h-2.5" /> Potential Duplicate
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                             <div className="text-[10px] font-bold text-gray-400 uppercase">{req.region}</div>
                                                         </div>
                                                         <div className="font-bold text-gray-900 leading-tight mb-1">{req.businessName}</div>
@@ -860,11 +917,19 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                                 <React.Fragment key={date}>
                                                                     <tr className="bg-gray-50/50"><td colSpan={7} className="px-6 py-2 text-xs font-bold text-gray-500 uppercase tracking-tighter">{displayDate}</td></tr>
                                                                     {groupedActiveLeads[date].map(b => (
-                                                                        <tr key={b.id} className="hover:bg-gray-50 transition-all">
+                                                                        <tr key={b.id} className={`hover:bg-gray-50 transition-all ${b.isDuplicate ? 'bg-amber-50 border-l-4 border-amber-400' : ''}`}>
                                                                             <td className="px-6 py-4">
-                                                                                <div className="text-sm font-bold text-gray-900">{b.clientName}</div>
-                                                                                <div className="text-xs text-gray-400">{b.businessName}</div>
-                                                                                {b.clientWebsite && (<a href={b.clientWebsite.startsWith('http') ? b.clientWebsite : `https://${b.clientWebsite}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-500 hover:text-indigo-700 hover:underline truncate max-w-[150px] block transition-colors mt-0.5">{b.clientWebsite}</a>)}
+                                                                                <div className="flex flex-col">
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <span className="text-sm font-bold text-gray-900">{b.clientName}</span>
+                                                                                        {b.isDuplicate && (
+                                                                                            <span className="text-[9px] font-black bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">DUPLICATE</span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                    <div className="text-xs text-gray-400">{b.businessName}</div>
+                                                                                    {b.clientWebsite && (<a href={b.clientWebsite.startsWith('http') ? b.clientWebsite : `https://${b.clientWebsite}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-500 hover:text-indigo-700 hover:underline truncate max-w-[150px] block transition-colors mt-0.5">{b.clientWebsite}</a>)}
+                                                                                    {b.clientEmail && (<span className="text-[10px] text-gray-400 mt-0.5">{b.clientEmail}</span>)}
+                                                                                </div>
                                                                             </td>
                                                                             <td className="px-6 py-4"><div className="flex items-center gap-1.5 text-xs text-gray-900 font-bold mb-1"><PhoneIcon className="w-3.5 h-3.5 text-indigo-400" /><a href={`tel:${b.clientPhone}`} className="hover:text-indigo-600 transition-colors">{b.clientPhone}</a></div><div className="text-[10px] text-gray-500 max-w-[180px] leading-tight break-words">{b.address}</div></td>
                                                                             <td className="px-6 py-4 text-xs text-gray-500 font-bold">{b.vendor.name}</td>
@@ -1067,7 +1132,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             {requestToReview && <ManagerBookingReviewModal booking={requestToReview} onClose={() => setRequestToReview(null)} onApprove={handleApproveRequest} onReject={handleRejectRequest} appointmentTimes={appointmentTimes} />}
             {bookingToEdit && <BookingModal slotInfo={null} bookingToEdit={bookingToEdit} allBookings={allBookings} blockedSlotsForEdit={blockedSlotsForEdit} vendor={bookingToEdit.vendor} onClose={() => setBookingToEdit(null)} onConfirmBooking={() => {}} onUpdateBooking={handleUpdateBooking} onEditFromModal={() => {}} salespeopleCount={salespeopleCount} appointmentTimes={appointmentTimes} />}
             {editingUser && <UserEditModal user={editingUser.user} type={editingUser.type} onClose={() => setEditingUser(null)} onSave={handleSaveUser} regions={regions} />}
-            {isManualBookingOpen && (<BdmBookingRequestModal currentUser={currentUser} vendors={vendors} onClose={() => setIsManualBookingOpen(false)} onRequestBooking={handleManualBookingEntry} regions={regions} appointmentTimes={appointmentTimes} />)}
+            {isManualBookingOpen && (<BdmBookingRequestModal currentUser={currentUser} vendors={vendors} onClose={() => setIsManualBookingOpen(false)} onRequestBooking={handleManualBookingEntry} regions={regions} appointmentTimes={appointmentTimes} allBookings={allBookings} />)}
             {importPreview && (<ImportPreviewModal stats={importPreview.stats} newBookings={importPreview.newBookings} onCancel={() => { setImportPreview(null); setImportFile(null); }} onConfirm={() => { if (importPreview) { setAllBookings(prev => [...prev, ...importPreview.newBookings]); setImportPreview(null); setImportFile(null); triggerSystemAlert(`Successfully imported ${importPreview.stats.imported} records.`); } }} />)}
         </div>
     );
