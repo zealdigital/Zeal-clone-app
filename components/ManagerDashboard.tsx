@@ -149,7 +149,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ user, type, onClose, onSa
                             <label className="block text-sm font-bold text-gray-700 mb-2">Allowed Regions</label>
                             <div className="flex flex-wrap gap-2">
                                 {regions.map(r => (
-                                    <label key={r} className="inline-flex items-center bg-gray-50 px-2 py-1 rounded border cursor-pointer hover:bg-gray-100">
+                                    <label key={r} className="inline-flex items-center bg-gray-50 px-2 py-1 rounded border cursor-pointer hover:bg-gray-100 transition-colors">
                                         <input type="checkbox" checked={formData.allowedRegions.includes(r)} onChange={() => toggleAllowedRegion(r)} className="rounded text-indigo-600 mr-2" />
                                         <span className="text-sm">{r}</span>
                                     </label>
@@ -959,7 +959,10 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                     {/* 3. ARCHIVED LEADS */}
                                     <div>
                                         <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-4 flex items-center gap-2"><CheckBadgeIcon className="w-5 h-5 text-emerald-600" /> Archived Leads (History)</h2>
-                                        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden"><ArchivedBookingsList bookings={archivedLeads} role="manager" searchTerm={searchTerm} /></div>
+                                        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+                                            {/* Passed setBookingToEdit to enable manager editing of archived leads */}
+                                            <ArchivedBookingsList bookings={archivedLeads} role="manager" searchTerm={searchTerm} onEditBooking={setBookingToEdit} />
+                                        </div>
                                     </div>
                                 </div>
                             </>

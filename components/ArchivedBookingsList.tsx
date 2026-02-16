@@ -2,17 +2,18 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import type { Booking } from '../types';
 import { getStatusPill } from '../utils/statusUtils';
-import { PhoneIcon, CalendarDaysIcon } from './Icons';
+import { PhoneIcon, CalendarDaysIcon, PencilSquareIcon } from './Icons';
 
 interface ArchivedBookingsListProps {
   bookings: Booking[];
   role: 'manager' | 'vendor' | 'bdm';
   searchTerm?: string;
+  onEditBooking?: (booking: Booking) => void;
 }
 
 const ITEMS_PER_PAGE = 10;
 
-const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, role, searchTerm }) => {
+const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, role, searchTerm, onEditBooking }) => {
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
@@ -69,13 +70,14 @@ const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, r
               {role === 'manager' && <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-500 uppercase tracking-wider">Booked By</th>}
               <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-500 uppercase tracking-wider">Status</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-500 uppercase tracking-wider">Note</th>
+              {onEditBooking && <th scope="col" className="px-6 py-3 text-right text-xs font-normal text-gray-500 uppercase tracking-wider">Actions</th>}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {sortedDateKeys.map(date => (
               <React.Fragment key={date}>
                 <tr className="bg-gray-50 border-y border-gray-200">
-                  <td colSpan={role === 'manager' ? 7 : 6} className="px-6 py-2 text-sm font-normal text-gray-600 uppercase tracking-tight">
+                  <td colSpan={role === 'manager' ? (onEditBooking ? 8 : 7) : (onEditBooking ? 7 : 6)} className="px-6 py-2 text-sm font-normal text-gray-600 uppercase tracking-tight">
                     <div className="flex items-center gap-2">
                       <CalendarDaysIcon className="w-4 h-4 text-gray-400" />
                       {new Date(date + 'T00:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
@@ -114,6 +116,17 @@ const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, r
                     <td className="px-6 py-4 whitespace-normal text-xs text-gray-400 max-w-xs leading-snug uppercase tracking-tighter font-normal">
                         {booking.bdmNote || booking.notes || <span className="italic opacity-50">No notes</span>}
                     </td>
+                    {onEditBooking && (
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button 
+                          onClick={() => onEditBooking(booking)} 
+                          className="text-gray-400 hover:text-indigo-600 p-1.5 rounded-md hover:bg-indigo-50 transition-all"
+                          title="Edit Archived Lead"
+                        >
+                          <PencilSquareIcon className="w-4 h-4" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </React.Fragment>
