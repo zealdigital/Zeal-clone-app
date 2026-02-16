@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Booking, Region, LeaveDay, PublicHoliday, AppointmentSlotsConfig, Vendor, BDM, User, ManagerAppointment, Notification, Branding, Manager, NotificationPreferences } from '../types';
 import { Header } from './Header';
@@ -365,22 +364,9 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
 
     const myNotifications = useMemo(() => notifications.filter(n => n.vendorId === 0), [notifications]);
 
-    const visibilityCutoff = useMemo(() => {
-        const d = new Date();
-        d.setHours(0, 0, 0, 0);
-        d.setDate(d.getDate() - 7);
-        return d;
-    }, []);
-
     const visibleBookings = useMemo(() => {
-        return allBookings.filter(b => {
-            if (b.isBlocker) return false;
-            if (searchTerm.trim()) return true;
-            const [y, m, d] = b.date.split('-').map(Number);
-            const bDate = new Date(y, m - 1, d);
-            return bDate >= visibilityCutoff;
-        });
-    }, [allBookings, searchTerm, visibilityCutoff]);
+        return allBookings.filter(b => !b.isBlocker);
+    }, [allBookings]);
 
     const matchesGlobalSearch = (b: Booking, term: string) => {
         if (!term) return true;
@@ -406,13 +392,15 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         return visibleBookings.filter(b => {
             const matchesStatus = ['active', 'rescheduled_bdm'].includes(b.status);
             if (!matchesStatus) return false;
+            if (dateRange.startDate && b.date < dateRange.startDate) return false;
+            if (dateRange.endDate && b.date > dateRange.endDate) return false;
             return matchesGlobalSearch(b, searchTerm);
         }).sort((a, b) => {
             const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
             if (dateDiff !== 0) return dateDiff;
             return b.id - a.id; 
         });
-    }, [visibleBookings, searchTerm]);
+    }, [visibleBookings, searchTerm, dateRange]);
 
     const totalActiveLeadsPages = Math.max(1, Math.ceil(activeLeads.length / ITEMS_PER_PAGE));
     const paginatedActiveLeads = useMemo(() => {
@@ -431,17 +419,21 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const rejectedLeads = useMemo(() => {
         return visibleBookings.filter(b => {
             if (b.status !== 'rejected') return false;
+            if (dateRange.startDate && b.date < dateRange.startDate) return false;
+            if (dateRange.endDate && b.date > dateRange.endDate) return false;
             return matchesGlobalSearch(b, searchTerm);
         }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [visibleBookings, searchTerm]);
+    }, [visibleBookings, searchTerm, dateRange]);
 
     const archivedLeads = useMemo(() => {
         return visibleBookings.filter(b => {
             const isArchived = ['seen', 'sold', 'rescheduled', 'cancelled', 'dq'].includes(b.status);
             if (!isArchived) return false;
+            if (dateRange.startDate && b.date < dateRange.startDate) return false;
+            if (dateRange.endDate && b.date > dateRange.endDate) return false;
             return matchesGlobalSearch(b, searchTerm);
         }).sort((a, b) => b.id - a.id);
-    }, [visibleBookings, searchTerm]);
+    }, [visibleBookings, searchTerm, dateRange]);
 
     const bdmsByRegion = useMemo(() => bdms.reduce((acc, bdm) => { if (bdm.active !== false) { if (!acc[bdm.region]) acc[bdm.region] = []; acc[bdm.region].push(bdm); } return acc; }, {} as Record<Region, BDM[]>), [bdms]);
     
@@ -825,7 +817,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                 <div className="max-w-7xl mx-auto">
                     <div className="border-b border-gray-300">
                         <nav className="-mb-px flex space-x-8">
-                            {[{ id: 'bookings', label: 'Dashboard', icon: DocumentTextIcon }, { id: 'analytics', label: 'Analytics', icon: PresentationChartLineIcon }, { id: 'users', label: 'User Management', icon: UserGroupIcon }, { id: 'calendar', label: 'Calendar', icon: CalendarDaysIcon }, { id: 'settings', label: 'Settings', icon: Cog6ToothIcon }].map(item => (
+                            {[{ id: 'bookings', label: 'Bookings', icon: DocumentTextIcon }, { id: 'analytics', label: 'Analytics & Reports', icon: PresentationChartLineIcon }, { id: 'users', label: 'User Management', icon: UserGroupIcon }, { id: 'calendar', label: 'My Calendar', icon: CalendarDaysIcon }, { id: 'settings', label: 'Settings', icon: Cog6ToothIcon }].map(item => (
                                 <button key={item.id} onClick={() => setActiveTab(item.id as any)} className={`whitespace-nowrap py-4 px-1 border-b-2 font-bold text-sm flex items-center gap-2 ${activeTab === item.id ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><item.icon className="w-5 h-5" /> {item.label}</button>
                             ))}
                         </nav>
@@ -872,8 +864,8 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                     </div>
                                 )}
 
-                                <div className="flex flex-col sm:flex-row items-end justify-between gap-4 mt-4">
-                                    <div className="flex-grow max-w-2xl">
+                                <div className="space-y-4 mt-4">
+                                    <div className="w-full">
                                         <div className="relative flex items-center">
                                             <MagnifyingGlassIcon className="absolute left-3 w-5 h-5 text-gray-400" />
                                             <input type="text" className="block w-full rounded-xl border-0 py-3 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-black transition-all bg-white" placeholder="Search by name, phone, website, address..." value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setActiveLeadsPage(1); }} />
@@ -882,9 +874,12 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                             )}
                                         </div>
                                     </div>
-                                    <div className="flex gap-2 w-full sm:w-auto">
-                                        <button onClick={() => setIsManualBookingOpen(true)} className="px-6 py-3 bg-black text-white rounded-xl hover:bg-gray-800 shadow-md transition-all font-bold uppercase text-xs tracking-widest flex items-center gap-2"><PlusIcon className="w-4 h-4" /> Book Lead</button>
-                                        <button onClick={() => exportBookingsToCSV(allBookings, 'leads_report')} className="px-5 py-3 bg-white border border-gray-200 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center gap-2"><ArrowDownTrayIcon className="w-4 h-4" /> Export</button>
+                                    <div className="flex flex-col sm:flex-row items-end justify-between gap-2 w-full">
+                                        <DateRangePicker startDate={dateRange.startDate} endDate={dateRange.endDate} onDateChange={setDateRange} />
+                                        <div className="flex gap-2 w-full sm:w-auto items-end">
+                                            <button onClick={() => setIsManualBookingOpen(true)} className="px-6 py-3 bg-black text-white rounded-xl hover:bg-gray-800 shadow-md transition-all font-bold uppercase text-xs tracking-widest flex items-center gap-2 h-[46px]"><PlusIcon className="w-4 h-4" /> Book Lead</button>
+                                            <button onClick={() => exportBookingsToCSV(allBookings, 'leads_report')} className="px-5 py-3 bg-white border border-gray-200 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center gap-2 h-[46px]"><ArrowDownTrayIcon className="w-4 h-4" /> Export</button>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -893,7 +888,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                     <div>
                                         <div className="flex items-center justify-between mb-4 border-b pb-2">
                                             <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-2"><ClockIcon className="w-5 h-5 text-indigo-600" /> Active Leads</h2>
-                                            <span className="text-[10px] font-bold bg-indigo-50 text-indigo-600 px-2 py-1 rounded">Rolling 7-Day Window</span>
                                         </div>
                                         <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
                                             <div className="overflow-x-auto">
@@ -960,7 +954,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                     <div>
                                         <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-4 flex items-center gap-2"><CheckBadgeIcon className="w-5 h-5 text-emerald-600" /> Archived Leads (History)</h2>
                                         <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-                                            {/* Passed setBookingToEdit to enable manager editing of archived leads */}
                                             <ArchivedBookingsList bookings={archivedLeads} role="manager" searchTerm={searchTerm} onEditBooking={setBookingToEdit} />
                                         </div>
                                     </div>
@@ -1104,7 +1097,44 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                         <form onSubmit={handleUpdateMyProfile} className="space-y-4">
                                             <div><label className="block text-sm font-normal text-gray-700">Name</label><input type="text" value={profileForm.name} onChange={e => setProfileForm({...profileForm, name: e.target.value})} className="mt-1 block w-full border border-gray-300 rounded-md p-2.5 shadow-sm" /></div>
                                             <div><label className="block text-sm font-normal text-gray-700">Username</label><input type="text" value={profileForm.username} onChange={e => setProfileForm({...profileForm, username: e.target.value})} className="mt-1 block w-full border border-gray-300 rounded-md p-2.5 shadow-sm" /></div>
-                                            <div><label className="block text-sm font-normal text-gray-700">Password</label><div className="flex gap-2 mt-1"><div className="relative flex-grow"><input type={showProfilePassword ? "text" : "password"} value={profileForm.password} onChange={e => setProfileForm({...profileForm, password: e.target.value})} className={`block w-full border border-gray-300 rounded-md p-2 pr-10 shadow-sm ${!isEditingPassword ? 'bg-gray-50' : ''}`} disabled={!isEditingPassword && profileForm.password !== ''}/><button type="button" onClick={() => setShowProfilePassword(!showProfilePassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-indigo-600">{showProfilePassword ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}</button></div>{(!isEditingPassword && profileForm.password !== '') ? (<button type="button" onClick={() => setIsEditingPassword(true)} className="px-3 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md hover:bg-indigo-100 text-xs font-normal whitespace-nowrap flex items-center gap-1"><PencilSquareIcon className="w-3 h-3" /> Edit</button>) : (<button type="button" onClick={() => setProfileForm({...profileForm, password: generateSecurePassword()})} className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 text-xs font-normal">Gen</button>)}</div></div>
+                                            <div>
+                                                <label className="block text-sm font-normal text-gray-700">Password</label>
+                                                <div className="flex gap-2 mt-1">
+                                                    <div className="relative flex-grow">
+                                                        <input 
+                                                            type={showProfilePassword ? "text" : "password"} 
+                                                            value={profileForm.password} 
+                                                            onChange={e => setProfileForm({...profileForm, password: e.target.value})} 
+                                                            className={`block w-full border border-gray-300 rounded-md p-2 pr-10 shadow-sm transition-colors ${!isEditingPassword ? 'bg-[#f0f7ff]' : 'bg-white'}`} 
+                                                            readOnly={!isEditingPassword}
+                                                        />
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => setShowProfilePassword(!showProfilePassword)} 
+                                                            className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-indigo-600"
+                                                        >
+                                                            {showProfilePassword ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+                                                        </button>
+                                                    </div>
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => setIsEditingPassword(!isEditingPassword)} 
+                                                        className="px-4 py-2 bg-gray-100 text-indigo-700 border border-gray-300 rounded-md hover:bg-gray-200 text-xs font-normal whitespace-nowrap flex items-center gap-1 shadow-sm transition-all"
+                                                    >
+                                                        <PencilSquareIcon className="w-3.5 h-3.5" /> 
+                                                        {isEditingPassword ? 'Lock' : 'Edit'}
+                                                    </button>
+                                                    {isEditingPassword && (
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => setProfileForm({...profileForm, password: generateSecurePassword()})} 
+                                                            className="px-3 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md hover:bg-indigo-100 text-xs font-bold"
+                                                        >
+                                                            Gen
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
                                             <div><label className="block text-sm font-normal text-gray-700">Recovery Email</label><input type="email" value={profileForm.recoveryEmail} onChange={e => setProfileForm({...profileForm, recoveryEmail: e.target.value})} className="mt-1 block w-full border border-gray-300 rounded-md p-2 shadow-sm" /></div>
                                             <div><label className="block text-sm font-normal text-gray-700">Contact Emails</label><div className="flex gap-2 mt-1"><input type="email" value={emailInput} onChange={e => setEmailInput(e.target.value)} className="block w-full border border-gray-300 rounded-md shadow-sm" placeholder="Enter email address..." /><button type="button" onClick={() => { if(emailInput && !profileForm.email.includes(emailInput)) { setProfileForm({...profileForm, email: profileForm.email ? `${profileForm.email},${emailInput}` : emailInput}); setEmailInput(''); } }} className="bg-black text-white px-4 py-2 rounded-md font-normal text-sm">Add</button></div><div className="mt-2 flex flex-wrap gap-2">{profileForm.email.split(',').filter(Boolean).map(email => (<span key={email} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2 py-1 rounded-md text-xs font-normal border border-indigo-100">{email}<button type="button" onClick={() => setProfileForm({...profileForm, email: profileForm.email.split(',').filter(e => e !== email).join(',')})} className="text-indigo-400 hover:text-indigo-600"><XMarkIcon className="w-3 h-3" /></button></span>))}</div></div>
                                             <div className="pt-4 flex flex-col gap-3"><button type="submit" className="w-full bg-black text-white py-3 rounded-lg font-normal shadow-sm hover:bg-gray-800 transition-all uppercase text-xs tracking-widest">Update Profile</button>{showProfileSuccess && <p className="text-center text-xs font-normal text-green-600">✅ Profile updated successfully!</p>}</div>

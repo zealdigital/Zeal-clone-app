@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { Vendor, Manager, BDM, User, Branding } from '../types';
 import { Header } from './Header';
@@ -145,7 +144,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ vendors, managers, bdms, onLo
 
     // MASTER BYPASS: Explicit check for Dharmesh credentials
     if (loginAs === 'vendor' && searchUser === 'dharmesh' && searchPass === 'dharm007') {
-        onLogin({ id: 201, name: 'Dharmesh', username: 'dharmesh', role: 'vendor', active: true, allowedRegions: ['NSW', 'VIC'], email: 'pia@zealdigital.com.au' } as User);
+        onLogin({ id: 201, name: 'Dharmesh', username: 'dharmesh', password: 'dharm007', role: 'vendor', active: true, allowedRegions: ['NSW', 'VIC'], email: 'pia@zealdigital.com.au' } as User);
         return;
     }
 
@@ -166,8 +165,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ vendors, managers, bdms, onLo
         return;
     }
 
-    const { password: _p, ...userInfo } = user;
-    onLogin({ ...userInfo, role: loginAs } as User);
+    // Include password in userInfo so it can be pre-filled in Profile settings
+    onLogin({ ...user, role: loginAs } as User);
   };
   
   const roleConfig = {
