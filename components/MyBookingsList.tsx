@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState, useEffect } from 'react';
 import type { Booking } from '../types';
 import { PencilSquareIcon, TrashIcon, ClockIcon, CheckBadgeIcon, PhoneIcon, ChatBubbleLeftRightIcon, CalendarDaysIcon } from './Icons';
@@ -164,6 +163,23 @@ const MyBookingsList: React.FC<MyBookingsListProps> = ({ bookings, onEditBooking
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-normal">
                         <div className="flex items-center justify-end gap-3">
+                          {onRequestSms && (
+                              <button 
+                                onClick={() => setSmsModalBooking(booking)} 
+                                disabled={booking.smsRequest?.status === 'sent'}
+                                className={`flex items-center gap-1 transition-all ${
+                                    booking.smsRequest?.status === 'pending'
+                                    ? 'p-1.5 bg-orange-100 text-orange-600 rounded-full border border-orange-200'
+                                    : booking.smsRequest?.status === 'sent'
+                                    ? 'text-green-600 font-bold'
+                                    : 'text-gray-400 hover:text-indigo-600'
+                                }`}
+                                title={booking.smsRequest?.status === 'pending' ? 'SMS Request Pending' : 'Request SMS'}
+                              >
+                                <ChatBubbleLeftRightIcon className="w-4 h-4" />
+                                {booking.smsRequest?.status === 'sent' && <span className="text-[10px] uppercase">Sent</span>}
+                              </button>
+                          )}
                           <button onClick={() => onEditBooking(booking)} className="text-gray-400 hover:text-indigo-900"><PencilSquareIcon className="w-4 h-4" /></button>
                           <button onClick={() => onDeleteBooking(booking.id)} className="text-gray-400 hover:text-red-900"><TrashIcon className="w-4 h-4" /></button>
                         </div>

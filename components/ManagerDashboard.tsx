@@ -796,8 +796,30 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
 
     const handleEditHoliday = (holiday: PublicHoliday) => { setEditingHolidayOriginal(holiday); setNewHolidayName(holiday.name); setNewHolidayStartDate(holiday.startDate); setNewHolidayEndDate(holiday.endDate); setNewHolidayRegions(holiday.regions); };
     const handleDeleteHoliday = (id: number) => { setPublicHolidays(prev => prev.filter(h => h.id !== id)); };
+    
+    // FIX: Changed 'file' to 'logoFile' to resolve "Cannot find name 'file'" error.
     const handleSaveBranding = () => { if (logoFile) { const reader = new FileReader(); reader.onloadend = () => { setBranding({ ...brandingForm, logoUrl: reader.result as string }); }; reader.readAsDataURL(logoFile); } else setBranding(brandingForm); };
     const handleUpdateMyProfile = (e: React.FormEvent) => { e.preventDefault(); onUpdateProfile({ ...currentUser, ...profileForm } as any); setShowProfileSuccess(true); setIsEditingPassword(false); setTimeout(() => setShowProfileSuccess(false), 3000); };
+
+    const handleMarkSmsSent = (bookingId: number) => {
+        let updatedBooking: Booking | undefined;
+        setAllBookings(prev => prev.map(b => {
+            if (b.id === bookingId) {
+                updatedBooking = { ...b, smsRequest: b.smsRequest ? { ...b.smsRequest, status: 'sent', sentAt: new Date().toISOString() } : undefined };
+                return updatedBooking;
+            }
+            return b;
+        }));
+
+        if (updatedBooking) {
+            setNotifications(prev => [...prev, { id: Date.now(), vendorId: updatedBooking!.vendor.id, bookingId, message: `Manager sent the requested SMS to ${updatedBooking!.clientName}.`, read: false, timestamp: new Date().toISOString() }]);
+            if (updatedBooking.vendor.notificationPreferences?.smsSent) {
+                sendEmailNotification(updatedBooking.vendor.email || '', `SMS Sent: ${updatedBooking.businessName}`, updatedBooking, `Hello, the manager has sent the SMS you requested for ${updatedBooking.clientName}.`);
+            }
+            triggerSystemAlert("SMS marked as sent. Caller notified.");
+        }
+        setSmsActionBooking(null);
+    };
 
     const Pagination = ({ totalPages, currentPage, onPageChange, totalItems, label }: { totalPages: number, currentPage: number, onPageChange: (p: number) => void, totalItems: number, label: string }) => (
         <div className="p-4 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -930,7 +952,25 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                                             <td className="px-6 py-4 text-sm font-bold text-gray-900">{b.time}</td>
                                                                             <td className="px-6 py-4"><span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-gray-100 text-gray-600 uppercase">{b.region}</span></td>
                                                                             <td className="px-6 py-4">{getStatusPill(b.status)}</td>
-                                                                            <td className="px-6 py-4 text-right"><div className="flex items-center justify-end gap-2"><select className="text-[10px] border-gray-200 rounded-lg p-1 font-bold outline-none" value={b.bdmId || ''} onChange={(e) => handleAssignBdm(b.id, Number(e.target.value))}><option value="">Assign BDM</option>{bdmsByRegion[b.region]?.map(bdm => (<option key={bdm.id} value={bdm.id}>{bdm.name}</option>))}</select><button onClick={() => setBookingToManage(b)} className="text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-all" title="Reject"><XMarkIcon className="w-4 h-4" /></button><button onClick={() => setBookingToEdit(b)} className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-all" title="Edit"><PencilSquareIcon className="w-4 h-4" /></button><button onClick={() => handleDeleteBooking(b.id)} className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg transition-all" title="Delete"><TrashIcon className="w-4 h-4" /></button></div></td>
+                                                                            <td className="px-6 py-4 text-right">
+                                                                              <div className="flex items-center justify-end gap-2">
+                                                                                  <button 
+                                                                                      onClick={() => setSmsActionBooking(b)} 
+                                                                                      className={`flex items-center gap-1 transition-all ${
+                                                                                          b.smsRequest?.status === 'pending'
+                                                                                          ? 'p-1.5 bg-orange-100 text-orange-600 rounded-full border border-orange-200 animate-pulse'
+                                                                                          : b.smsRequest?.status === 'sent'
+                                                                                          ? 'text-green-600 font-bold'
+                                                                                          : 'text-gray-300'
+                                                                                      }`}
+                                                                                      title={b.smsRequest ? (b.smsRequest.status === 'pending' ? 'Pending SMS Action' : 'SMS Sent') : 'No SMS Requested'}
+                                                                                  >
+                                                                                      <ChatBubbleLeftRightIcon className="w-4 h-4" />
+                                                                                      {b.smsRequest?.status === 'sent' && <span className="text-[10px] uppercase">Sent</span>}
+                                                                                  </button>
+                                                                                  <select className="text-[10px] border-gray-200 rounded-lg p-1 font-bold outline-none" value={b.bdmId || ''} onChange={(e) => handleAssignBdm(b.id, Number(e.target.value))}><option value="">Assign BDM</option>{bdmsByRegion[b.region]?.map(bdm => (<option key={bdm.id} value={bdm.id}>{bdm.name}</option>))}</select><button onClick={() => setBookingToManage(b)} className="text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-all" title="Reject"><XMarkIcon className="w-4 h-4" /></button><button onClick={() => setBookingToEdit(b)} className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-all" title="Edit"><PencilSquareIcon className="w-4 h-4" /></button><button onClick={() => handleDeleteBooking(b.id)} className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg transition-all" title="Delete"><TrashIcon className="w-4 h-4" /></button>
+                                                                              </div>
+                                                                            </td>
                                                                         </tr>
                                                                     ))}
                                                                 </React.Fragment>
@@ -1055,36 +1095,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                         </div>
                                     </div>
                                 )}
-                                {userMgmtTab === 'managers' && (
-                                    <div className="space-y-8 animate-fadeIn">
-                                        <div className="bg-white p-6 rounded-xl shadow border border-gray-200"><h4 className="font-bold mb-4 uppercase tracking-widest text-xs text-gray-400">Add New Manager</h4><div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end"><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Name</label><input type="text" value={newManagerName} onChange={e => setNewManagerName(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/></div><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Username</label><input type="text" value={newManagerUsername} onChange={e => setNewManagerUsername(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/></div><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Password</label><div className="flex gap-2"><input type="text" value={newManagerPassword} onChange={e => setNewManagerPassword(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/><button onClick={() => setNewManagerPassword(generateSecurePassword())} className="bg-gray-100 border px-3 rounded hover:bg-gray-200 text-xs font-bold">Gen</button></div></div></div><button onClick={handleAddManager} className="w-full mt-6 bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 uppercase tracking-widest text-xs shadow-md shadow-indigo-100">Register Manager Account</button></div>
-                                        <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
-                                            <table className="min-w-full divide-y divide-gray-200">
-                                                <thead className="bg-gray-50 border-b border-gray-200">
-                                                    <tr>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Name</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Username</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Password</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
-                                                        <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="bg-white divide-y divide-100">
-                                                    {paginatedManagers.map(m => (
-                                                        <tr key={m.id} className="hover:bg-gray-50 transition-colors">
-                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">{m.name}</td>
-                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{m.username}</td>
-                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600"><div className="flex items-center gap-2"><span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-xs">{visiblePasswords[m.id] ? m.password : '••••••••'}</span><button type="button" onClick={() => togglePasswordVisibility(m.id)} className="text-gray-400 hover:text-indigo-600 transition-colors">{visiblePasswords[m.id] ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}</button></div></td>
-                                                            <td className="px-6 py-4 whitespace-nowrap">{m.active !== false ? <span className="text-emerald-600 font-bold text-[10px] bg-emerald-50 px-2 py-1 rounded-full uppercase">Active</span> : <span className="text-red-600 font-bold text-[10px] bg-red-50 px-2 py-1 rounded-full uppercase">Inactive</span>}</td>
-                                                            <td className="px-6 py-4 text-right"><div className="flex justify-end gap-3"><button onClick={() => setEditingUser({user: m, type: 'manager'})} className="text-gray-400 hover:text-indigo-600 transition-colors p-1"><PencilSquareIcon className="w-4 h-4" /></button></div></td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                            <Pagination totalPages={Math.ceil(sortedManagers.length/ITEMS_PER_PAGE)} currentPage={managersPage} onPageChange={setManagersPage} totalItems={sortedManagers.length} label="Managers" />
-                                        </div>
-                                    </div>
-                                )}
                                 {userMgmtTab === 'leave' && (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fadeIn">
                                         <div className="bg-white p-6 rounded-xl shadow border border-gray-200">
@@ -1143,27 +1153,31 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                         {activeTab === 'calendar' && <ManagerCalendar appointments={managerAppointments} setAppointments={setManagerAppointments} bookings={allBookingsForCalendar} />}
                         {activeTab === 'settings' && (
                             <div className="space-y-8 pb-20">
-                                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-                                    <h3 className="text-xl font-normal mb-6">My Profile</h3>
+                                {/* 1. My Profile (Top) */}
+                                <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-200">
+                                    <h3 className="text-xl font-bold text-gray-900 mb-8 uppercase tracking-tight flex items-center gap-2">
+                                        <div className="w-1 h-6 bg-indigo-600 rounded-full" />
+                                        My Profile
+                                    </h3>
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                                         <form onSubmit={handleUpdateMyProfile} className="space-y-4">
-                                            <div><label className="block text-sm font-normal text-gray-700">Name</label><input type="text" value={profileForm.name} onChange={e => setProfileForm({...profileForm, name: e.target.value})} className="mt-1 block w-full border border-gray-300 rounded-md p-2.5 shadow-sm" /></div>
-                                            <div><label className="block text-sm font-normal text-gray-700">Username</label><input type="text" value={profileForm.username} onChange={e => setProfileForm({...profileForm, username: e.target.value})} className="mt-1 block w-full border border-gray-300 rounded-md p-2.5 shadow-sm" /></div>
+                                            <div><label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Name</label><input type="text" value={profileForm.name} onChange={e => setProfileForm({...profileForm, name: e.target.value})} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" /></div>
+                                            <div><label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Username</label><input type="text" value={profileForm.username} onChange={e => setProfileForm({...profileForm, username: e.target.value})} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" /></div>
                                             <div>
-                                                <label className="block text-sm font-normal text-gray-700">Password</label>
-                                                <div className="flex gap-2 mt-1">
+                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Password</label>
+                                                <div className="flex gap-2">
                                                     <div className="relative flex-grow">
                                                         <input 
                                                             type={showProfilePassword ? "text" : "password"} 
                                                             value={profileForm.password} 
                                                             onChange={e => setProfileForm({...profileForm, password: e.target.value})} 
-                                                            className={`block w-full border border-gray-300 rounded-md p-2 pr-10 shadow-sm transition-colors ${!isEditingPassword ? 'bg-[#f0f7ff]' : 'bg-white'}`} 
+                                                            className={`w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 text-sm font-bold pr-12 transition-all outline-none ${!isEditingPassword ? 'bg-[#f0f7ff]' : 'bg-gray-50 focus:border-indigo-500'}`} 
                                                             readOnly={!isEditingPassword}
                                                         />
                                                         <button 
                                                             type="button" 
                                                             onClick={() => setShowProfilePassword(!showProfilePassword)} 
-                                                            className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-indigo-600"
+                                                            className="absolute inset-y-0 right-0 px-4 flex items-center text-gray-400 hover:text-indigo-600"
                                                         >
                                                             {showProfilePassword ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
                                                         </button>
@@ -1171,66 +1185,68 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                     <button 
                                                         type="button" 
                                                         onClick={() => setIsEditingPassword(!isEditingPassword)} 
-                                                        className="px-4 py-2 bg-gray-100 text-indigo-700 border border-gray-300 rounded-md hover:bg-gray-200 text-xs font-normal whitespace-nowrap flex items-center gap-1 shadow-sm transition-all"
+                                                        className="px-6 py-2.5 bg-gray-100 text-indigo-700 border border-gray-200 rounded-xl hover:bg-gray-200 text-xs font-bold whitespace-nowrap flex items-center gap-2 shadow-sm transition-all"
                                                     >
                                                         <PencilSquareIcon className="w-3.5 h-3.5" /> 
-                                                        {isEditingPassword ? 'Lock' : 'Edit'}
+                                                        {isEditingPassword ? 'LOCK' : 'EDIT'}
                                                     </button>
-                                                    {isEditingPassword && (
-                                                        <button 
-                                                            type="button" 
-                                                            onClick={() => setProfileForm({...profileForm, password: generateSecurePassword()})} 
-                                                            className="px-3 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md hover:bg-indigo-100 text-xs font-bold"
-                                                        >
-                                                            Gen
-                                                        </button>
-                                                    )}
                                                 </div>
                                             </div>
-                                            <div><label className="block text-sm font-normal text-gray-700">Recovery Email</label><input type="email" value={profileForm.recoveryEmail} onChange={e => setProfileForm({...profileForm, recoveryEmail: e.target.value})} className="mt-1 block w-full border border-gray-300 rounded-md p-2 shadow-sm" /></div>
-                                            <div><label className="block text-sm font-normal text-gray-700">Contact Emails</label><div className="flex gap-2 mt-1"><input type="email" value={emailInput} onChange={e => setEmailInput(e.target.value)} className="block w-full border border-gray-300 rounded-md shadow-sm" placeholder="Enter email address..." /><button type="button" onClick={() => { if(emailInput && !profileForm.email.includes(emailInput)) { setProfileForm({...profileForm, email: profileForm.email ? `${profileForm.email},${emailInput}` : emailInput}); setEmailInput(''); } }} className="bg-black text-white px-4 py-2 rounded-md font-normal text-sm">Add</button></div><div className="mt-2 flex flex-wrap gap-2">{profileForm.email.split(',').filter(Boolean).map(email => (<span key={email} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2 py-1 rounded-md text-xs font-normal border border-indigo-100">{email}<button type="button" onClick={() => setProfileForm({...profileForm, email: profileForm.email.split(',').filter(e => e !== email).join(',')})} className="text-indigo-400 hover:text-indigo-600"><XMarkIcon className="w-3.5 h-3" /></button></span>))}</div></div>
-                                            <div className="pt-4 flex flex-col gap-3"><button type="submit" className="w-full bg-black text-white py-3 rounded-lg font-normal shadow-sm hover:bg-gray-800 transition-all uppercase text-xs tracking-widest">Update Profile</button>{showProfileSuccess && <p className="text-center text-xs font-normal text-green-600">✅ Profile updated successfully!</p>}</div>
+                                            <div><label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Recovery Email</label><input type="email" value={profileForm.recoveryEmail} onChange={e => setProfileForm({...profileForm, recoveryEmail: e.target.value})} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" placeholder="pia@zealdigital.com.au" /></div>
+                                            <div><label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Contact Emails</label><div className="flex gap-2 mt-1"><input type="email" value={emailInput} onChange={e => setEmailInput(e.target.value)} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" placeholder="Enter email address..." /><button type="button" onClick={() => { if(emailInput && !profileForm.email.includes(emailInput)) { setProfileForm({...profileForm, email: profileForm.email ? `${profileForm.email},${emailInput}` : emailInput}); setEmailInput(''); } }} className="bg-black text-white px-6 py-2.5 rounded-xl font-bold uppercase text-[10px] tracking-widest">ADD</button></div><div className="mt-3 flex flex-wrap gap-2">{profileForm.email.split(',').filter(Boolean).map(email => (<span key={email} className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold border border-indigo-100 shadow-sm">{email}<button type="button" onClick={() => setProfileForm({...profileForm, email: profileForm.email.split(',').filter(e => e !== email).join(',')})} className="text-indigo-400 hover:text-indigo-600 transition-colors"><XMarkIcon className="w-3.5 h-3.5" /></button></span>))}</div></div>
+                                            <div className="pt-4"><button type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">Update My Profile</button>{showProfileSuccess && <p className="text-center text-xs font-bold text-green-600 mt-2 animate-bounceIn">✅ Changes saved successfully!</p>}</div>
                                         </form>
-                                        <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 h-fit"><h4 className="font-normal text-gray-800 mb-4">Email Notifications</h4><NotificationSettings preferences={profileForm.notificationPreferences} onChange={(p) => setProfileForm({...profileForm, notificationPreferences: p})} role="manager" /></div>
+                                        <div className="bg-gray-50 p-8 rounded-2xl border border-gray-100 h-fit"><h4 className="text-xs font-black text-gray-800 mb-6 uppercase tracking-widest border-b pb-3">Automated Email Alerts</h4><NotificationSettings preferences={profileForm.notificationPreferences} onChange={(p) => setProfileForm({...profileForm, notificationPreferences: p})} role="manager" /></div>
                                     </div>
                                 </div>
 
-                                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-                                    <h3 className="text-xl font-normal mb-6 flex items-center gap-2"><ChartBarIcon className="w-6 h-6" /> Branding & Appearance</h3>
+                                {/* 2. Branding & Appearance */}
+                                <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-200">
+                                    <h3 className="text-xl font-bold text-gray-900 mb-8 uppercase tracking-tight flex items-center gap-2">
+                                        <div className="w-1 h-6 bg-indigo-600 rounded-full" />
+                                        Branding & Appearance
+                                    </h3>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                        <div><label className="block text-sm font-normal text-gray-700 mb-2">Company Name</label><input type="text" value={brandingForm.companyName} onChange={e => setBrandingForm({...brandingForm, companyName: e.target.value})} className="w-full border p-2.5 rounded-md focus:ring-1 focus:ring-indigo-500 outline-none" /></div>
-                                        <div><label className="block text-sm font-normal text-gray-700 mb-2">Primary Brand Color</label><div className="flex items-center gap-3"><input type="color" value={brandingForm.primaryColor} onChange={e => setBrandingForm({...brandingForm, primaryColor: e.target.value})} className="w-12 h-10 border p-1 rounded cursor-pointer" /><span className="text-sm font-mono text-gray-500 uppercase">{brandingForm.primaryColor}</span></div></div>
-                                        <div><label className="block text-sm font-normal text-gray-700 mb-2">Logo Upload</label><input type="file" accept="image/*" onChange={handleLogoUpload} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-normal file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />{branding.logoUrl && <img src={branding.logoUrl} alt="Preview" className="h-12 mt-2 object-contain bg-black p-1 rounded" />}</div>
+                                        <div><label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Company Name</label><input type="text" value={brandingForm.companyName} onChange={e => setBrandingForm({...brandingForm, companyName: e.target.value})} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" /></div>
+                                        <div><label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Primary Brand Color</label><div className="flex items-center gap-4 mt-1"><input type="color" value={brandingForm.primaryColor} onChange={e => setBrandingForm({...brandingForm, primaryColor: e.target.value})} className="w-12 h-12 border-4 border-white shadow-sm rounded-xl cursor-pointer" /><span className="text-xs font-black text-gray-400 uppercase font-mono tracking-widest">{brandingForm.primaryColor}</span></div></div>
+                                        <div><label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Logo Upload</label><input type="file" accept="image/*" onChange={handleLogoUpload} className="w-full text-[10px] text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />{branding.logoUrl && <div className="mt-4 bg-gray-900 p-4 rounded-xl flex items-center justify-center inline-block"><img src={branding.logoUrl} alt="Preview" className="h-10 object-contain" /></div>}</div>
                                     </div>
-                                    <div className="mt-8 pt-4 border-t flex justify-end"><button onClick={handleSaveBranding} className="px-8 py-2.5 bg-black text-white font-normal rounded-lg hover:bg-gray-800 uppercase tracking-widest text-xs shadow-sm">Save Branding</button></div>
+                                    <div className="mt-10 pt-6 border-t border-gray-100 flex justify-end"><button onClick={handleSaveBranding} className="px-10 py-3.5 bg-black text-white font-black rounded-xl uppercase tracking-widest text-xs shadow-lg hover:bg-gray-800 transition-all active:scale-95">Save Branding Appearance</button></div>
                                 </div>
 
-                                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-                                    <h3 className="text-xl font-normal mb-6">Region Management</h3>
-                                    <div className="flex flex-wrap items-end gap-4 mb-8">
-                                        <div>
+                                {/* 3. Region Management */}
+                                <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-200">
+                                    <h3 className="text-xl font-bold text-gray-900 mb-8 uppercase tracking-tight flex items-center gap-2">
+                                        <div className="w-1 h-6 bg-indigo-600 rounded-full" />
+                                        Region Management
+                                    </h3>
+                                    <div className="flex flex-wrap items-end gap-4 mb-10">
+                                        <div className="flex-1 min-w-[280px]">
+                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">New Region Name (e.g. QLD)</label>
                                             <input 
                                                 type="text" 
                                                 value={newRegionName} 
                                                 onChange={e => setNewRegionName(e.target.value)} 
-                                                placeholder="New Region Name (e.g. QLD)" 
-                                                className="border border-gray-200 rounded-md p-2 w-64"
+                                                className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none"
+                                                placeholder="Enter region code..." 
                                             />
                                         </div>
-                                        <button onClick={handleAddRegion} className="bg-black text-white px-6 py-2 rounded-md font-normal">Add Region</button>
+                                        <button onClick={handleAddRegion} className="bg-black text-white px-8 py-3 rounded-xl font-black uppercase text-xs tracking-widest shadow-md hover:bg-gray-800 transition-all active:scale-95">Add Region</button>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                         {regions.map(r => (
-                                            <div key={r} className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex items-center justify-between">
-                                                <span className="font-normal text-gray-700">{r}</span>
-                                                <div className="flex items-center gap-3">
-                                                    <input 
-                                                        type="color" 
-                                                        value={regionColors[r] || '#CBD5E1'} 
-                                                        onChange={(e) => handleRegionColorChange(r, e.target.value)}
-                                                        className="w-8 h-8 rounded cursor-pointer border-none bg-transparent"
-                                                    />
-                                                    <button onClick={() => handleDeleteRegion(r)} className="text-red-400 hover:text-red-600">
+                                            <div key={r} className="bg-gray-50 p-5 rounded-2xl border border-gray-100 flex items-center justify-between shadow-sm group">
+                                                <span className="font-black text-gray-800 text-lg">{r}</span>
+                                                <div className="flex items-center gap-4">
+                                                    <div className="relative">
+                                                        <input 
+                                                            type="color" 
+                                                            value={regionColors[r] || '#CBD5E1'} 
+                                                            onChange={(e) => handleRegionColorChange(r, e.target.value)}
+                                                            className="w-9 h-9 rounded-full cursor-pointer border-4 border-white shadow-sm appearance-none bg-transparent"
+                                                        />
+                                                    </div>
+                                                    <button onClick={() => handleDeleteRegion(r)} className="text-gray-300 hover:text-red-600 transition-colors p-1" title={`Delete ${r}`}>
                                                         <TrashIcon className="w-5 h-5" />
                                                     </button>
                                                 </div>
@@ -1239,14 +1255,18 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                     </div>
                                 </div>
 
-                                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-                                    <h3 className="text-xl font-normal mb-6">Appointment Slot Configuration</h3>
-                                    <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+                                {/* 4. Appointment Slot Configuration */}
+                                <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-200">
+                                    <h3 className="text-xl font-bold text-gray-900 mb-8 uppercase tracking-tight flex items-center gap-2">
+                                        <div className="w-1 h-6 bg-indigo-600 rounded-full" />
+                                        Appointment Slot Configuration
+                                    </h3>
+                                    <div className="flex gap-2 mb-10 overflow-x-auto pb-2 scrollbar-hide">
                                         {regions.map(r => (
                                             <button 
                                                 key={r} 
                                                 onClick={() => setSlotConfigRegion(r)}
-                                                className={`px-6 py-1.5 rounded-full text-xs font-bold uppercase transition-all whitespace-nowrap ${slotConfigRegion === r ? 'bg-black text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                                                className={`px-8 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shadow-sm ${slotConfigRegion === r ? 'bg-black text-white scale-105' : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600'}`}
                                             >
                                                 {r}
                                             </button>
@@ -1255,97 +1275,104 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
 
                                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                         {/* Base Availability */}
-                                        <div className="border border-gray-100 rounded-xl p-5 bg-gray-50/30">
-                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">BASE AVAILABILITY ({slotConfigRegion})</h4>
-                                            <div className="flex items-center gap-2 mb-4">
+                                        <div className="border border-gray-100 rounded-2xl p-6 bg-gray-50/50 shadow-inner">
+                                            <h4 className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                                                BASE AVAILABILITY ({slotConfigRegion})
+                                            </h4>
+                                            <div className="flex items-center gap-2 mb-6">
                                                 <TimePicker value={newBaseSlot} onChange={setNewBaseSlot} className="flex-1" />
-                                                <button onClick={handleAddBaseSlot} className="bg-green-600 text-white p-2 rounded-md hover:bg-green-700 transition-colors"><PlusIcon className="w-5 h-5" /></button>
+                                                <button onClick={handleAddBaseSlot} className="bg-green-600 text-white p-2.5 rounded-xl hover:bg-green-700 transition-all shadow-md shadow-green-100 active:scale-95"><PlusIcon className="w-5 h-5" /></button>
                                             </div>
-                                            <div className="bg-white rounded-lg border border-gray-100 divide-y overflow-hidden shadow-sm">
+                                            <div className="bg-white rounded-xl border border-gray-100 divide-y overflow-hidden shadow-sm">
                                                 {(appointmentTimes[slotConfigRegion]?.base || []).map(slot => (
-                                                    <div key={slot} className="flex justify-between items-center p-3 hover:bg-gray-50 transition-colors">
-                                                        <span className="text-sm font-medium text-gray-700">{slot}</span>
-                                                        <button onClick={() => handleRemoveBaseSlot(slot)} className="text-red-400 hover:text-red-600"><XMarkIcon className="w-4 h-4" /></button>
+                                                    <div key={slot} className="flex justify-between items-center p-4 hover:bg-indigo-50/30 transition-colors group">
+                                                        <span className="text-sm font-black text-gray-700">{slot}</span>
+                                                        <button onClick={() => handleRemoveBaseSlot(slot)} className="text-gray-300 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"><XMarkIcon className="w-4 h-4" /></button>
                                                     </div>
                                                 ))}
-                                                {(appointmentTimes[slotConfigRegion]?.base || []).length === 0 && <p className="p-4 text-center text-xs text-gray-400 italic">No base slots set.</p>}
+                                                {(appointmentTimes[slotConfigRegion]?.base || []).length === 0 && <p className="p-10 text-center text-xs text-gray-400 italic font-bold">No base slots set.</p>}
                                             </div>
                                         </div>
 
                                         {/* Day Overrides */}
-                                        <div className="border border-gray-100 rounded-xl p-5 bg-gray-50/30">
-                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">DAY SPECIFIC OVERRIDES</h4>
-                                            <div className="space-y-4">
+                                        <div className="border border-gray-100 rounded-2xl p-6 bg-gray-50/50 shadow-inner">
+                                            <h4 className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                                                DAY SPECIFIC OVERRIDES
+                                            </h4>
+                                            <div className="space-y-5">
                                                 <select 
                                                     value={newDayOverrideDay} 
                                                     onChange={e => setNewDayOverrideDay(e.target.value)}
-                                                    className="w-full border border-gray-200 rounded-md p-2 text-sm focus:ring-1 focus:ring-indigo-500 outline-none"
+                                                    className="w-full border-2 border-gray-100 bg-white rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none"
                                                 >
                                                     {DAYS_OF_WEEK.map((day, i) => <option key={day} value={i}>{day}</option>)}
                                                 </select>
                                                 <div className="flex items-center gap-2">
                                                     <TimePicker value={tempDaySlot} onChange={setTempDaySlot} className="flex-1" />
-                                                    <button onClick={handleAddDaySlotToStaging} className="bg-gray-100 text-gray-600 p-2 rounded-md border border-gray-200 hover:bg-gray-200 transition-colors"><PlusIcon className="w-5 h-5" /></button>
+                                                    <button onClick={handleAddDaySlotToStaging} className="bg-white text-gray-400 p-2.5 rounded-xl border-2 border-gray-100 hover:text-indigo-600 hover:border-indigo-600 transition-all active:scale-95"><PlusIcon className="w-5 h-5" /></button>
                                                 </div>
                                                 {newDayOverrideSlots.length > 0 && (
-                                                    <div className="flex flex-wrap gap-2 p-2 bg-white rounded-md border border-dashed border-gray-300">
+                                                    <div className="flex flex-wrap gap-2 p-3 bg-white rounded-xl border-2 border-dashed border-indigo-100">
                                                         {newDayOverrideSlots.map(s => (
-                                                            <span key={s} className="bg-gray-100 text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 text-gray-600">
-                                                                {s} <button onClick={() => handleRemoveDaySlotFromStaging(s)} className="text-gray-400 hover:text-red-500"><XMarkIcon className="w-3 h-3"/></button>
+                                                            <span key={s} className="bg-indigo-50 text-[10px] font-black px-3 py-1.5 rounded-full flex items-center gap-2 text-indigo-700 shadow-sm border border-indigo-100">
+                                                                {s} <button onClick={() => handleRemoveDaySlotFromStaging(s)} className="text-indigo-300 hover:text-red-500"><XMarkIcon className="w-3 h-3"/></button>
                                                             </span>
                                                         ))}
                                                     </div>
                                                 )}
-                                                <button onClick={handleAddDayOverride} className="w-full bg-slate-500 text-white py-2 rounded-md text-sm font-normal shadow-sm hover:bg-slate-600 transition-colors">Save Override</button>
+                                                <button onClick={handleAddDayOverride} className="w-full bg-slate-500 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest shadow-md hover:bg-slate-600 transition-all active:scale-95">Save Day Override</button>
                                             </div>
-                                            {/* List existing day overrides */}
-                                            <div className="mt-4 space-y-2">
+                                            <div className="mt-6 space-y-3">
                                                 {Object.entries(appointmentTimes[slotConfigRegion]?.overrides?.dayOfWeek || {}).map(([day, slots]) => (
-                                                    <div key={day} className="text-xs bg-white p-2 rounded border border-gray-100 flex justify-between items-center shadow-sm">
-                                                        <div className="truncate pr-2">
-                                                            <span className="font-bold text-indigo-600">{DAYS_OF_WEEK[parseInt(day)]}: </span>
-                                                            <span className="text-gray-500">{slots.join(', ')}</span>
+                                                    <div key={day} className="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center shadow-sm group">
+                                                        <div className="truncate pr-4">
+                                                            <span className="font-black text-indigo-600 text-xs uppercase tracking-tighter mr-2">{DAYS_OF_WEEK[parseInt(day)]}: </span>
+                                                            <span className="text-xs font-bold text-gray-500">{slots.join(', ')}</span>
                                                         </div>
-                                                        <button onClick={() => handleRemoveDayOverride(parseInt(day))} className="text-red-400 hover:text-red-600 transition-colors flex-shrink-0"><TrashIcon className="w-4 h-4"/></button>
+                                                        <button onClick={() => handleRemoveDayOverride(parseInt(day))} className="text-gray-300 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"><TrashIcon className="w-4 h-4"/></button>
                                                     </div>
                                                 ))}
                                             </div>
                                         </div>
 
                                         {/* Date Overrides */}
-                                        <div className="border border-gray-100 rounded-xl p-5 bg-gray-50/30">
-                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">SPECIFIC DATE OVERRIDES</h4>
-                                            <div className="space-y-4">
+                                        <div className="border border-gray-100 rounded-2xl p-6 bg-gray-50/50 shadow-inner">
+                                            <h4 className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                                                SPECIFIC DATE OVERRIDES
+                                            </h4>
+                                            <div className="space-y-5">
                                                 <input 
                                                     type="date" 
                                                     value={newDateOverrideDate} 
                                                     onChange={e => setNewDateOverrideDate(e.target.value)}
-                                                    className="w-full border border-gray-200 rounded-md p-2 text-sm focus:ring-1 focus:ring-indigo-500 outline-none"
+                                                    className="w-full border-2 border-gray-100 bg-white rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none"
                                                 />
                                                 <div className="flex items-center gap-2">
                                                     <TimePicker value={tempDateSlot} onChange={setTempDateSlot} className="flex-1" />
-                                                    <button onClick={handleAddDateSlotToStaging} className="bg-gray-100 text-gray-600 p-2 rounded-md border border-gray-200 hover:bg-gray-200 transition-colors"><PlusIcon className="w-5 h-5" /></button>
+                                                    <button onClick={handleAddDateSlotToStaging} className="bg-white text-gray-400 p-2.5 rounded-xl border-2 border-gray-100 hover:text-indigo-600 hover:border-indigo-600 transition-all active:scale-95"><PlusIcon className="w-5 h-5" /></button>
                                                 </div>
                                                 {newDateOverrideSlots.length > 0 && (
-                                                    <div className="flex flex-wrap gap-2 p-2 bg-white rounded-md border border-dashed border-gray-300">
+                                                    <div className="flex flex-wrap gap-2 p-3 bg-white rounded-xl border-2 border-dashed border-indigo-100">
                                                         {newDateOverrideSlots.map(s => (
-                                                            <span key={s} className="bg-gray-100 text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 text-gray-600">
-                                                                {s} <button onClick={() => handleRemoveDateSlotFromStaging(s)} className="text-gray-400 hover:text-red-500"><XMarkIcon className="w-3 h-3"/></button>
+                                                            <span key={s} className="bg-indigo-50 text-[10px] font-black px-3 py-1.5 rounded-full flex items-center gap-2 text-indigo-700 shadow-sm border border-indigo-100">
+                                                                {s} <button onClick={() => handleRemoveDateSlotFromStaging(s)} className="text-indigo-300 hover:text-red-500"><XMarkIcon className="w-3 h-3"/></button>
                                                             </span>
                                                         ))}
                                                     </div>
                                                 )}
-                                                <button onClick={handleAddDateOverride} className="w-full bg-slate-500 text-white py-2 rounded-md text-sm font-normal shadow-sm hover:bg-slate-600 transition-colors">Save Override</button>
+                                                <button onClick={handleAddDateOverride} className="w-full bg-slate-500 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest shadow-md hover:bg-slate-600 transition-all active:scale-95">Save Date Override</button>
                                             </div>
-                                            {/* List existing date overrides */}
-                                            <div className="mt-4 space-y-2">
+                                            <div className="mt-6 space-y-3">
                                                 {Object.entries(appointmentTimes[slotConfigRegion]?.overrides?.date || {}).map(([date, slots]) => (
-                                                    <div key={date} className="text-xs bg-white p-2 rounded border border-gray-100 flex justify-between items-center shadow-sm">
-                                                        <div className="truncate pr-2">
-                                                            <span className="font-bold text-indigo-600">{date}: </span>
-                                                            <span className="text-gray-500">{slots.join(', ')}</span>
+                                                    <div key={date} className="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center shadow-sm group">
+                                                        <div className="truncate pr-4">
+                                                            <span className="font-black text-indigo-600 text-xs uppercase tracking-tighter mr-2">{date}: </span>
+                                                            <span className="text-xs font-bold text-gray-500">{slots.join(', ')}</span>
                                                         </div>
-                                                        <button onClick={() => handleRemoveDateOverride(date)} className="text-red-400 hover:text-red-600 transition-colors flex-shrink-0"><TrashIcon className="w-4 h-4"/></button>
+                                                        <button onClick={() => handleRemoveDateOverride(date)} className="text-gray-300 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"><TrashIcon className="w-4 h-4"/></button>
                                                     </div>
                                                 ))}
                                             </div>
@@ -1353,83 +1380,113 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                     </div>
                                 </div>
 
-                                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-                                    <h3 className="text-xl font-normal mb-6">Holiday & Event Management</h3>
+                                {/* 5. Holiday & Event Management */}
+                                <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-200">
+                                    <h3 className="text-xl font-bold text-gray-900 mb-8 uppercase tracking-tight flex items-center gap-2">
+                                        <div className="w-1 h-6 bg-indigo-600 rounded-full" />
+                                        Holiday & Event Management
+                                    </h3>
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                                        <div className="space-y-4">
-                                            <h4 className="text-sm font-normal text-gray-600 mb-2">Add Holiday</h4>
-                                            <input 
-                                                type="text" 
-                                                value={newHolidayName} 
-                                                onChange={e => setNewHolidayName(e.target.value)} 
-                                                placeholder="Name" 
-                                                className="w-full border border-gray-200 rounded-md p-2 focus:ring-1 focus:ring-indigo-500 outline-none"
-                                            />
+                                        <div className="space-y-6">
+                                            <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">Add Holiday</h4>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Holiday Name</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={newHolidayName} 
+                                                    onChange={e => setNewHolidayName(e.target.value)} 
+                                                    placeholder="e.g. Christmas Day" 
+                                                    className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none"
+                                                />
+                                            </div>
                                             <div className="grid grid-cols-2 gap-4">
-                                                <input 
-                                                    type="date" 
-                                                    value={newHolidayStartDate} 
-                                                    onChange={e => setNewHolidayStartDate(e.target.value)} 
-                                                    className="w-full border border-gray-200 rounded-md p-2 focus:ring-1 focus:ring-indigo-500 outline-none"
-                                                />
-                                                <input 
-                                                    type="date" 
-                                                    value={newHolidayEndDate} 
-                                                    onChange={e => setNewHolidayEndDate(e.target.value)} 
-                                                    className="w-full border border-gray-200 rounded-md p-2 focus:ring-1 focus:ring-indigo-500 outline-none"
-                                                    min={newHolidayStartDate}
-                                                />
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Start Date</label>
+                                                    <input 
+                                                        type="date" 
+                                                        value={newHolidayStartDate} 
+                                                        onChange={e => setNewHolidayStartDate(e.target.value)} 
+                                                        className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">End Date</label>
+                                                    <input 
+                                                        type="date" 
+                                                        value={newHolidayEndDate} 
+                                                        onChange={e => setNewHolidayEndDate(e.target.value)} 
+                                                        className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none"
+                                                        min={newHolidayStartDate}
+                                                    />
+                                                </div>
                                             </div>
-                                            <div className="flex flex-wrap gap-4 py-2">
-                                                {regions.map(r => (
-                                                    <label key={r} className="flex items-center gap-2 cursor-pointer group">
-                                                        <input 
-                                                            type="checkbox" 
-                                                            checked={newHolidayRegions.includes(r)} 
-                                                            onChange={() => toggleHolidayRegion(r)}
-                                                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                                        />
-                                                        <span className="text-sm font-normal text-gray-700 group-hover:text-black">{r}</span>
-                                                    </label>
-                                                ))}
+                                            <div>
+                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Apply to Regions</label>
+                                                <div className="flex flex-wrap gap-4 p-4 border-2 border-gray-100 bg-gray-50 rounded-xl">
+                                                    {regions.map(r => (
+                                                        <label key={r} className="flex items-center gap-3 cursor-pointer group">
+                                                            <input 
+                                                                type="checkbox" 
+                                                                checked={newHolidayRegions.includes(r)} 
+                                                                onChange={() => toggleHolidayRegion(r)}
+                                                                className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-0 transition-all"
+                                                            />
+                                                            <span className="text-sm font-bold text-gray-700 group-hover:text-black">{r}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
                                             </div>
-                                            <button onClick={handleSaveHoliday} className="w-full bg-black text-white py-3 rounded-lg font-normal uppercase tracking-widest text-xs hover:bg-gray-800 transition-colors shadow-sm">
+                                            <button onClick={handleSaveHoliday} className="w-full bg-black text-white py-3.5 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-gray-800 transition-all shadow-md active:scale-95">
                                                 {editingHolidayOriginal ? 'UPDATE HOLIDAY' : 'ADD'}
                                             </button>
                                         </div>
                                         <div className="space-y-4">
-                                            <div className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto pr-2">
+                                            <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">Configured Holidays</h4>
+                                            <div className="divide-y divide-gray-100 max-h-[460px] overflow-y-auto pr-2 custom-scrollbar">
                                                 {publicHolidays.map(h => (
-                                                    <div key={h.id} className="py-4 flex justify-between items-start group">
+                                                    <div key={h.id} className="py-5 flex justify-between items-start group hover:bg-gray-50/50 px-2 rounded-xl transition-all">
                                                         <div>
-                                                            <p className="font-normal text-gray-900">{h.name}</p>
-                                                            <p className="text-xs text-gray-400 mt-0.5">
-                                                                {h.startDate} {h.endDate !== h.startDate && ` - ${h.endDate}`} | <span className="italic font-bold text-gray-500">{h.regions.join(', ')}</span>
-                                                            </p>
+                                                            <p className="font-black text-gray-900 leading-tight">{h.name}</p>
+                                                            <div className="flex items-center gap-2 mt-1.5">
+                                                                <span className="text-xs font-bold text-gray-400">
+                                                                    {h.startDate} {h.endDate !== h.startDate && ` - ${h.endDate}`}
+                                                                </span>
+                                                                <span className="text-gray-300">|</span>
+                                                                <span className="italic font-black text-indigo-500 text-[10px] uppercase tracking-tighter">{h.regions.join(', ')}</span>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex items-center gap-3">
-                                                            <button onClick={() => handleEditHoliday(h)} className="text-gray-400 hover:text-indigo-600 transition-colors" title="Edit Holiday">
+                                                        <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <button onClick={() => handleEditHoliday(h)} className="text-gray-400 hover:text-indigo-600 transition-colors p-1" title="Edit Holiday">
                                                                 <PencilSquareIcon className="w-4 h-4" />
                                                             </button>
-                                                            <button onClick={() => handleDeleteHoliday(h.id)} className="text-gray-400 hover:text-red-600 transition-colors" title="Delete Holiday">
-                                                                <TrashIcon className="w-4 h-4" />
+                                                            <button onClick={() => handleDeleteHoliday(h.id)} className="text-gray-300 hover:text-red-600 transition-colors p-1" title="Delete Holiday">
+                                                                <TrashIcon className="w-5 h-5" />
                                                             </button>
                                                         </div>
                                                     </div>
                                                 ))}
-                                                {publicHolidays.length === 0 && <p className="py-8 text-center text-sm text-gray-400 italic">No holidays configured.</p>}
+                                                {publicHolidays.length === 0 && (
+                                                    <div className="py-20 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
+                                                        <CalendarDaysIcon className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                                                        <p className="text-sm text-gray-400 font-bold italic">No holidays configured yet.</p>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-                                    <h3 className="text-xl font-normal mb-6">Data Management</h3>
+                                {/* 6. Data Management */}
+                                <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-200">
+                                    <h3 className="text-xl font-bold text-gray-900 mb-8 uppercase tracking-tight flex items-center gap-2">
+                                        <div className="w-1 h-6 bg-indigo-600 rounded-full" />
+                                        Data Management
+                                    </h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                                        <div className="space-y-6">
+                                        <div className="space-y-8 bg-gray-50 p-6 rounded-2xl border border-gray-100">
                                             <div>
-                                                <h4 className="text-lg font-normal text-gray-900 mb-1">Bulk Import Legacy Data</h4>
-                                                <p className="text-xs text-gray-500 mb-4">1. Download Template. 2. Edit in Excel. 3. Upload.</p>
+                                                <h4 className="text-base font-black text-gray-800 uppercase tracking-widest mb-1.5">Bulk Import Legacy Data</h4>
+                                                <p className="text-xs text-gray-400 font-bold">1. Download Template. 2. Edit in Excel. 3. Upload.</p>
                                                 <button 
                                                     onClick={() => {
                                                         const csv = generateImportTemplate();
@@ -1440,12 +1497,12 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                         a.download = 'lead_import_template.csv';
                                                         a.click();
                                                     }}
-                                                    className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm hover:bg-gray-50 transition-colors shadow-sm"
+                                                    className="mt-4 flex items-center gap-2 px-5 py-2.5 bg-white border-2 border-gray-200 rounded-xl text-xs font-black uppercase tracking-widest hover:border-black hover:text-black transition-all shadow-sm"
                                                 >
-                                                    <DocumentArrowDownIcon className="w-4 h-4 text-gray-500" /> Download Template
+                                                    <DocumentArrowDownIcon className="w-4 h-4 text-gray-400" /> Download Template
                                                 </button>
                                             </div>
-                                            <div className="flex flex-wrap items-center gap-4">
+                                            <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-gray-200">
                                                 <div className="relative">
                                                     <input 
                                                         type="file" 
@@ -1456,12 +1513,12 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                     />
                                                     <label 
                                                         htmlFor="bulk-import-file"
-                                                        className="px-6 py-2.5 bg-gray-200 text-indigo-700 rounded-full text-sm font-normal cursor-pointer hover:bg-gray-300 border border-gray-300 transition-all"
+                                                        className="px-6 py-2.5 bg-gray-200 text-indigo-700 rounded-full text-xs font-black uppercase tracking-widest cursor-pointer hover:bg-gray-300 border-2 border-white transition-all shadow-sm"
                                                     >
                                                         Choose File
                                                     </label>
                                                 </div>
-                                                <span className="text-xs text-gray-400 truncate max-w-[150px]" title={importFile?.name}>
+                                                <span className="text-[10px] text-gray-400 truncate max-w-[140px] font-bold" title={importFile?.name}>
                                                     {importFile ? importFile.name : 'No file chosen'}
                                                 </span>
                                                 <button 
@@ -1471,19 +1528,21 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                         setImportPreview(result);
                                                     }}
                                                     disabled={!importFile}
-                                                    className="flex items-center gap-2 px-6 py-2.5 bg-slate-400 text-white rounded-lg text-sm font-normal disabled:opacity-50 hover:bg-slate-500 transition-colors shadow-sm"
+                                                    className="flex items-center gap-2 px-6 py-2.5 bg-slate-400 text-white rounded-xl text-xs font-black uppercase tracking-widest disabled:opacity-30 hover:bg-slate-600 transition-all shadow-md"
                                                 >
                                                     <CloudArrowUpIcon className="w-4 h-4" /> Upload & Preview
                                                 </button>
                                             </div>
                                         </div>
 
-                                        <div>
-                                            <h4 className="text-lg font-normal text-gray-900 mb-1">Export Data</h4>
-                                            <p className="text-xs text-gray-500 mb-4">Download all system data matching the Import format for re-upload.</p>
+                                        <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 flex flex-col justify-between">
+                                            <div>
+                                                <h4 className="text-base font-black text-emerald-900 uppercase tracking-widest mb-1.5">Export Data</h4>
+                                                <p className="text-xs text-emerald-600 font-bold">Download all system data matching the Import format for re-upload.</p>
+                                            </div>
                                             <button 
                                                 onClick={() => exportBookingsToCSV(allBookings, 'full_database_export')}
-                                                className="w-full flex items-center justify-center gap-3 bg-emerald-600 text-white py-3 rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-emerald-700 shadow-lg shadow-emerald-100 transition-all active:scale-95"
+                                                className="mt-6 w-full flex items-center justify-center gap-3 bg-emerald-600 text-white py-4 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-emerald-700 shadow-lg shadow-emerald-100 transition-all active:scale-95"
                                             >
                                                 <ArrowDownTrayIcon className="w-5 h-5" /> EXPORT FULL DATABASE
                                             </button>
@@ -1514,6 +1573,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             {editingUser && <UserEditModal user={editingUser.user} type={editingUser.type} onClose={() => setEditingUser(null)} onSave={handleSaveUser} regions={regions} />}
             {isManualBookingOpen && (<BdmBookingRequestModal currentUser={currentUser} vendors={vendors} onClose={() => setIsManualBookingOpen(false)} onRequestBooking={handleManualBookingEntry} regions={regions} appointmentTimes={appointmentTimes} allBookings={allBookings} />)}
             {importPreview && (<ImportPreviewModal stats={importPreview.stats} newBookings={importPreview.newBookings} onCancel={() => { setImportPreview(null); setImportFile(null); }} onConfirm={() => { if (importPreview) { setAllBookings(prev => [...prev, ...importPreview.newBookings]); setImportPreview(null); setImportFile(null); triggerSystemAlert(`Successfully imported ${importPreview.stats.imported} records.`); } }} />)}
+            {smsActionBooking && <ManagerSmsActionModal booking={smsActionBooking} onClose={() => setSmsActionBooking(null)} onMarkAsSent={handleMarkSmsSent} />}
         </div>
     );
 };
