@@ -571,7 +571,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         const mainBookingId = Date.now();
         
         const normalizedBusiness = bookingDetails.businessName.toLowerCase().trim();
-        const normalizedClient = bookingDetails.clientName.toLowerCase().trim();
         const normalizedPhone = bookingDetails.clientPhone.replace(/\D/g, '');
         const normalizedEmail = bookingDetails.clientEmail?.toLowerCase().trim() || '';
 
@@ -589,7 +588,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
 
             return (
                 (normalizedBusiness && b.businessName.toLowerCase().trim() === normalizedBusiness) ||
-                (normalizedClient && b.clientName.toLowerCase().trim() === normalizedClient) ||
                 (normalizedPhone && bPhone === normalizedPhone) ||
                 (normalizedEmail && bEmail === normalizedEmail)
             );
@@ -1456,11 +1454,11 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                             </div>
                                                         </div>
                                                         <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <button onClick={() => handleEditHoliday(h)} className="text-gray-400 hover:text-indigo-600 transition-colors p-1" title="Edit Holiday">
+                                                            <button onClick={() => handleEditHoliday(h)} className="text-gray-300 hover:text-indigo-600 transition-colors p-1" title="Edit Holiday">
                                                                 <PencilSquareIcon className="w-4 h-4" />
                                                             </button>
                                                             <button onClick={() => handleDeleteHoliday(h.id)} className="text-gray-300 hover:text-red-600 transition-colors p-1" title="Delete Holiday">
-                                                                <TrashIcon className="w-5 h-5" />
+                                                                <TrashIcon className="w-4 h-4" />
                                                             </button>
                                                         </div>
                                                     </div>

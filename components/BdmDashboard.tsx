@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState, useEffect } from 'react';
 import type { BDM, Booking, User, Notification, Vendor, Region, AppointmentSlotsConfig, Branding, Manager, NotificationPreferences, ManagerAppointment, PublicHoliday, LeaveDay } from '../types';
 import { Header } from './Header';
@@ -226,7 +225,6 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
       const requestId = Date.now();
       
       const normalizedBusiness = bookingDetails.businessName.toLowerCase().trim();
-      const normalizedClient = bookingDetails.clientName.toLowerCase().trim();
       const normalizedPhone = bookingDetails.clientPhone.replace(/\D/g, '');
       const normalizedEmail = bookingDetails.clientEmail?.toLowerCase().trim() || '';
 
@@ -241,7 +239,6 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
           const bEmail = b.clientEmail?.toLowerCase().trim() || '';
           return (
               (normalizedBusiness && b.businessName.toLowerCase().trim() === normalizedBusiness) ||
-              (normalizedClient && b.clientName.toLowerCase().trim() === normalizedClient) ||
               (normalizedPhone && bPhone === normalizedPhone) ||
               (normalizedEmail && bEmail === normalizedEmail)
           );

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Booking, Region, BDM, Vendor, User, AppointmentSlotsConfig } from '../types';
 import { XMarkIcon, ClockIcon, CalendarDaysIcon, UserGroupIcon, DocumentTextIcon, ExclamationTriangleIcon } from './Icons';
@@ -40,14 +39,13 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
   const [slotsToBlock, setSlotsToBlock] = useState<string[]>([]);
   const [timeState, setTimeState] = useState({ hour: '10', minute: '00', period: 'AM' });
 
-  // Real-time Duplicate Detection (Expanded to include Name, Phone, Email)
+  // Real-time Duplicate Detection (Excluded Client Name to reduce false positives)
   const duplicateWarning = useMemo(() => {
     const normalizedBusiness = formData.businessName.toLowerCase().trim();
-    const normalizedClient = formData.clientName.toLowerCase().trim();
     const normalizedPhone = formData.clientPhone.replace(/\D/g, '');
     const normalizedEmail = formData.clientEmail.toLowerCase().trim();
 
-    if (!normalizedBusiness && !normalizedClient && !normalizedPhone && !normalizedEmail) return null;
+    if (!normalizedBusiness && !normalizedPhone && !normalizedEmail) return null;
     
     const oneYearAgo = new Date();
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
@@ -59,11 +57,10 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
         if (bookingDate < oneYearAgo) return false;
 
         const businessMatch = normalizedBusiness && b.businessName.toLowerCase().trim() === normalizedBusiness;
-        const clientMatch = normalizedClient && b.clientName.toLowerCase().trim() === normalizedClient;
         const phoneMatch = normalizedPhone && b.clientPhone.replace(/\D/g, '') === normalizedPhone;
         const emailMatch = normalizedEmail && b.clientEmail?.toLowerCase().trim() === normalizedEmail;
 
-        return businessMatch || clientMatch || phoneMatch || emailMatch;
+        return businessMatch || phoneMatch || emailMatch;
     });
 
     return match || null;

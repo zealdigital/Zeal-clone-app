@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Vendor, Booking, Region, LeaveDay, PublicHoliday, AppointmentSlotsConfig, BDM, Notification, User, Branding, Manager, NotificationPreferences, ManagerAppointment } from '../types';
 import { Header } from './Header';
@@ -107,7 +106,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     
     // Duplicate Check
     const normalizedBusiness = bookingDetails.businessName.toLowerCase().trim();
-    const normalizedClient = bookingDetails.clientName.toLowerCase().trim();
     const normalizedPhone = bookingDetails.clientPhone.replace(/\D/g, '');
     const normalizedEmail = bookingDetails.clientEmail?.toLowerCase().trim() || '';
 
@@ -122,7 +120,6 @@ const Dashboard: React.FC<DashboardProps> = ({
         const bEmail = b.clientEmail?.toLowerCase().trim() || '';
         return (
             (normalizedBusiness && b.businessName.toLowerCase().trim() === normalizedBusiness) ||
-            (normalizedClient && b.clientName.toLowerCase().trim() === normalizedClient) ||
             (normalizedPhone && bPhone === normalizedPhone) ||
             (normalizedEmail && bEmail === normalizedEmail)
         );
@@ -173,7 +170,6 @@ const Dashboard: React.FC<DashboardProps> = ({
       
       // Duplicate Check
       const normalizedBusiness = bookingDetails.businessName.toLowerCase().trim();
-      const normalizedClient = bookingDetails.clientName.toLowerCase().trim();
       const normalizedPhone = bookingDetails.clientPhone.replace(/\D/g, '');
       const normalizedEmail = bookingDetails.clientEmail?.toLowerCase().trim() || '';
 
@@ -188,7 +184,6 @@ const Dashboard: React.FC<DashboardProps> = ({
           const bEmail = b.clientEmail?.toLowerCase().trim() || '';
           return (
               (normalizedBusiness && b.businessName.toLowerCase().trim() === normalizedBusiness) ||
-              (normalizedClient && b.clientName.toLowerCase().trim() === normalizedClient) ||
               (normalizedPhone && bPhone === normalizedPhone) ||
               (normalizedEmail && bEmail === normalizedEmail)
           );

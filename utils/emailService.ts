@@ -1,54 +1,24 @@
-
 import type { Booking } from '../types';
 
 /**
- * EMAILJS CONFIGURATION
+ * BACKEND CONFIGURATION
+ * Update this URL to match your hosted backend (e.g., https://your-backend-api.com)
  */
-const EMAILJS_CONFIG = {
-    SERVICE_ID: "service_fm5qakn",
-    BOOKING_TEMPLATE_ID: "template_erdqf7d", 
-    PASSWORD_RESET_TEMPLATE_ID: "template_o5u0zln", 
-    PUBLIC_KEY: "FPM7pAmCikUAWGkog",    
-};
+const BACKEND_API_URL = "https://zeal-crm-backend.vercel.app"; 
 
 /**
- * Ensures EmailJS is loaded via script tag
- */
-const loadEmailJS = (): Promise<any> => {
-    return new Promise((resolve, reject) => {
-        if ((window as any).emailjs) {
-            resolve((window as any).emailjs);
-            return;
-        }
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js';
-        script.onload = () => {
-            const emailjs = (window as any).emailjs;
-            emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
-            resolve(emailjs);
-        };
-        script.onerror = reject;
-        document.head.appendChild(script);
-    });
-};
-
-/**
- * Sends a lead booking notification
- * @param toEmail The recipient (defaults to Pia if not specified or for manual entries)
+ * Sends a lead booking notification via custom backend
  */
 export const sendEmailNotification = async (toEmail: string, subject: string, booking: Partial<Booking>, message: string) => {
-    // If toEmail is empty or generic, route to the primary admin
     const finalRecipient = toEmail || "pia@zealdigital.com.au";
     
     const timeParts = (booking.time || '').split(' ');
     const timeVal = timeParts[0] || 'N/A';
     const ampmVal = timeParts[1] || '';
 
-    const templateParams = {
+    const payload = {
         to_email: finalRecipient,
         subject: subject,
-        title: subject,
-        message: message,
         calling_team: booking.vendor?.name || booking.callerName || 'N/A',
         region: booking.region || 'N/A',
         client_name: booking.clientName || 'N/A',
@@ -59,19 +29,21 @@ export const sendEmailNotification = async (toEmail: string, subject: string, bo
         date: booking.date || 'N/A',
         time: timeVal,
         ampm: ampmVal,
-        notes: booking.notes || booking.bdmNote || 'No additional notes provided.',
-        link: window.location.origin 
+        notes: message || booking.notes || booking.bdmNote || 'No additional notes provided.'
     };
 
     try {
-        const emailjs = await loadEmailJS();
-        const response = await emailjs.send(
-            EMAILJS_CONFIG.SERVICE_ID,
-            EMAILJS_CONFIG.BOOKING_TEMPLATE_ID,
-            templateParams
-        );
-        if (response.status === 200) {
+        const response = await fetch(`${BACKEND_API_URL}/api/send-lead`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
             showToast(`Notification sent`);
+        } else {
+            const errData = await response.json();
+            throw new Error(errData.error || 'Server error');
         }
     } catch (error: any) {
         console.error("Email delivery failed:", error);
@@ -79,24 +51,26 @@ export const sendEmailNotification = async (toEmail: string, subject: string, bo
 };
 
 /**
- * Sends a password reset email using the simplified template structure
+ * Sends a password reset email via custom backend
  */
 export const sendPasswordResetEmail = async (email: string, passwordInfo: string) => {
-    const templateParams = {
-        email: email, // Matches {{email}} in template
-        link: window.location.origin, // Matches {{link}} in template
-        message: passwordInfo // Matches {{message}} in template
+    const payload = {
+        email: email,
+        message: passwordInfo
     };
 
     try {
-        const emailjs = await loadEmailJS();
-        const response = await emailjs.send(
-            EMAILJS_CONFIG.SERVICE_ID,
-            EMAILJS_CONFIG.PASSWORD_RESET_TEMPLATE_ID,
-            templateParams
-        );
-        if (response.status === 200) {
+        const response = await fetch(`${BACKEND_API_URL}/api/send-recovery`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
             showToast(`Recovery email sent to ${email}`);
+        } else {
+            const errData = await response.json();
+            throw new Error(errData.error || 'Server error');
         }
     } catch (error: any) {
         console.error("Email delivery failed:", error);
