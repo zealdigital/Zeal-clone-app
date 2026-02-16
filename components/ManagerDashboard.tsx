@@ -294,7 +294,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const [leaveReason, setLeaveReason] = useState('');
     const [leaveType, setLeaveType] = useState<'allDay' | 'specificSlots'>('allDay');
     const [leaveSlots, setLeaveSlots] = useState<string[]>([]);
-    const [userMgmtTab, setUserMgmtTab] = useState<'vendors' | 'bdms' | 'managers' | 'leave'>('vendors');
+    const [userMgmtTab, setUserMgmtTab] = useState<'vendors' | 'bdms' | 'leave'>('vendors');
     const [editingUser, setEditingUser] = useState<{ user: Vendor | BDM | Manager, type: 'vendor' | 'bdm' | 'manager' } | null>(null);
     const [isManualBookingOpen, setIsManualBookingOpen] = useState(false);
     const [importPreview, setImportPreview] = useState<{ newBookings: Booking[], stats: { imported: number, duplicates: number, skipped: number } } | null>(null);
@@ -302,7 +302,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const [activeLeadsPage, setActiveLeadsPage] = useState(1);
     const [vendorsPage, setVendorsPage] = useState(1);
     const [bdmsPage, setBdmsPage] = useState(1);
-    const [managersPage, setManagersPage] = useState(1);
 
     const [visiblePasswords, setVisiblePasswords] = useState<Record<number, boolean>>({});
 
@@ -318,9 +317,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const [newVendorUsername, setNewVendorUsername] = useState('');
     const [newVendorPassword, setNewVendorPassword] = useState('');
     const [newVendorRegions, setNewVendorRegions] = useState<Region[]>([]);
-    const [newManagerName, setNewManagerName] = useState('');
-    const [newManagerUsername, setNewManagerUsername] = useState('');
-    const [newManagerPassword, setNewManagerPassword] = useState('');
     const [slotConfigRegion, setSlotConfigRegion] = useState<Region>(regions[0] || 'NSW');
     const [newBaseSlot, setNewBaseSlot] = useState('10:00 AM');
     const [newDayOverrideDay, setNewDayOverrideDay] = useState('1'); 
@@ -422,7 +418,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             if (dateRange.startDate && b.date < dateRange.startDate) return false;
             if (dateRange.endDate && b.date > dateRange.endDate) return false;
             return matchesGlobalSearch(b, searchTerm);
-        }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        }).sort((a, b) => b.id - a.id);
     }, [visibleBookings, searchTerm, dateRange]);
 
     const archivedLeads = useMemo(() => {
@@ -462,11 +458,9 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
 
     const sortedVendors = useMemo(() => [...vendors].sort((a, b) => (a.active !== false === b.active !== false) ? a.name.localeCompare(b.name) : (a.active !== false ? -1 : 1)), [vendors]);
     const sortedBdms = useMemo(() => [...bdms].sort((a, b) => (a.active !== false === b.active !== false) ? a.name.localeCompare(b.name) : (a.active !== false ? -1 : 1)), [bdms]);
-    const sortedManagers = useMemo(() => [...managers].sort((a, b) => (a.active !== false === b.active !== false) ? a.name.localeCompare(b.name) : (a.active !== false ? -1 : 1)), [managers]);
     
     const paginatedVendors = useMemo(() => sortedVendors.slice((vendorsPage - 1) * ITEMS_PER_PAGE, vendorsPage * ITEMS_PER_PAGE), [sortedVendors, vendorsPage]);
     const paginatedBdms = useMemo(() => sortedBdms.slice((bdmsPage - 1) * ITEMS_PER_PAGE, bdmsPage * ITEMS_PER_PAGE), [sortedBdms, bdmsPage]);
-    const paginatedManagers = useMemo(() => sortedManagers.slice((managersPage - 1) * ITEMS_PER_PAGE, managersPage * ITEMS_PER_PAGE), [sortedManagers, managersPage]);
 
     const handleAssignBdm = (bookingId: number, bdmId: number) => { 
         setAllBookings(prev => prev.map(b => b.id === bookingId ? { ...b, bdmId } : b)); 
@@ -676,13 +670,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         const newBdm: BDM = { id: Date.now(), name: newBdmName.trim(), region: newBdmRegion, username: newBdmUsername.trim().toLowerCase(), password: newBdmPassword.trim(), active: true, email: '', notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES };
         setBdms(prev => [...prev, newBdm]);
         setNewBdmName(''); setNewBdmUsername(''); setNewBdmPassword('');
-    };
-
-    const handleAddManager = () => {
-        if (!newManagerName.trim() || !newManagerUsername.trim() || !newManagerPassword.trim()) { alert('Fill all fields'); return; }
-        const newManager: Manager = { id: Date.now(), name: newManagerName.trim(), username: newManagerUsername.trim().toLowerCase(), password: newManagerPassword.trim(), active: true, email: '', notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES };
-        setManagers(prev => [...prev, newManager]);
-        setNewManagerName(''); setNewManagerUsername(''); setNewManagerPassword('');
     };
 
     const handleBdmCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1051,9 +1038,8 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                             <>
                                 <div className="mb-6 border-b border-gray-300">
                                     <nav className="flex space-x-6">
-                                        <button onClick={() => setUserMgmtTab('vendors')} className={`pb-4 px-1 border-b-2 font-bold text-sm ${userMgmtTab === 'vendors' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Calling Teams</button>
-                                        <button onClick={() => setUserMgmtTab('bdms')} className={`pb-4 px-1 border-b-2 font-bold text-sm ${userMgmtTab === 'bdms' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>BDMs</button>
-                                        <button onClick={() => setUserMgmtTab('managers')} className={`pb-4 px-1 border-b-2 font-bold text-sm ${userMgmtTab === 'managers' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Managers</button>
+                                        <button onClick={() => setUserMgmtTab('vendors')} className={`pb-4 px-1 border-b-2 font-bold text-sm ${userMgmtTab === 'vendors' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Calling Team Management</button>
+                                        <button onClick={() => setUserMgmtTab('bdms')} className={`pb-4 px-1 border-b-2 font-bold text-sm ${userMgmtTab === 'bdms' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>BDM Management</button>
                                         <button onClick={() => setUserMgmtTab('leave')} className={`pb-4 px-1 border-b-2 font-bold text-sm ${userMgmtTab === 'leave' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Staff Leave</button>
                                     </nav>
                                 </div>
@@ -1486,7 +1472,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                             </div>
                                                         </div>
                                                         <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <button onClick={() => handleEditHoliday(h)} className="text-gray-400 hover:text-indigo-600 transition-colors p-1" title="Edit Holiday">
+                                                            <button onClick={() => handleEditHoliday(h)} className="text-gray-300 hover:text-indigo-600 transition-colors p-1" title="Edit Holiday">
                                                                 <PencilSquareIcon className="w-4 h-4" />
                                                             </button>
                                                             <button onClick={() => handleDeleteHoliday(h.id)} className="text-gray-300 hover:text-red-600 transition-colors p-1" title="Delete Holiday">
