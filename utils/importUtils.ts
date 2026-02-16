@@ -1,7 +1,6 @@
-
 import type { Booking, Vendor, Region } from '../types';
 
-// Helper to normalize strings for comparison
+// Helper to normalize strings for comparison and header matching
 const normalize = (str: string) => str ? str.trim().toLowerCase() : '';
 
 /**
@@ -18,6 +17,7 @@ const parseDateTime = (dateTimeStr: string): { date: string, time: string } => {
         let dateStr = parts[0];
         let timeStr = parts.slice(1).join(' ').trim();
 
+        // Remove any non-date characters (Excel sometimes adds weird formatting)
         dateStr = dateStr.replace(/[^\d/:-]/g, '').replace(/-+$/, '').trim();
 
         let finalDate = today;
@@ -25,18 +25,33 @@ const parseDateTime = (dateTimeStr: string): { date: string, time: string } => {
         if (dateStr.includes('/')) {
             const slashParts = dateStr.split('/');
             if (slashParts.length === 3) {
-                const day = slashParts[0].padStart(2, '0');
-                const month = slashParts[1].padStart(2, '0');
+                // Determine if it's DD/MM or MM/DD based on first part
+                let p1 = slashParts[0].padStart(2, '0');
+                let p2 = slashParts[1].padStart(2, '0');
                 let year = slashParts[2];
                 if (year.length === 2) year = `20${year}`;
-                finalDate = `${year}-${month}-${day}`;
+                
+                // Australian/International format (DD/MM) is expected, but check if month > 12
+                if (parseInt(p1) > 12) {
+                    // It's MM/DD
+                    finalDate = `${year}-${p1}-${p2}`;
+                } else {
+                    // It's DD/MM
+                    finalDate = `${year}-${p2}-${p1}`;
+                }
             }
         } else if (dateStr.includes('-')) {
             const dashParts = dateStr.split('-');
             if (dashParts.length === 3) {
-                const year = dashParts[0].length === 2 ? `20${dashParts[0]}` : dashParts[0];
-                const month = dashParts[1].padStart(2, '0');
-                const day = dashParts[2].padStart(2, '0');
+                let year = dashParts[0].length === 2 ? `20${dashParts[0]}` : dashParts[0];
+                let month = dashParts[1].padStart(2, '0');
+                let day = dashParts[2].padStart(2, '0');
+                // Check if year is at the end
+                if (dashParts[2].length === 4) {
+                    year = dashParts[2];
+                    month = dashParts[1].padStart(2, '0');
+                    day = dashParts[0].padStart(2, '0');
+                }
                 finalDate = `${year}-${month}-${day}`;
             }
         }
@@ -96,6 +111,30 @@ const parseCSVLine = (line: string): string[] => {
     return result;
 };
 
+/**
+ * Maps CSV headers to indexes based on keyword matching
+ */
+const getHeaderMap = (headers: string[]) => {
+    const map: Record<string, number> = {};
+    headers.forEach((h, i) => {
+        const lower = normalize(h);
+        if (lower.includes('business')) map['business'] = i;
+        else if (lower.includes('client')) map['client'] = i;
+        else if (lower.includes('website') || lower.includes('url')) map['website'] = i;
+        else if (lower.includes('phone') || lower.includes('mobile')) map['phone'] = i;
+        else if (lower.includes('email')) map['email'] = i;
+        else if (lower.includes('team')) map['team'] = i;
+        else if (lower.includes('status')) map['status'] = i;
+        else if (lower.includes('appt') || lower.includes('appointment')) map['apptDate'] = i;
+        else if (lower.includes('booked')) map['bookedDate'] = i;
+        else if (lower.includes('caller')) map['caller'] = i;
+        else if (lower.includes('note')) map['notes'] = i;
+        else if (lower.includes('region') || lower.includes('state')) map['region'] = i;
+        else if (lower.includes('address')) map['address'] = i;
+    });
+    return map;
+};
+
 export const processImportFile = async (
     file: File, 
     existingBookings: Booking[], 
@@ -109,10 +148,13 @@ export const processImportFile = async (
             const text = e.target?.result as string;
             if (!text) { resolve({ newBookings: [], stats: { imported: 0, duplicates: 0, skipped: 0 } }); return; }
 
-            const allLines = text.split(/\r?\n/);
+            const allLines = text.split(/\r?\n/).filter(line => line.trim() !== '');
             if (allLines.length <= 1) { resolve({ newBookings: [], stats: { imported: 0, duplicates: 0, skipped: 0 } }); return; }
             
+            const headers = parseCSVLine(allLines[0]);
+            const headerMap = getHeaderMap(headers);
             const dataLines = allLines.slice(1);
+            
             const newBookings: Booking[] = [];
             let duplicates = 0;
             let imported = 0;
@@ -135,41 +177,62 @@ export const processImportFile = async (
             const baseId = Date.now();
 
             dataLines.forEach((line, index) => {
-                const trimmedLine = line.trim();
-                if (!trimmedLine || trimmedLine.replace(/,/g, '').trim() === '') return;
-
                 const cols = parseCSVLine(line);
-                
-                let businessName = cols[8]; 
-                let clientName = cols[9];
-                let phone = cols[12];
-                let email = cols[2];
-                let website = cols[1];
-                let callingTeam = cols[0] || 'Imported';
-                let apptDateRaw = cols[4] || cols[3] || '';
-                let statusRaw = cols[5] || 'active';
-                let callerName = cols[6] || callingTeam;
-                let notes = cols[7] || '';
-                let regionRaw = cols[10] || 'NSW';
-                let address = cols[11] || '';
+                if (cols.every(c => !c.trim())) return; // Skip empty rows
 
+                // Use the header map to extract data, with fallbacks for common user file structures
+                let businessName = headerMap['business'] !== undefined ? cols[headerMap['business']] : '';
+                let clientName = headerMap['client'] !== undefined ? cols[headerMap['client']] : '';
+                let website = headerMap['website'] !== undefined ? cols[headerMap['website']] : '';
+                let phone = headerMap['phone'] !== undefined ? cols[headerMap['phone']] : '';
+                let email = headerMap['email'] !== undefined ? cols[headerMap['email']] : '';
+                let callingTeam = headerMap['team'] !== undefined ? cols[headerMap['team']] : 'Imported';
+                let apptDateRaw = headerMap['apptDate'] !== undefined ? cols[headerMap['apptDate']] : (headerMap['bookedDate'] !== undefined ? cols[headerMap['bookedDate']] : '');
+                let statusRaw = headerMap['status'] !== undefined ? cols[headerMap['status']] : 'active';
+                let callerName = headerMap['caller'] !== undefined ? cols[headerMap['caller']] : (headerMap['team'] !== undefined ? cols[headerMap['team']] : 'System');
+                let notes = headerMap['notes'] !== undefined ? cols[headerMap['notes']] : '';
+                let regionRaw = headerMap['region'] !== undefined ? cols[headerMap['region']] : 'NSW';
+                let address = headerMap['address'] !== undefined ? cols[headerMap['address']] : '';
+
+                // SMART FALLBACK: If Business Name is missing, try to get it from the Website URL
                 if (!businessName || businessName.trim() === '') {
-                    skipped++;
-                    return;
+                    if (website) {
+                        try {
+                            const domain = website.replace(/^(?:https?:\/\/)?(?:www\.)?/i, "").split('/')[0];
+                            businessName = domain.split('.')[0].toUpperCase().replace(/-/g, ' ');
+                        } catch {
+                            businessName = 'N/A';
+                        }
+                    } else {
+                        businessName = 'N/A';
+                    }
+                }
+
+                // SMART FALLBACK: If Client Name is missing
+                if (!clientName || clientName.trim() === '') {
+                    clientName = 'Lead Contact';
                 }
 
                 const { date, time } = parseDateTime(apptDateRaw);
                 
                 let matchedVendor = vendors.find(v => normalize(v.name) === normalize(callingTeam));
                 if (!matchedVendor) {
-                    matchedVendor = { id: 999999 + index, name: callingTeam, username: 'imported', active: true };
+                    matchedVendor = { id: 999999 + index, name: callingTeam || 'Imported', username: 'imported', active: true };
                 }
 
                 const region = (normalize(regionRaw).includes('vic') ? 'VIC' : 'NSW') as Region;
+                
+                // Map status keywords to valid app statuses
                 let status: Booking['status'] = 'active';
                 const s = normalize(statusRaw);
-                if (['active', 'rejected', 'seen', 'rescheduled', 'cancelled', 'dq', 'sold', 'pending_approval'].includes(s)) {
+                if (['active', 'rejected', 'seen', 'rescheduled', 'cancelled', 'dq', 'sold', 'pending_approval', 'rescheduled_bdm'].includes(s)) {
                     status = s as Booking['status'];
+                } else if (s.includes('reschedule')) {
+                    status = 'rescheduled';
+                } else if (s.includes('cancel')) {
+                    status = 'cancelled';
+                } else if (s.includes('met') || s.includes('seen')) {
+                    status = 'seen';
                 }
 
                 const normBiz = normalize(businessName);
@@ -198,13 +261,14 @@ export const processImportFile = async (
                     clientWebsite: website || '',
                     vendor: matchedVendor,
                     callerName: callerName,
-                    notes: notes || `Imported Lead`,
+                    notes: notes || `Imported Data Record`,
                     status,
                     isDuplicate: !!duplicateId,
                     duplicateOfBookingId: duplicateId,
                 });
                 imported++;
                 
+                // Cache for subsequent row duplicate checks within the same file
                 if (normBiz) existingMap.set('biz_' + normBiz, baseId + index);
                 if (normCli) existingMap.set('cli_' + normCli, baseId + index);
                 if (normPho) existingMap.set('pho_' + normPho, baseId + index);

@@ -1142,7 +1142,302 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                         <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 h-fit"><h4 className="font-normal text-gray-800 mb-4">Email Notifications</h4><NotificationSettings preferences={profileForm.notificationPreferences} onChange={(p) => setProfileForm({...profileForm, notificationPreferences: p})} role="manager" /></div>
                                     </div>
                                 </div>
-                                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200"><h3 className="text-xl font-normal mb-6 flex items-center gap-2"><ChartBarIcon className="w-6 h-6" /> Branding & Appearance</h3><div className="grid grid-cols-1 md:grid-cols-3 gap-8"><div><label className="block text-sm font-normal text-gray-700 mb-2">Company Name</label><input type="text" value={brandingForm.companyName} onChange={e => setBrandingForm({...brandingForm, companyName: e.target.value})} className="w-full border p-2.5 rounded-md" /></div><div><label className="block text-sm font-normal text-gray-700 mb-2">Primary Brand Color</label><div className="flex items-center gap-3"><input type="color" value={brandingForm.primaryColor} onChange={e => setBrandingForm({...brandingForm, primaryColor: e.target.value})} className="w-12 h-10 border p-1 rounded cursor-pointer" /><span className="text-sm font-mono text-gray-500 uppercase">{brandingForm.primaryColor}</span></div></div><div><label className="block text-sm font-normal text-gray-700 mb-2">Logo Upload</label><input type="file" accept="image/*" onChange={handleLogoUpload} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-normal file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />{branding.logoUrl && <img src={branding.logoUrl} alt="Preview" className="h-12 mt-2 object-contain bg-black p-1 rounded" />}</div></div><div className="mt-8 pt-4 border-t flex justify-end"><button onClick={handleSaveBranding} className="px-8 py-2.5 bg-black text-white font-normal rounded-lg hover:bg-gray-800 uppercase tracking-widest text-xs">Save Branding</button></div></div>
+
+                                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                                    <h3 className="text-xl font-normal mb-6">Region Management</h3>
+                                    <div className="flex flex-wrap items-end gap-4 mb-8">
+                                        <div>
+                                            <input 
+                                                type="text" 
+                                                value={newRegionName} 
+                                                onChange={e => setNewRegionName(e.target.value)} 
+                                                placeholder="New Region Name (e.g. QLD)" 
+                                                className="border border-gray-200 rounded-md p-2 w-64"
+                                            />
+                                        </div>
+                                        <button onClick={handleAddRegion} className="bg-black text-white px-6 py-2 rounded-md font-normal">Add Region</button>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        {regions.map(r => (
+                                            <div key={r} className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex items-center justify-between">
+                                                <span className="font-normal text-gray-700">{r}</span>
+                                                <div className="flex items-center gap-3">
+                                                    <input 
+                                                        type="color" 
+                                                        value={regionColors[r] || '#CBD5E1'} 
+                                                        onChange={(e) => handleRegionColorChange(r, e.target.value)}
+                                                        className="w-8 h-8 rounded cursor-pointer border-none bg-transparent"
+                                                    />
+                                                    <button onClick={() => handleDeleteRegion(r)} className="text-red-400 hover:text-red-600">
+                                                        <TrashIcon className="w-5 h-5" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                                    <h3 className="text-xl font-normal mb-6">Appointment Slot Configuration</h3>
+                                    <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+                                        {regions.map(r => (
+                                            <button 
+                                                key={r} 
+                                                onClick={() => setSlotConfigRegion(r)}
+                                                className={`px-6 py-1.5 rounded-full text-xs font-bold uppercase transition-all whitespace-nowrap ${slotConfigRegion === r ? 'bg-black text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                                            >
+                                                {r}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                        {/* Base Availability */}
+                                        <div className="border border-gray-100 rounded-xl p-5 bg-gray-50/30">
+                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">BASE AVAILABILITY ({slotConfigRegion})</h4>
+                                            <div className="flex items-center gap-2 mb-4">
+                                                <TimePicker value={newBaseSlot} onChange={setNewBaseSlot} className="flex-1" />
+                                                <button onClick={handleAddBaseSlot} className="bg-green-600 text-white p-2 rounded-md hover:bg-green-700 transition-colors"><PlusIcon className="w-5 h-5" /></button>
+                                            </div>
+                                            <div className="bg-white rounded-lg border border-gray-100 divide-y overflow-hidden shadow-sm">
+                                                {(appointmentTimes[slotConfigRegion]?.base || []).map(slot => (
+                                                    <div key={slot} className="flex justify-between items-center p-3 hover:bg-gray-50 transition-colors">
+                                                        <span className="text-sm font-medium text-gray-700">{slot}</span>
+                                                        <button onClick={() => handleRemoveBaseSlot(slot)} className="text-red-400 hover:text-red-600"><XMarkIcon className="w-4 h-4" /></button>
+                                                    </div>
+                                                ))}
+                                                {(appointmentTimes[slotConfigRegion]?.base || []).length === 0 && <p className="p-4 text-center text-xs text-gray-400 italic">No base slots set.</p>}
+                                            </div>
+                                        </div>
+
+                                        {/* Day Overrides */}
+                                        <div className="border border-gray-100 rounded-xl p-5 bg-gray-50/30">
+                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">DAY SPECIFIC OVERRIDES</h4>
+                                            <div className="space-y-4">
+                                                <select 
+                                                    value={newDayOverrideDay} 
+                                                    onChange={e => setNewDayOverrideDay(e.target.value)}
+                                                    className="w-full border border-gray-200 rounded-md p-2 text-sm focus:ring-1 focus:ring-indigo-500 outline-none"
+                                                >
+                                                    {DAYS_OF_WEEK.map((day, i) => <option key={day} value={i}>{day}</option>)}
+                                                </select>
+                                                <div className="flex items-center gap-2">
+                                                    <TimePicker value={tempDaySlot} onChange={setTempDaySlot} className="flex-1" />
+                                                    <button onClick={handleAddDaySlotToStaging} className="bg-gray-100 text-gray-600 p-2 rounded-md border border-gray-200 hover:bg-gray-200 transition-colors"><PlusIcon className="w-5 h-5" /></button>
+                                                </div>
+                                                {newDayOverrideSlots.length > 0 && (
+                                                    <div className="flex flex-wrap gap-2 p-2 bg-white rounded-md border border-dashed border-gray-300">
+                                                        {newDayOverrideSlots.map(s => (
+                                                            <span key={s} className="bg-gray-100 text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 text-gray-600">
+                                                                {s} <button onClick={() => handleRemoveDaySlotFromStaging(s)} className="text-gray-400 hover:text-red-500"><XMarkIcon className="w-3 h-3"/></button>
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                <button onClick={handleAddDayOverride} className="w-full bg-slate-500 text-white py-2 rounded-md text-sm font-normal shadow-sm hover:bg-slate-600 transition-colors">Save Override</button>
+                                            </div>
+                                            {/* List existing day overrides */}
+                                            <div className="mt-4 space-y-2">
+                                                {Object.entries(appointmentTimes[slotConfigRegion]?.overrides?.dayOfWeek || {}).map(([day, slots]) => (
+                                                    <div key={day} className="text-xs bg-white p-2 rounded border border-gray-100 flex justify-between items-center shadow-sm">
+                                                        <div className="truncate pr-2">
+                                                            <span className="font-bold text-indigo-600">{DAYS_OF_WEEK[parseInt(day)]}: </span>
+                                                            <span className="text-gray-500">{slots.join(', ')}</span>
+                                                        </div>
+                                                        <button onClick={() => handleRemoveDayOverride(parseInt(day))} className="text-red-400 hover:text-red-600 transition-colors flex-shrink-0"><TrashIcon className="w-4 h-4"/></button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Date Overrides */}
+                                        <div className="border border-gray-100 rounded-xl p-5 bg-gray-50/30">
+                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">SPECIFIC DATE OVERRIDES</h4>
+                                            <div className="space-y-4">
+                                                <input 
+                                                    type="date" 
+                                                    value={newDateOverrideDate} 
+                                                    onChange={e => setNewDateOverrideDate(e.target.value)}
+                                                    className="w-full border border-gray-200 rounded-md p-2 text-sm focus:ring-1 focus:ring-indigo-500 outline-none"
+                                                />
+                                                <div className="flex items-center gap-2">
+                                                    <TimePicker value={tempDateSlot} onChange={setTempDateSlot} className="flex-1" />
+                                                    <button onClick={handleAddDateSlotToStaging} className="bg-gray-100 text-gray-600 p-2 rounded-md border border-gray-200 hover:bg-gray-200 transition-colors"><PlusIcon className="w-5 h-5" /></button>
+                                                </div>
+                                                {newDateOverrideSlots.length > 0 && (
+                                                    <div className="flex flex-wrap gap-2 p-2 bg-white rounded-md border border-dashed border-gray-300">
+                                                        {newDateOverrideSlots.map(s => (
+                                                            <span key={s} className="bg-gray-100 text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 text-gray-600">
+                                                                {s} <button onClick={() => handleRemoveDateSlotFromStaging(s)} className="text-gray-400 hover:text-red-500"><XMarkIcon className="w-3 h-3"/></button>
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                <button onClick={handleAddDateOverride} className="w-full bg-slate-500 text-white py-2 rounded-md text-sm font-normal shadow-sm hover:bg-slate-600 transition-colors">Save Override</button>
+                                            </div>
+                                            {/* List existing date overrides */}
+                                            <div className="mt-4 space-y-2">
+                                                {Object.entries(appointmentTimes[slotConfigRegion]?.overrides?.date || {}).map(([date, slots]) => (
+                                                    <div key={date} className="text-xs bg-white p-2 rounded border border-gray-100 flex justify-between items-center shadow-sm">
+                                                        <div className="truncate pr-2">
+                                                            <span className="font-bold text-indigo-600">{date}: </span>
+                                                            <span className="text-gray-500">{slots.join(', ')}</span>
+                                                        </div>
+                                                        <button onClick={() => handleRemoveDateOverride(date)} className="text-red-400 hover:text-red-600 transition-colors flex-shrink-0"><TrashIcon className="w-4 h-4"/></button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                                    <h3 className="text-xl font-normal mb-6">Holiday & Event Management</h3>
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                                        <div className="space-y-4">
+                                            <h4 className="text-sm font-normal text-gray-600 mb-2">Add Holiday</h4>
+                                            <input 
+                                                type="text" 
+                                                value={newHolidayName} 
+                                                onChange={e => setNewHolidayName(e.target.value)} 
+                                                placeholder="Name" 
+                                                className="w-full border border-gray-200 rounded-md p-2 focus:ring-1 focus:ring-indigo-500 outline-none"
+                                            />
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <input 
+                                                    type="date" 
+                                                    value={newHolidayStartDate} 
+                                                    onChange={e => setNewHolidayStartDate(e.target.value)} 
+                                                    className="w-full border border-gray-200 rounded-md p-2 focus:ring-1 focus:ring-indigo-500 outline-none"
+                                                />
+                                                <input 
+                                                    type="date" 
+                                                    value={newHolidayEndDate} 
+                                                    onChange={e => setNewHolidayEndDate(e.target.value)} 
+                                                    className="w-full border border-gray-200 rounded-md p-2 focus:ring-1 focus:ring-indigo-500 outline-none"
+                                                    min={newHolidayStartDate}
+                                                />
+                                            </div>
+                                            <div className="flex flex-wrap gap-4 py-2">
+                                                {regions.map(r => (
+                                                    <label key={r} className="flex items-center gap-2 cursor-pointer group">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={newHolidayRegions.includes(r)} 
+                                                            onChange={() => toggleHolidayRegion(r)}
+                                                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                        />
+                                                        <span className="text-sm font-normal text-gray-700 group-hover:text-black">{r}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                            <button onClick={handleSaveHoliday} className="w-full bg-black text-white py-3 rounded-lg font-normal uppercase tracking-widest text-xs hover:bg-gray-800 transition-colors shadow-sm">
+                                                {editingHolidayOriginal ? 'UPDATE HOLIDAY' : 'ADD'}
+                                            </button>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <div className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto pr-2">
+                                                {publicHolidays.map(h => (
+                                                    <div key={h.id} className="py-4 flex justify-between items-start group">
+                                                        <div>
+                                                            <p className="font-normal text-gray-900">{h.name}</p>
+                                                            <p className="text-xs text-gray-400 mt-0.5">
+                                                                {h.startDate} {h.endDate !== h.startDate && ` - ${h.endDate}`} | <span className="italic font-bold text-gray-500">{h.regions.join(', ')}</span>
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <button onClick={() => handleEditHoliday(h)} className="text-gray-400 hover:text-indigo-600 transition-colors" title="Edit Holiday">
+                                                                <PencilSquareIcon className="w-4 h-4" />
+                                                            </button>
+                                                            <button onClick={() => handleDeleteHoliday(h.id)} className="text-gray-400 hover:text-red-600 transition-colors" title="Delete Holiday">
+                                                                <TrashIcon className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {publicHolidays.length === 0 && <p className="py-8 text-center text-sm text-gray-400 italic">No holidays configured.</p>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                                    <h3 className="text-xl font-normal mb-6">Data Management</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                                        <div className="space-y-6">
+                                            <div>
+                                                <h4 className="text-lg font-normal text-gray-900 mb-1">Bulk Import Legacy Data</h4>
+                                                <p className="text-xs text-gray-500 mb-4">1. Download Template. 2. Edit in Excel. 3. Upload.</p>
+                                                <button 
+                                                    onClick={() => {
+                                                        const csv = generateImportTemplate();
+                                                        const blob = new Blob([csv], { type: 'text/csv' });
+                                                        const url = URL.createObjectURL(blob);
+                                                        const a = document.createElement('a');
+                                                        a.href = url;
+                                                        a.download = 'lead_import_template.csv';
+                                                        a.click();
+                                                    }}
+                                                    className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm hover:bg-gray-50 transition-colors shadow-sm"
+                                                >
+                                                    <DocumentArrowDownIcon className="w-4 h-4 text-gray-500" /> Download Template
+                                                </button>
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-4">
+                                                <div className="relative">
+                                                    <input 
+                                                        type="file" 
+                                                        accept=".csv"
+                                                        onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                                                        className="hidden" 
+                                                        id="bulk-import-file"
+                                                    />
+                                                    <label 
+                                                        htmlFor="bulk-import-file"
+                                                        className="px-6 py-2.5 bg-gray-200 text-indigo-700 rounded-full text-sm font-normal cursor-pointer hover:bg-gray-300 border border-gray-300 transition-all"
+                                                    >
+                                                        Choose File
+                                                    </label>
+                                                </div>
+                                                <span className="text-xs text-gray-400 truncate max-w-[150px]" title={importFile?.name}>
+                                                    {importFile ? importFile.name : 'No file chosen'}
+                                                </span>
+                                                <button 
+                                                    onClick={async () => {
+                                                        if (!importFile) return;
+                                                        const result = await processImportFile(importFile, allBookings, vendors, currentUser);
+                                                        setImportPreview(result);
+                                                    }}
+                                                    disabled={!importFile}
+                                                    className="flex items-center gap-2 px-6 py-2.5 bg-slate-400 text-white rounded-lg text-sm font-normal disabled:opacity-50 hover:bg-slate-500 transition-colors shadow-sm"
+                                                >
+                                                    <CloudArrowUpIcon className="w-4 h-4" /> Upload & Preview
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h4 className="text-lg font-normal text-gray-900 mb-1">Export Data</h4>
+                                            <p className="text-xs text-gray-500 mb-4">Download all system data matching the Import format for re-upload.</p>
+                                            <button 
+                                                onClick={() => exportBookingsToCSV(allBookings, 'full_database_export')}
+                                                className="w-full flex items-center justify-center gap-3 bg-emerald-600 text-white py-3 rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-emerald-700 shadow-lg shadow-emerald-100 transition-all active:scale-95"
+                                            >
+                                                <ArrowDownTrayIcon className="w-5 h-5" /> EXPORT FULL DATABASE
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                                    <h3 className="text-xl font-normal mb-6 flex items-center gap-2"><ChartBarIcon className="w-6 h-6" /> Branding & Appearance</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                        <div><label className="block text-sm font-normal text-gray-700 mb-2">Company Name</label><input type="text" value={brandingForm.companyName} onChange={e => setBrandingForm({...brandingForm, companyName: e.target.value})} className="w-full border p-2.5 rounded-md focus:ring-1 focus:ring-indigo-500 outline-none" /></div>
+                                        <div><label className="block text-sm font-normal text-gray-700 mb-2">Primary Brand Color</label><div className="flex items-center gap-3"><input type="color" value={brandingForm.primaryColor} onChange={e => setBrandingForm({...brandingForm, primaryColor: e.target.value})} className="w-12 h-10 border p-1 rounded cursor-pointer" /><span className="text-sm font-mono text-gray-500 uppercase">{brandingForm.primaryColor}</span></div></div>
+                                        <div><label className="block text-sm font-normal text-gray-700 mb-2">Logo Upload</label><input type="file" accept="image/*" onChange={handleLogoUpload} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-normal file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />{branding.logoUrl && <img src={branding.logoUrl} alt="Preview" className="h-12 mt-2 object-contain bg-black p-1 rounded" />}</div>
+                                    </div>
+                                    <div className="mt-8 pt-4 border-t flex justify-end"><button onClick={handleSaveBranding} className="px-8 py-2.5 bg-black text-white font-normal rounded-lg hover:bg-gray-800 uppercase tracking-widest text-xs shadow-sm">Save Branding</button></div>
+                                </div>
                             </div>
                         )}
                     </div>
