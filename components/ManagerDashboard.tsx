@@ -1085,7 +1085,59 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                         </div>
                                     </div>
                                 )}
-                                {userMgmtTab === 'leave' && (<div className="grid grid-cols-2 gap-8"><div className="bg-white p-6 rounded shadow"><h3 className="font-normal mb-4">Log Staff Leave</h3><div className="space-y-4"><div><label>Select Staff</label><div className="max-h-40 overflow-y-auto border p-2">{bdms.map(b => <label key={b.id} className="block"><input type="checkbox" checked={selectedBdmIds.includes(b.id)} onChange={handleBdmCheckboxChange} value={b.id}/> {b.name} ({b.region})</label>)}</div></div><div className="grid grid-cols-2 gap-4"><div><label>Start Date</label><input type="date" value={leaveStartDate} onChange={e => setLeaveStartDate(e.target.value)} className="w-full border p-2"/></div><div><label>End Date</label><input type="date" value={leaveEndDate} onChange={e => setLeaveEndDate(e.target.value)} min={leaveStartDate} className="w-full border p-2"/></div></div><div><label>Reason</label><input type="text" value={leaveReason} onChange={e => setLeaveReason(e.target.value)} className="w-full border p-2"/></div><button onClick={handleAddLeave} className="w-full bg-indigo-600 text-white py-2 font-normal">Add Leave</button></div></div><div className="bg-white p-6 rounded shadow"><h3 className="font-normal">Scheduled Leave</h3><ul>{leaveDays.map(l => <li key={l.id} className="border-b p-2 flex justify-between"><span>{l.bdmName} - {new Date(l.date).toLocaleDateString()}</span><button onClick={() => handleDeleteLeave(l.id)}><TrashIcon className="w-4 h-4 text-red-500"/></button></li>)}</ul></div></div>)}
+                                {userMgmtTab === 'leave' && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fadeIn">
+                                        <div className="bg-white p-6 rounded-xl shadow border border-gray-200">
+                                            <h3 className="text-xl font-bold text-gray-900 mb-6">Log Staff Leave</h3>
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Select Staff</label>
+                                                    <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-xl p-3 bg-gray-50/50 space-y-2">
+                                                        {bdms.map(b => (
+                                                            <label key={b.id} className="flex items-center gap-3 cursor-pointer group">
+                                                                <input type="checkbox" checked={selectedBdmIds.includes(b.id)} onChange={handleBdmCheckboxChange} value={b.id} className="w-4 h-4 rounded text-indigo-600 border-gray-300 focus:ring-0" />
+                                                                <span className="text-sm font-bold text-gray-700 group-hover:text-black">{b.name} ({b.region})</span>
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Start Date</label>
+                                                        <input type="date" value={leaveStartDate} onChange={e => setLeaveStartDate(e.target.value)} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl p-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">End Date</label>
+                                                        <input type="date" value={leaveEndDate} onChange={e => setLeaveEndDate(e.target.value)} min={leaveStartDate} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl p-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" />
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Reason</label>
+                                                    <input type="text" value={leaveReason} onChange={e => setLeaveReason(e.target.value)} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl p-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" placeholder="Vacation, Sick Leave, etc." />
+                                                </div>
+                                                <button onClick={handleAddLeave} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold uppercase tracking-widest text-xs shadow-md shadow-indigo-100 hover:bg-indigo-700 transition-all">Register Leave</button>
+                                            </div>
+                                        </div>
+                                        <div className="bg-white p-6 rounded-xl shadow border border-gray-200">
+                                            <h3 className="text-xl font-bold text-gray-900 mb-6">Scheduled Leave</h3>
+                                            <div className="max-h-[500px] overflow-y-auto space-y-3 pr-2">
+                                                {leaveDays.length === 0 ? (
+                                                    <p className="text-center text-gray-400 italic py-10">No leave days currently scheduled.</p>
+                                                ) : (
+                                                    leaveDays.map(l => (
+                                                        <div key={l.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 group">
+                                                            <div>
+                                                                <p className="text-sm font-bold text-gray-900">{l.bdmName}</p>
+                                                                <p className="text-xs text-gray-500">{new Date(l.date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })} • <span className="italic">{l.reason}</span></p>
+                                                            </div>
+                                                            <button onClick={() => handleDeleteLeave(l.id)} className="text-gray-300 hover:text-red-600 transition-colors p-1"><TrashIcon className="w-5 h-5" /></button>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </>
                         )}
                         {activeTab === 'calendar' && <ManagerCalendar appointments={managerAppointments} setAppointments={setManagerAppointments} bookings={allBookingsForCalendar} />}
@@ -1136,7 +1188,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                 </div>
                                             </div>
                                             <div><label className="block text-sm font-normal text-gray-700">Recovery Email</label><input type="email" value={profileForm.recoveryEmail} onChange={e => setProfileForm({...profileForm, recoveryEmail: e.target.value})} className="mt-1 block w-full border border-gray-300 rounded-md p-2 shadow-sm" /></div>
-                                            <div><label className="block text-sm font-normal text-gray-700">Contact Emails</label><div className="flex gap-2 mt-1"><input type="email" value={emailInput} onChange={e => setEmailInput(e.target.value)} className="block w-full border border-gray-300 rounded-md shadow-sm" placeholder="Enter email address..." /><button type="button" onClick={() => { if(emailInput && !profileForm.email.includes(emailInput)) { setProfileForm({...profileForm, email: profileForm.email ? `${profileForm.email},${emailInput}` : emailInput}); setEmailInput(''); } }} className="bg-black text-white px-4 py-2 rounded-md font-normal text-sm">Add</button></div><div className="mt-2 flex flex-wrap gap-2">{profileForm.email.split(',').filter(Boolean).map(email => (<span key={email} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2 py-1 rounded-md text-xs font-normal border border-indigo-100">{email}<button type="button" onClick={() => setProfileForm({...profileForm, email: profileForm.email.split(',').filter(e => e !== email).join(',')})} className="text-indigo-400 hover:text-indigo-600"><XMarkIcon className="w-3 h-3" /></button></span>))}</div></div>
+                                            <div><label className="block text-sm font-normal text-gray-700">Contact Emails</label><div className="flex gap-2 mt-1"><input type="email" value={emailInput} onChange={e => setEmailInput(e.target.value)} className="block w-full border border-gray-300 rounded-md shadow-sm" placeholder="Enter email address..." /><button type="button" onClick={() => { if(emailInput && !profileForm.email.includes(emailInput)) { setProfileForm({...profileForm, email: profileForm.email ? `${profileForm.email},${emailInput}` : emailInput}); setEmailInput(''); } }} className="bg-black text-white px-4 py-2 rounded-md font-normal text-sm">Add</button></div><div className="mt-2 flex flex-wrap gap-2">{profileForm.email.split(',').filter(Boolean).map(email => (<span key={email} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2 py-1 rounded-md text-xs font-normal border border-indigo-100">{email}<button type="button" onClick={() => setProfileForm({...profileForm, email: profileForm.email.split(',').filter(e => e !== email).join(',')})} className="text-indigo-400 hover:text-indigo-600"><XMarkIcon className="w-3.5 h-3" /></button></span>))}</div></div>
                                             <div className="pt-4 flex flex-col gap-3"><button type="submit" className="w-full bg-black text-white py-3 rounded-lg font-normal shadow-sm hover:bg-gray-800 transition-all uppercase text-xs tracking-widest">Update Profile</button>{showProfileSuccess && <p className="text-center text-xs font-normal text-green-600">✅ Profile updated successfully!</p>}</div>
                                         </form>
                                         <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 h-fit"><h4 className="font-normal text-gray-800 mb-4">Email Notifications</h4><NotificationSettings preferences={profileForm.notificationPreferences} onChange={(p) => setProfileForm({...profileForm, notificationPreferences: p})} role="manager" /></div>
@@ -1152,6 +1204,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                     </div>
                                     <div className="mt-8 pt-4 border-t flex justify-end"><button onClick={handleSaveBranding} className="px-8 py-2.5 bg-black text-white font-normal rounded-lg hover:bg-gray-800 uppercase tracking-widest text-xs shadow-sm">Save Branding</button></div>
                                 </div>
+
                                 <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
                                     <h3 className="text-xl font-normal mb-6">Region Management</h3>
                                     <div className="flex flex-wrap items-end gap-4 mb-8">
@@ -1437,7 +1490,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                         </div>
                                     </div>
                                 </div>
-
                             </div>
                         )}
                     </div>
