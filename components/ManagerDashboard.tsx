@@ -1144,6 +1144,15 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                 </div>
 
                                 <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                                    <h3 className="text-xl font-normal mb-6 flex items-center gap-2"><ChartBarIcon className="w-6 h-6" /> Branding & Appearance</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                        <div><label className="block text-sm font-normal text-gray-700 mb-2">Company Name</label><input type="text" value={brandingForm.companyName} onChange={e => setBrandingForm({...brandingForm, companyName: e.target.value})} className="w-full border p-2.5 rounded-md focus:ring-1 focus:ring-indigo-500 outline-none" /></div>
+                                        <div><label className="block text-sm font-normal text-gray-700 mb-2">Primary Brand Color</label><div className="flex items-center gap-3"><input type="color" value={brandingForm.primaryColor} onChange={e => setBrandingForm({...brandingForm, primaryColor: e.target.value})} className="w-12 h-10 border p-1 rounded cursor-pointer" /><span className="text-sm font-mono text-gray-500 uppercase">{brandingForm.primaryColor}</span></div></div>
+                                        <div><label className="block text-sm font-normal text-gray-700 mb-2">Logo Upload</label><input type="file" accept="image/*" onChange={handleLogoUpload} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-normal file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />{branding.logoUrl && <img src={branding.logoUrl} alt="Preview" className="h-12 mt-2 object-contain bg-black p-1 rounded" />}</div>
+                                    </div>
+                                    <div className="mt-8 pt-4 border-t flex justify-end"><button onClick={handleSaveBranding} className="px-8 py-2.5 bg-black text-white font-normal rounded-lg hover:bg-gray-800 uppercase tracking-widest text-xs shadow-sm">Save Branding</button></div>
+                                </div>
+                                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
                                     <h3 className="text-xl font-normal mb-6">Region Management</h3>
                                     <div className="flex flex-wrap items-end gap-4 mb-8">
                                         <div>
@@ -1429,15 +1438,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                     </div>
                                 </div>
 
-                                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-                                    <h3 className="text-xl font-normal mb-6 flex items-center gap-2"><ChartBarIcon className="w-6 h-6" /> Branding & Appearance</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                        <div><label className="block text-sm font-normal text-gray-700 mb-2">Company Name</label><input type="text" value={brandingForm.companyName} onChange={e => setBrandingForm({...brandingForm, companyName: e.target.value})} className="w-full border p-2.5 rounded-md focus:ring-1 focus:ring-indigo-500 outline-none" /></div>
-                                        <div><label className="block text-sm font-normal text-gray-700 mb-2">Primary Brand Color</label><div className="flex items-center gap-3"><input type="color" value={brandingForm.primaryColor} onChange={e => setBrandingForm({...brandingForm, primaryColor: e.target.value})} className="w-12 h-10 border p-1 rounded cursor-pointer" /><span className="text-sm font-mono text-gray-500 uppercase">{brandingForm.primaryColor}</span></div></div>
-                                        <div><label className="block text-sm font-normal text-gray-700 mb-2">Logo Upload</label><input type="file" accept="image/*" onChange={handleLogoUpload} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-normal file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />{branding.logoUrl && <img src={branding.logoUrl} alt="Preview" className="h-12 mt-2 object-contain bg-black p-1 rounded" />}</div>
-                                    </div>
-                                    <div className="mt-8 pt-4 border-t flex justify-end"><button onClick={handleSaveBranding} className="px-8 py-2.5 bg-black text-white font-normal rounded-lg hover:bg-gray-800 uppercase tracking-widest text-xs shadow-sm">Save Branding</button></div>
-                                </div>
                             </div>
                         )}
                     </div>
