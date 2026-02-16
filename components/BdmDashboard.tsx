@@ -19,6 +19,7 @@ import StatusAnalytics from './StatusAnalytics';
 import RejectedBookingsList from './RejectedBookingsList';
 import ArchivedBookingsList from './ArchivedBookingsList';
 import { sendEmailNotification } from '../utils/emailService';
+import { DEFAULT_NOTIFICATION_PREFERENCES } from '../constants';
 
 interface BdmDashboardProps {
   currentUser: Extract<User, { role: 'bdm' }>;
@@ -69,14 +70,14 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
   
   const [settingsForm, setSettingsForm] = useState({
       email: currentUser.email || '',
-      notificationPreferences: currentUser.notificationPreferences || { newBooking: true, statusChange: true, bookingRequest: true, requestDecision: true, smsRequest: true, smsSent: true, bdmStatusUpdate: true, newAssignment: true }
+      notificationPreferences: currentUser.notificationPreferences || DEFAULT_NOTIFICATION_PREFERENCES
   });
   const [settingsSaved, setSettingsSaved] = useState(false);
 
   useEffect(() => {
       setSettingsForm({
           email: currentUser.email || '',
-          notificationPreferences: currentUser.notificationPreferences || { newBooking: true, statusChange: true, bookingRequest: true, requestDecision: true, smsRequest: true, smsSent: true, bdmStatusUpdate: true, newAssignment: true }
+          notificationPreferences: currentUser.notificationPreferences || DEFAULT_NOTIFICATION_PREFERENCES
       });
   }, [currentUser]);
 
@@ -199,12 +200,24 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
     setAllBookings(prev => { const newBookings = prev.map(b => { if (b.id === bookingId) { updatedBooking = { ...b, status: newStatus, bdmNote: note }; return updatedBooking; } return b; }); return newBookings; });
     
     if (updatedBooking) {
-        if (updatedBooking.vendor.notificationPreferences?.statusChange) {
-            sendEmailNotification(updatedBooking.vendor.email || '', `Lead Status Update: ${updatedBooking.businessName}`, updatedBooking, `Hello, BDM ${currentUser.name} has updated the status of ${updatedBooking.businessName} to ${newStatus}. Note: ${note}`);
+        if (updatedBooking.vendor.notificationPreferences?.statusChange && updatedBooking.vendor.email) {
+            sendEmailNotification(
+              updatedBooking.vendor.email, 
+              `Lead Status Update: ${updatedBooking.businessName}`, 
+              updatedBooking, 
+              `Hello, BDM ${currentUser.name} has updated the status of ${updatedBooking.businessName} to ${newStatus.toUpperCase()}. Note: ${note}`,
+              "LEAD STATUS UPDATED"
+            );
         }
         managers.forEach(m => {
-            if (m.notificationPreferences?.bdmStatusUpdate) {
-                sendEmailNotification(m.email || '', `BDM Update: ${updatedBooking?.businessName}`, updatedBooking || {}, `BDM ${currentUser.name} marked ${updatedBooking?.businessName} as ${newStatus}.`);
+            if (m.notificationPreferences?.bdmStatusUpdate && m.email) {
+                sendEmailNotification(
+                  m.email, 
+                  `BDM Update: ${updatedBooking?.businessName}`, 
+                  updatedBooking || {}, 
+                  `BDM ${currentUser.name} marked ${updatedBooking?.businessName} as ${newStatus.toUpperCase()}.`,
+                  "LEAD STATUS UPDATED"
+                );
             }
         });
     }
@@ -253,12 +266,13 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
       };
 
       managers.forEach(m => { 
-        if (m.notificationPreferences?.bookingRequest) {
+        if (m.notificationPreferences?.bookingRequest && m.email) {
             sendEmailNotification(
-                m.email || '', 
+                m.email, 
                 `BDM Request: Approval Required${existingMatch ? ' (DUPLICATE)' : ''}`, 
                 newBooking, 
-                `BDM ${currentUser.name} is requesting approval for a booking with ${bookingDetails.businessName}.${existingMatch ? ' WARNING: This appears to be a duplicate lead.' : ''} Please review it in your dashboard.`
+                `BDM ${currentUser.name} is requesting approval for a booking with ${bookingDetails.businessName}.${existingMatch ? ' WARNING: This appears to be a duplicate lead.' : ''} Please review it in your dashboard.`,
+                "REBOOKING REQUEST"
             );
         }
       });

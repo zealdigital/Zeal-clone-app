@@ -475,8 +475,14 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         
         if (bdm) {
             setNotifications(prev => [...prev, { id: Date.now(), vendorId: bdm.id, bookingId, message: `New Lead Assigned: ${booking?.clientName} (${booking?.businessName})`, read: false, timestamp: new Date().toISOString() }]);
-            if (bdm.notificationPreferences?.newAssignment) {
-                sendEmailNotification(bdm.email || '', `New Lead Assigned: ${booking?.businessName}`, booking || {}, `Hello ${bdm.name}, you have been assigned a new lead for ${booking?.businessName}. Please review the details in your dashboard.`);
+            if (bdm.notificationPreferences?.newAssignment && bdm.email) {
+                sendEmailNotification(
+                  bdm.email, 
+                  `New Lead Assigned: ${booking?.businessName}`, 
+                  booking || {}, 
+                  `Hello ${bdm.name}, you have been assigned a new lead for ${booking?.businessName}. Please review the details in your dashboard.`,
+                  "NEW LEAD ASSIGNED"
+                );
             }
             triggerSystemAlert(`Lead assigned to ${bdm.name}. Notification sent.`);
         }
@@ -502,8 +508,14 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         }));
         
         setNotifications(prev => [...prev, { id: Date.now(), vendorId: bookingToManage.vendor.id, bookingId: currentBookingId, message: `Your booking for ${bookingToManage.clientName} was rejected. Reason: ${reasonStr}`, read: false, timestamp: new Date().toISOString() }]);
-        if (bookingToManage.vendor.notificationPreferences?.statusChange) {
-            sendEmailNotification(bookingToManage.vendor.email || '', `Lead Rejected: ${bookingToManage.businessName}`, bookingToManage, `The lead for ${bookingToManage.businessName} was rejected. Reason: ${reasonStr}`);
+        if (bookingToManage.vendor.notificationPreferences?.statusChange && bookingToManage.vendor.email) {
+            sendEmailNotification(
+              bookingToManage.vendor.email, 
+              `Lead Rejected: ${bookingToManage.businessName}`, 
+              bookingToManage, 
+              `The lead for ${bookingToManage.businessName} was rejected. Reason: ${reasonStr}`,
+              "BOOKING REJECTED"
+            );
         }
         setBookingToManage(null); 
         setRejectionReason('');
@@ -537,8 +549,14 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             const targetId = approvedBooking.bdmId || approvedBooking.vendor.id;
             setNotifications(prev => [...prev, { id: Date.now(), vendorId: targetId, bookingId, message: `Request Approved: ${approvedBooking?.clientName} on ${approvedBooking?.date}`, read: false, timestamp: new Date().toISOString() }]);
             const targetUser = approvedBooking.bdmId ? bdms.find(b => b.id === approvedBooking?.bdmId) : vendors.find(v => v.id === approvedBooking?.vendor.id);
-            if (targetUser && targetUser.notificationPreferences?.requestDecision) {
-                 sendEmailNotification(targetUser.email || '', `Request Approved: ${approvedBooking.businessName}`, approvedBooking, `Your booking request for ${approvedBooking.businessName} has been approved and confirmed.`);
+            if (targetUser && targetUser.notificationPreferences?.requestDecision && targetUser.email) {
+                 sendEmailNotification(
+                   targetUser.email, 
+                   `Request Approved: ${approvedBooking.businessName}`, 
+                   approvedBooking, 
+                   `Your booking request for ${approvedBooking.businessName} has been approved and confirmed.`,
+                   "REQUEST DECISION"
+                 );
             }
             triggerSystemAlert(`Request approved and confirmed.`);
         }
@@ -560,14 +578,20 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
          setNotifications(prev => [...prev, { id: Date.now(), vendorId: targetId, bookingId, message: `Request Rejected for ${bookingId}. Reason: ${reason}`, read: false, timestamp: new Date().toISOString() }]);
          if (rejectedBooking) {
             const targetUser = rejectedBooking.bdmId ? bdms.find(b => b.id === rejectedBooking?.bdmId) : vendors.find(v => v.id === rejectedBooking?.vendor.id);
-            if (targetUser && targetUser.notificationPreferences?.requestDecision) {
-                 sendEmailNotification(targetUser.email || '', `Request Rejected: ${rejectedBooking.businessName}`, rejectedBooking, `Your booking request for ${rejectedBooking.businessName} was rejected. Reason: ${reason}`);
+            if (targetUser && targetUser.notificationPreferences?.requestDecision && targetUser.email) {
+                 sendEmailNotification(
+                   targetUser.email, 
+                   `Request Rejected: ${rejectedBooking.businessName}`, 
+                   rejectedBooking, 
+                   `Your booking request for ${rejectedBooking.businessName} was rejected. Reason: ${reason}`,
+                   "REQUEST DECISION"
+                 );
             }
          }
          setRequestToReview(null);
     };
 
-    const handleManualBookingEntry = (bookingDetails: Omit<Booking, 'id' | 'status'>, slotsToBlock: string[] = []) => {
+    const handleManualBookingEntry = (bookingDetails: Omit<Booking, 'id' | 'status'>, slotsToBlock: string[]) => {
         const mainBookingId = Date.now();
         
         const normalizedBusiness = bookingDetails.businessName.toLowerCase().trim();
@@ -579,13 +603,10 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
 
         const existingMatch = allBookings.find(b => {
             if (b.isBlocker || b.status === 'rejected') return false;
-            
             const bDate = new Date(b.date);
             if (bDate < oneYearAgo) return false;
-
             const bPhone = b.clientPhone.replace(/\D/g, '');
             const bEmail = b.clientEmail?.toLowerCase().trim() || '';
-
             return (
                 (normalizedBusiness && b.businessName.toLowerCase().trim() === normalizedBusiness) ||
                 (normalizedPhone && bPhone === normalizedPhone) ||
@@ -623,7 +644,13 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             status: 'active'
         }));
 
-        sendEmailNotification("pia@zealdigital.com.au", `New Lead Booked (Admin): ${bookingDetails.businessName}`, newBooking, `Hello, Admin ${currentUser.name} has manually entered a new lead for ${bookingDetails.clientName} at ${bookingDetails.businessName}.`);
+        sendEmailNotification(
+          "pia@zealdigital.com.au", 
+          `New Lead Booked (Admin): ${bookingDetails.businessName}`, 
+          newBooking, 
+          `Hello, Admin ${currentUser.name} has manually entered a new lead for ${bookingDetails.clientName} at ${bookingDetails.businessName}.`,
+          "ADMIN MANUAL BOOKING"
+        );
         
         setAllBookings(prev => [...prev, newBooking, ...blockers]);
         setIsManualBookingOpen(false);
@@ -795,7 +822,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const handleEditHoliday = (holiday: PublicHoliday) => { setEditingHolidayOriginal(holiday); setNewHolidayName(holiday.name); setNewHolidayStartDate(holiday.startDate); setNewHolidayEndDate(holiday.endDate); setNewHolidayRegions(holiday.regions); };
     const handleDeleteHoliday = (id: number) => { setPublicHolidays(prev => prev.filter(h => h.id !== id)); };
     
-    // FIX: Changed 'file' to 'logoFile' to resolve "Cannot find name 'file'" error.
     const handleSaveBranding = () => { if (logoFile) { const reader = new FileReader(); reader.onloadend = () => { setBranding({ ...brandingForm, logoUrl: reader.result as string }); }; reader.readAsDataURL(logoFile); } else setBranding(brandingForm); };
     const handleUpdateMyProfile = (e: React.FormEvent) => { e.preventDefault(); onUpdateProfile({ ...currentUser, ...profileForm } as any); setShowProfileSuccess(true); setIsEditingPassword(false); setTimeout(() => setShowProfileSuccess(false), 3000); };
 
@@ -811,8 +837,14 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
 
         if (updatedBooking) {
             setNotifications(prev => [...prev, { id: Date.now(), vendorId: updatedBooking!.vendor.id, bookingId, message: `Manager sent the requested SMS to ${updatedBooking!.clientName}.`, read: false, timestamp: new Date().toISOString() }]);
-            if (updatedBooking.vendor.notificationPreferences?.smsSent) {
-                sendEmailNotification(updatedBooking.vendor.email || '', `SMS Sent: ${updatedBooking.businessName}`, updatedBooking, `Hello, the manager has sent the SMS you requested for ${updatedBooking.clientName}.`);
+            if (updatedBooking.vendor.notificationPreferences?.smsSent && updatedBooking.vendor.email) {
+                sendEmailNotification(
+                  updatedBooking.vendor.email, 
+                  `SMS Sent: ${updatedBooking.businessName}`, 
+                  updatedBooking, 
+                  `Hello, the manager has sent the SMS you requested for ${updatedBooking.clientName}.`,
+                  "SMS SENT TO CLIENT"
+                );
             }
             triggerSystemAlert("SMS marked as sent. Caller notified.");
         }
@@ -1454,11 +1486,11 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                             </div>
                                                         </div>
                                                         <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <button onClick={() => handleEditHoliday(h)} className="text-gray-300 hover:text-indigo-600 transition-colors p-1" title="Edit Holiday">
+                                                            <button onClick={() => handleEditHoliday(h)} className="text-gray-400 hover:text-indigo-600 transition-colors p-1" title="Edit Holiday">
                                                                 <PencilSquareIcon className="w-4 h-4" />
                                                             </button>
                                                             <button onClick={() => handleDeleteHoliday(h.id)} className="text-gray-300 hover:text-red-600 transition-colors p-1" title="Delete Holiday">
-                                                                <TrashIcon className="w-4 h-4" />
+                                                                <TrashIcon className="w-5 h-5" />
                                                             </button>
                                                         </div>
                                                     </div>

@@ -19,6 +19,7 @@ import UnifiedCalendar from './UnifiedCalendar';
 import BdmBookingRequestModal from './BdmBookingRequestModal';
 import ArchivedBookingsList from './ArchivedBookingsList';
 import { sendEmailNotification } from '../utils/emailService';
+import { DEFAULT_NOTIFICATION_PREFERENCES } from '../constants';
 
 interface DashboardProps {
   currentUser: Extract<User, { role: 'vendor' }>;
@@ -84,9 +85,16 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const [settingsForm, setSettingsForm] = useState({
       email: currentUser.email || '',
-      notificationPreferences: currentUser.notificationPreferences || { newBooking: true, statusChange: true, bookingRequest: true, requestDecision: true, smsRequest: true, smsSent: true, bdmStatusUpdate: false, newAssignment: false }
+      notificationPreferences: currentUser.notificationPreferences || DEFAULT_NOTIFICATION_PREFERENCES
   });
   const [settingsSaved, setSettingsSaved] = useState(false);
+
+  useEffect(() => {
+    setSettingsForm({
+        email: currentUser.email || '',
+        notificationPreferences: currentUser.notificationPreferences || DEFAULT_NOTIFICATION_PREFERENCES
+    });
+  }, [currentUser]);
 
   const handleSaveSettings = (e: React.FormEvent) => {
       e.preventDefault();
@@ -143,7 +151,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                 m.email,
                 `New Booking: ${bookingDetails.businessName}${existingMatch ? ' (DUPLICATE)' : ''}`,
                 newBooking,
-                `Hello Admin, a new booking has been confirmed by ${currentUser.name} for ${bookingDetails.clientName} at ${bookingDetails.businessName}.${existingMatch ? ' WARNING: This appears to be a duplicate lead.' : ''}`
+                `Hello Admin, a new booking has been confirmed by ${currentUser.name} for ${bookingDetails.clientName} at ${bookingDetails.businessName}.${existingMatch ? ' WARNING: This appears to be a duplicate lead.' : ''}`,
+                "NEW BOOKING CONFIRMED"
             );
         }
     });
@@ -204,7 +213,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                 m.email,
                 `ACTION REQUIRED: Manual Date Request${existingMatch ? ' (DUPLICATE)' : ''}`,
                 newBooking,
-                `Hello, ${currentUser.name} is requesting approval for a manual appointment date with ${bookingDetails.businessName}.${existingMatch ? ' WARNING: This contact info matches an existing lead.' : ''} Please review this in your dashboard.`
+                `Hello, ${currentUser.name} is requesting approval for a manual appointment date with ${bookingDetails.businessName}.${existingMatch ? ' WARNING: This contact info matches an existing lead.' : ''} Please review this in your dashboard.`,
+                "MANUAL DATE REQUEST"
             );
         }
       });
@@ -226,7 +236,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                 m.email,
                 `SMS Request: ${type}`,
                 booking || {},
-                `Hello, ${currentUser.name} has requested an SMS be sent to ${booking?.clientName} (${booking?.businessName}). Context: ${message}`
+                `Hello, ${currentUser.name} has requested an SMS be sent to ${booking?.clientName} (${booking?.businessName}). Context: ${message}`,
+                "SMS ASSISTANCE REQUESTED"
             );
         }
       });

@@ -9,16 +9,19 @@ const BACKEND_API_URL = "https://zeal-crm-backend.vercel.app";
 /**
  * Sends a lead booking notification via custom backend
  */
-export const sendEmailNotification = async (toEmail: string, subject: string, booking: Partial<Booking>, message: string) => {
-    const finalRecipient = toEmail || "pia@zealdigital.com.au";
-    
+export const sendEmailNotification = async (toEmail: string, subject: string, booking: Partial<Booking>, message: string, header: string = 'NEW LEAD BOOKED') => {
+    // If no email is provided, we do not send. 
+    // This prevents sending to the fallback if a user explicitly has no email in their profile.
+    if (!toEmail) return;
+
     const timeParts = (booking.time || '').split(' ');
     const timeVal = timeParts[0] || 'N/A';
     const ampmVal = timeParts[1] || '';
 
     const payload = {
-        to_email: finalRecipient,
+        to_email: toEmail,
         subject: subject,
+        email_header: header.toUpperCase(), // New property for backend template
         calling_team: booking.vendor?.name || booking.callerName || 'N/A',
         region: booking.region || 'N/A',
         client_name: booking.clientName || 'N/A',
