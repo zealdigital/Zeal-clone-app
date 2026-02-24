@@ -188,7 +188,27 @@ interface ImportPreviewModalProps {
     newBookings: Booking[];
 }
 
+const Pagination = ({ totalPages, currentPage, onPageChange, totalItems, label }: { totalPages: number, currentPage: number, onPageChange: (p: number) => void, totalItems: number, label: string }) => (
+    <div className="p-4 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
+        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{totalItems} {label}</span>
+        <div className="flex items-center gap-2">
+            <button onClick={() => onPageChange(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white">Prev</button>
+            <span className="text-xs font-bold text-gray-600">Page {currentPage} of {totalPages}</span>
+            <button onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages} className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white">Next</button>
+        </div>
+    </div>
+);
+
 const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onConfirm, stats, newBookings }) => {
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 20;
+    const totalPages = Math.max(1, Math.ceil(newBookings.length / itemsPerPage));
+    
+    const paginatedBookings = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return newBookings.slice(start, start + itemsPerPage);
+    }, [newBookings, currentPage]);
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-2xl w-full max-w-5xl max-h-[85vh] flex flex-col animate-scaleIn">
@@ -213,7 +233,7 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
                     </div>
                     
                     <h3 className="font-bold text-gray-800 mb-4 uppercase tracking-tighter text-sm flex items-center gap-2">
-                        Preview (First 20 Data Entries):
+                        Preview (Data Entries):
                     </h3>
                     
                     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
@@ -232,7 +252,7 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-100">
-                                    {newBookings.slice(0, 20).map((b, idx) => (
+                                    {paginatedBookings.map((b, idx) => (
                                         <tr key={idx} className={`hover:bg-gray-50 transition-colors ${b.isDuplicate ? 'bg-amber-50/50' : ''}`}>
                                             <td className="p-3 font-bold text-gray-900 whitespace-nowrap">{b.businessName || '-'}</td>
                                             <td className="p-3 text-gray-600 whitespace-nowrap">{b.clientName || '-'}</td>
@@ -257,6 +277,15 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
                                 </tbody>
                             </table>
                         </div>
+                        {newBookings.length > 0 && (
+                            <Pagination 
+                                totalPages={totalPages} 
+                                currentPage={currentPage} 
+                                onPageChange={setCurrentPage} 
+                                totalItems={newBookings.length} 
+                                label="Data Entries" 
+                            />
+                        )}
                     </div>
                 </div>
                 <div className="p-6 border-t bg-gray-50 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -837,17 +866,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         }
         setSmsActionBooking(null);
     };
-
-    const Pagination = ({ totalPages, currentPage, onPageChange, totalItems, label }: { totalPages: number, currentPage: number, onPageChange: (p: number) => void, totalItems: number, label: string }) => (
-        <div className="p-4 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{totalItems} {label}</span>
-            <div className="flex items-center gap-2">
-                <button onClick={() => onPageChange(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white">Prev</button>
-                <span className="text-xs font-bold text-gray-600">Page {currentPage} of {totalPages}</span>
-                <button onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages} className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white">Next</button>
-            </div>
-        </div>
-    );
 
     return (
         <div className="min-h-screen transition-colors duration-300" style={{ backgroundColor: dashboardBackground }}>
