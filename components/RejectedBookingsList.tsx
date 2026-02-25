@@ -72,7 +72,7 @@ const RejectedBookingsList: React.FC<RejectedBookingsListProps> = ({ bookings, r
                 </td>
                 <td className="px-6 py-5 whitespace-nowrap">
                   <div className="text-sm font-normal text-gray-600">
-                    {new Date(booking.date + 'T00:00:00Z').toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC'})}
+                    {formatToDDMMYY(booking.date)}
                     <span className="text-gray-400 ml-1">at {booking.time}</span>
                   </div>
                 </td>

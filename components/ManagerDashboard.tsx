@@ -247,7 +247,7 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Phone</th>
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Email</th>
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Website</th>
-                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Date & Time</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Date</th>
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Region</th>
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Team</th>
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Caller</th>
@@ -265,7 +265,7 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
                                             <td className="p-3 text-gray-500 whitespace-nowrap">{b.clientPhone || '-'}</td>
                                             <td className="p-3 text-gray-500 whitespace-nowrap">{b.clientEmail || '-'}</td>
                                             <td className="p-3 text-indigo-600 truncate max-w-[120px]" title={b.clientWebsite}>{b.clientWebsite || '-'}</td>
-                                            <td className="p-3 text-gray-600 whitespace-nowrap">{formatToDDMMYY(b.date)} {b.time}</td>
+                                            <td className="p-3 text-gray-600 whitespace-nowrap">{formatToDDMMYY(b.date)}</td>
                                             <td className="p-3">
                                                 <span className="px-1.5 py-0.5 bg-gray-100 rounded font-bold uppercase text-[9px]">{b.region}</span>
                                             </td>
