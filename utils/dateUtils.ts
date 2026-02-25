@@ -96,6 +96,26 @@ export const getNextTwoWorkdays = (
 };
 
 /**
+ * Formats a Date object or YYYY-MM-DD string into DD/MM/YY format.
+ */
+export const formatToDDMMYY = (dateInput: Date | string): string => {
+    if (!dateInput) return '-';
+    let date: Date;
+    if (typeof dateInput === 'string') {
+        // Handle YYYY-MM-DD
+        const [year, month, day] = dateInput.split('-').map(Number);
+        date = new Date(year, month - 1, day);
+    } else {
+        date = dateInput;
+    }
+    
+    const d = date.getDate().toString().padStart(2, '0');
+    const m = (date.getMonth() + 1).toString().padStart(2, '0');
+    const y = date.getFullYear().toString().slice(-2);
+    return `${d}/${m}/${y}`;
+};
+
+/**
  * Formats a Date object into a readable string format using Local components.
  */
 export const formatDisplayDate = (date: Date): string => {

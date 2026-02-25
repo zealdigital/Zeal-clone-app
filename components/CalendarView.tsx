@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
 import type { Booking, Region, LeaveDay, PublicHoliday, AppointmentSlotsConfig } from '../types';
-import { getNextTwoWorkdays, formatDisplayDate, formatDateForStorage } from '../utils/dateUtils';
+import { getNextTwoWorkdays, formatDDMMYY, formatDateForStorage } from '../utils/dateUtils';
 import { getAppointmentSlotsForDay } from '../utils/slotUtils';
 import { ClockIcon } from './Icons';
 
@@ -69,7 +69,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                 <div key={day.toISOString()} className="bg-white p-6 rounded-xl shadow-md animate-fadeIn">
                   <div className="flex justify-between items-center border-b pb-3 mb-4">
                     <h2 className="text-lg font-semibold text-gray-900">
-                      {formatDisplayDate(day)}
+                      {formatDDMMYY(day)}
                     </h2>
                     <div className="text-sm font-medium bg-indigo-100 text-indigo-800 rounded-full px-3 py-1">
                       {totalBookingsForDay} {totalBookingsForDay === 1 ? 'Booking' : 'Bookings'}

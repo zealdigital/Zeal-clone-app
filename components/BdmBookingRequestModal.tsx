@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import type { Booking, Region, BDM, Vendor, User, AppointmentSlotsConfig } from '../types';
 import { XMarkIcon, ClockIcon, CalendarDaysIcon, UserGroupIcon, DocumentTextIcon, ExclamationTriangleIcon } from './Icons';
 import { getAppointmentSlotsForDay } from '../utils/slotUtils';
+import { formatToDDMMYY } from '../utils/dateUtils';
 
 interface BdmBookingRequestModalProps {
   currentUser: User;
@@ -195,7 +196,7 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Date:</span>
                             <span className="font-bold text-gray-800 flex items-center gap-1.5">
                                 <CalendarDaysIcon className="w-3.5 h-3.5 text-gray-400" />
-                                {formData.date || '---'}
+                                {formatToDDMMYY(formData.date) || '---'}
                             </span>
                         </div>
                         <div className="flex flex-col">

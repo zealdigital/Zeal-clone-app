@@ -4,6 +4,7 @@ import { PencilSquareIcon, TrashIcon, ClockIcon, CheckBadgeIcon, PhoneIcon, Chat
 import { getStatusPill } from '../utils/statusUtils';
 import ExpandableNote from './ExpandableNote';
 import SmsRequestModal from './SmsRequestModal';
+import { formatDDMMYY } from '../utils/dateUtils';
 
 interface MyBookingsListProps {
   bookings: Booking[];
@@ -129,7 +130,7 @@ const MyBookingsList: React.FC<MyBookingsListProps> = ({ bookings, onEditBooking
                     <td colSpan={9} className="px-6 py-2 text-sm font-normal text-gray-600">
                         <div className="flex items-center gap-2">
                             <CalendarDaysIcon className="w-4 h-4 text-gray-400"/>
-                            {new Date(date + 'T00:00:00Z').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                            {formatDDMMYY(date)}
                         </div>
                     </td>
                 </tr>

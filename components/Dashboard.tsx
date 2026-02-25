@@ -20,6 +20,7 @@ import BdmBookingRequestModal from './BdmBookingRequestModal';
 import ArchivedBookingsList from './ArchivedBookingsList';
 import { sendEmailNotification } from '../utils/emailService';
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../constants';
+import { formatDDMMYY } from '../utils/dateUtils';
 
 interface DashboardProps {
   currentUser: Extract<User, { role: 'vendor' }>;
@@ -371,7 +372,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                             <div className="text-[11px] text-gray-500 truncate mb-2">{req.clientName}</div>
                                             <div className="flex items-center gap-2 text-[10px] font-bold text-gray-600">
                                                 <CalendarDaysIcon className="w-3 h-3 text-gray-400" />
-                                                {new Date(req.date + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                {formatDDMMYY(req.date)}
                                                 <span className="text-gray-300">|</span>
                                                 <ClockIcon className="w-3 h-3 text-gray-400" />
                                                 {req.time}

@@ -3,6 +3,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import type { Booking } from '../types';
 import { getStatusPill } from '../utils/statusUtils';
 import { PhoneIcon, CalendarDaysIcon, PencilSquareIcon } from './Icons';
+import { formatDDMMYY } from '../utils/dateUtils';
 
 interface ArchivedBookingsListProps {
   bookings: Booking[];
@@ -80,7 +81,7 @@ const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, r
                   <td colSpan={role === 'manager' ? (onEditBooking ? 8 : 7) : (onEditBooking ? 7 : 6)} className="px-6 py-2 text-sm font-normal text-gray-600 uppercase tracking-tight">
                     <div className="flex items-center gap-2">
                       <CalendarDaysIcon className="w-4 h-4 text-gray-400" />
-                      {new Date(date + 'T00:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                      {formatDDMMYY(date)}
                     </div>
                   </td>
                 </tr>

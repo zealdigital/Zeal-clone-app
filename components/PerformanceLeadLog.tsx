@@ -2,6 +2,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import type { Booking, BDM } from '../types';
 import { getStatusPill } from '../utils/statusUtils';
+import { formatToDDMMYY } from '../utils/dateUtils';
 import { ArrowDownTrayIcon, MagnifyingGlassIcon } from './Icons';
 import { exportBookingsToCSV } from '../utils/exportUtils';
 
@@ -209,7 +210,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
               return (
                 <tr key={lead.id} className="hover:bg-gray-50 transition-colors group">
                   <td className="px-6 py-6 whitespace-nowrap text-sm font-medium text-gray-500">
-                    {lead.date}
+                    {formatToDDMMYY(lead.date)}
                   </td>
                   <td className="px-6 py-6 whitespace-nowrap">
                     <div className="text-base font-bold text-gray-900 leading-tight">{lead.businessName}</div>

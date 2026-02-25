@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Booking, Vendor, Region, AppointmentSlotsConfig } from '../types';
 import { XMarkIcon, UserGroupIcon, PencilSquareIcon, ExclamationTriangleIcon } from './Icons';
-import { formatDateForStorage } from '../utils/dateUtils';
+import { formatDateForStorage, formatDDMMYY } from '../utils/dateUtils';
 import { getAppointmentSlotsForDay } from '../utils/slotUtils';
 import TimePicker from './TimePicker';
 
@@ -312,7 +312,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
         <div className="p-3 bg-gray-50 text-sm grid grid-cols-2 gap-x-4 border-b">
             <p><strong>Region:</strong> {region}</p>
             {!isCustom && <p><strong>Time:</strong> {time}</p>}
-            <p className="col-span-2"><strong>Date:</strong> {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })}</p>
+            <p className="col-span-2"><strong>Date:</strong> {formatDDMMYY(date)}</p>
         </div>
 
         {!isCustom && !isEditMode && (

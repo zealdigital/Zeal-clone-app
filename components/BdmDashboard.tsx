@@ -20,6 +20,7 @@ import RejectedBookingsList from './RejectedBookingsList';
 import ArchivedBookingsList from './ArchivedBookingsList';
 import { sendEmailNotification } from '../utils/emailService';
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../constants';
+import { formatDDMMYY } from '../utils/dateUtils';
 
 interface BdmDashboardProps {
   currentUser: Extract<User, { role: 'bdm' }>;
@@ -320,7 +321,7 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                                             <div className="text-[11px] text-gray-500 truncate mb-2">{req.clientName}</div>
                                             <div className="flex items-center gap-2 text-[10px] font-bold text-gray-600">
                                                 <CalendarDaysIcon className="w-3 h-3 text-gray-400" />
-                                                {new Date(req.date + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                {formatDDMMYY(req.date)}
                                                 <span className="text-gray-300">|</span>
                                                 <ClockIcon className="w-3 h-3 text-gray-400" />
                                                 {req.time}
@@ -363,7 +364,7 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                                         ) : (
                                             sortedDateKeysActive.map(dateKey => (
                                                 <React.Fragment key={dateKey}>
-                                                    <tr className="bg-gray-50 border-y border-gray-200"><td colSpan={6} className="px-6 py-3 text-sm font-bold text-gray-700 uppercase tracking-tight">{new Date(dateKey + 'T00:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}</td></tr>
+                                                    <tr className="bg-gray-50 border-y border-gray-200"><td colSpan={6} className="px-6 py-3 text-sm font-bold text-gray-700 uppercase tracking-tight">{formatDDMMYY(dateKey)}</td></tr>
                                                     {groupedActiveBookings[dateKey].map(booking => (
                                                         <tr key={booking.id} className="hover:bg-blue-50/30 transition-colors"><td className="px-6 py-5 align-top"><div className="text-base font-bold text-gray-900 mb-1">{booking.clientName}</div><div className="flex flex-col gap-1.5">{booking.clientWebsite && (<a href={booking.clientWebsite.startsWith('http') ? booking.clientWebsite : `https://${booking.clientWebsite}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline font-medium break-all">{booking.clientWebsite}</a>)}{booking.clientPhone && (<a href={`tel:${booking.clientPhone}`} className="text-xs text-gray-500 hover:text-indigo-600 transition-colors font-medium">{booking.clientPhone}</a>)}</div></td><td className="px-6 py-5 align-top whitespace-nowrap text-sm text-gray-600 font-medium pt-7">{booking.vendor.name}</td><td className="px-6 py-5 align-top whitespace-nowrap pt-7"><div className="text-sm font-black text-gray-900">{booking.time}</div></td><td className="px-6 py-5 align-top pt-6">{getStatusPill(booking.status)}</td><td className="px-6 py-5 align-top text-sm text-gray-500 max-w-xs pt-7"><ExpandableNote text={booking.bdmNote || booking.notes} /></td><td className="px-6 py-5 align-top whitespace-nowrap text-sm font-medium pt-6"><div className="flex justify-end gap-2"><button onClick={() => setBookingToUpdate(booking)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md border border-indigo-200" title="Update Lead Result / Status"><PencilSquareIcon className="w-4 h-4" /></button><button onClick={() => setBookingToManageNotes(booking)} className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-md border border-indigo-200" title="Private Notes & Reminders"><BellIcon className="w-4 h-4" /></button></div></td></tr>
                                                     ))}

@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import type { Booking, AppointmentSlotsConfig } from '../types';
 import { XMarkIcon } from './Icons';
 import { getAppointmentSlotsForDay } from '../utils/slotUtils';
+import { formatDDMMYY } from '../utils/dateUtils';
 
 interface ManagerBookingReviewModalProps {
   booking: Booking;
@@ -68,7 +69,7 @@ const ManagerBookingReviewModal: React.FC<ManagerBookingReviewModalProps> = ({
                 </div>
                 <div className="flex justify-between">
                   <span className="font-bold text-gray-500 uppercase text-[10px] tracking-wider">Date:</span> 
-                  <span className="font-semibold text-gray-900">{new Date(booking.date + 'T00:00:00Z').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                  <span className="font-semibold text-gray-900">{formatDDMMYY(booking.date)}</span>
                 </div>
                 <div className="flex justify-between text-indigo-700 font-black">
                   <span className="font-bold text-indigo-500 uppercase text-[10px] tracking-wider">Requested Time:</span> 

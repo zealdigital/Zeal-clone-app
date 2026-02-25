@@ -3,6 +3,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import type { Booking } from '../types';
 import { PhoneIcon } from './Icons';
 
+import { formatToDDMMYY } from '../utils/dateUtils';
+
 interface RejectedBookingsListProps {
   bookings: Booking[];
   role: 'manager' | 'vendor' | 'bdm';
