@@ -244,10 +244,15 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Business</th>
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Client</th>
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Phone</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Email</th>
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Website</th>
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Date & Time</th>
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Region</th>
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Team</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Caller</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Address</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Notes</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Status</th>
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Duplicate</th>
                                     </tr>
                                 </thead>
@@ -257,12 +262,19 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
                                             <td className="p-3 font-bold text-gray-900 whitespace-nowrap">{b.businessName || '-'}</td>
                                             <td className="p-3 text-gray-600 whitespace-nowrap">{b.clientName || '-'}</td>
                                             <td className="p-3 text-gray-500 whitespace-nowrap">{b.clientPhone || '-'}</td>
+                                            <td className="p-3 text-gray-500 whitespace-nowrap">{b.clientEmail || '-'}</td>
                                             <td className="p-3 text-indigo-600 truncate max-w-[120px]" title={b.clientWebsite}>{b.clientWebsite || '-'}</td>
                                             <td className="p-3 text-gray-600 whitespace-nowrap">{b.date} {b.time}</td>
                                             <td className="p-3">
                                                 <span className="px-1.5 py-0.5 bg-gray-100 rounded font-bold uppercase text-[9px]">{b.region}</span>
                                             </td>
                                             <td className="p-3 text-gray-500 whitespace-nowrap">{b.vendor.name || '-'}</td>
+                                            <td className="p-3 text-gray-500 whitespace-nowrap">{b.callerName || '-'}</td>
+                                            <td className="p-3 text-gray-500 truncate max-w-[150px]" title={b.address}>{b.address || '-'}</td>
+                                            <td className="p-3 text-gray-500 truncate max-w-[150px]" title={b.notes}>{b.notes || '-'}</td>
+                                            <td className="p-3">
+                                                <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded font-bold uppercase text-[9px]">{b.status}</span>
+                                            </td>
                                             <td className="p-3">
                                                 {b.isDuplicate ? 
                                                     <span className="text-amber-600 font-black text-[9px] uppercase">YES</span> : 
@@ -272,7 +284,7 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
                                         </tr>
                                     ))}
                                     {newBookings.length === 0 && (
-                                        <tr><td colSpan={8} className="p-10 text-center text-gray-400 italic">No valid records found in file.</td></tr>
+                                        <tr><td colSpan={13} className="p-10 text-center text-gray-400 italic">No valid records found in file.</td></tr>
                                     )}
                                 </tbody>
                             </table>
