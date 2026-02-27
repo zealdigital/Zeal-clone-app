@@ -107,6 +107,8 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
 
     const dayLeaves = leaveDays.filter(l => l.date === dateStr && l.region === region);
 
+    const slotBreakdown: { time: string; capacity: number; booked: number; free: number }[] = [];
+
     slots.forEach(slot => {
         const allDayLeaves = dayLeaves.filter(l => !l.slots || l.slots.length === 0).length;
         const slotLeaves = dayLeaves.filter(l => l.slots?.includes(slot)).length;
@@ -116,9 +118,10 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
         
         totalCapacity += capacityForSlot;
         totalBooked += bookedInSlot;
+        slotBreakdown.push({ time: slot, capacity: capacityForSlot, booked: bookedInSlot, free: Math.max(0, capacityForSlot - bookedInSlot) });
     });
 
-    return { totalCapacity, totalBooked, free: Math.max(0, totalCapacity - totalBooked) };
+    return { totalCapacity, totalBooked, free: Math.max(0, totalCapacity - totalBooked), slotBreakdown };
   };
 
   const handlePrev = () => {
@@ -202,8 +205,28 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
               <div className="flex justify-between items-start">
                   <span className={`text-xs font-bold ${isToday ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-full' : 'text-gray-700'}`}>{dayNum}</span>
                   {availability && (
-                      <div className={`text-[9px] font-black uppercase px-1 rounded ${availability.free > 0 ? 'text-green-600 bg-green-50' : 'text-gray-400 bg-gray-50'}`}>
-                          {availability.free} Free
+                      <div className="relative group/avail flex flex-col items-end">
+                          <div className={`text-[9px] font-black uppercase px-1 rounded cursor-help ${availability.free > 0 ? 'text-green-600 bg-green-50' : 'text-gray-400 bg-gray-50'}`}>
+                              {availability.free} Free
+                          </div>
+                          {/* Compact direct view of available slots */}
+                          <div className="mt-1 flex flex-wrap gap-0.5 justify-end max-w-[60px]">
+                              {availability.slotBreakdown.filter(s => s.free > 0).map(slot => (
+                                  <span key={slot.time} className="text-[7px] font-bold text-green-700 bg-green-100/30 px-0.5 rounded leading-none py-0.5">
+                                      {slot.time.replace(':00', '').replace(' ', '')}
+                                  </span>
+                              ))}
+                          </div>
+                          {/* Detailed hover tooltip */}
+                          <div className="absolute top-full right-0 mt-1 w-24 bg-white border border-gray-200 rounded shadow-lg z-50 p-2 opacity-0 group-hover/avail:opacity-100 pointer-events-none transition-opacity">
+                              <p className="text-[8px] font-black text-gray-400 uppercase mb-1 border-b pb-1">Slot Availability</p>
+                              {availability.slotBreakdown.map(slot => (
+                                  <div key={slot.time} className="flex justify-between items-center text-[8px] py-0.5">
+                                      <span className="text-gray-500">{slot.time}</span>
+                                      <span className={`font-bold ${slot.free > 0 ? 'text-green-600' : 'text-red-400'}`}>{slot.free}</span>
+                                  </div>
+                              ))}
+                          </div>
                       </div>
                   )}
               </div>
@@ -267,10 +290,20 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                            <p className={`text-sm font-semibold ${isToday ? 'text-indigo-600' : 'text-gray-700'}`}>{day.toLocaleDateString('en-US', { weekday: 'short' })}</p>
                            <p className={`text-2xl font-bold ${isToday ? 'text-indigo-600' : 'text-gray-800'}`}>{day.getDate()}</p>
                            {availability && (
-                               <div className="mt-2 flex items-center gap-1">
-                                   <div className={`w-1.5 h-1.5 rounded-full ${availability.free > 0 ? 'bg-green-500' : 'bg-gray-300'}`} />
-                                   <span className="text-[10px] font-black text-gray-500 uppercase">{availability.free} Slots Free</span>
-                               </div>
+                               <>
+                                   <div className="mt-2 flex items-center gap-1">
+                                       <div className={`w-1.5 h-1.5 rounded-full ${availability.free > 0 ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                       <span className="text-[10px] font-black text-gray-500 uppercase">{availability.free} Slots Free</span>
+                                   </div>
+                                   <div className="mt-3 grid grid-cols-1 gap-1 border-t border-gray-100 pt-2">
+                                       {availability.slotBreakdown.map(slot => (
+                                           <div key={slot.time} className="flex justify-between items-center text-[9px] px-1 py-0.5 rounded hover:bg-white transition-colors">
+                                               <span className="text-gray-400 font-medium">{slot.time}</span>
+                                               <span className={`font-black ${slot.free > 0 ? 'text-green-600' : 'text-red-400'}`}>{slot.free}</span>
+                                           </div>
+                                       ))}
+                                   </div>
+                               </>
                            )}
                         </div>
                         <div className="col-span-10 p-3 space-y-2 relative group min-h-[80px]">
