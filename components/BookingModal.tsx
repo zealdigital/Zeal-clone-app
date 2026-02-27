@@ -6,6 +6,15 @@ import { formatDateForStorage, formatDDMMYY } from '../utils/dateUtils';
 import { getAppointmentSlotsForDay } from '../utils/slotUtils';
 import TimePicker from './TimePicker';
 
+const normalizeWebsite = (url: string): string => {
+    if (!url) return '';
+    let cleaned = url.toLowerCase().trim();
+    cleaned = cleaned.replace(/^[a-z]+:\/\//i, "");
+    cleaned = cleaned.replace(/^www\./i, "");
+    cleaned = cleaned.split(/[/?#:]/)[0];
+    return cleaned;
+};
+
 interface SlotManagementInfo {
   date: Date;
   time: string;
@@ -205,14 +214,11 @@ const BookingModal: React.FC<BookingModalProps> = ({
     return { bookingsInSlot: activeBookingsInSlot, availableSlots: available, canBookNew: available > 0 };
   }, [allBookings, date, time, region, salespeopleCount]);
 
-  // Real-time Duplicate Detection (Expanded to Name, Phone, Email)
+  // Real-time Duplicate Detection (Based only on Website URL)
   const duplicateWarning = useMemo(() => {
-    const normalizedBusiness = formData.businessName.toLowerCase().trim();
-    const normalizedClient = formData.clientName.toLowerCase().trim();
-    const normalizedPhone = formData.clientPhone.replace(/\D/g, '');
-    const normalizedEmail = formData.clientEmail.toLowerCase().trim();
+    const normalizedWebsite = normalizeWebsite(formData.clientWebsite);
 
-    if (isEditMode || (!normalizedBusiness && !normalizedClient && !normalizedPhone && !normalizedEmail)) return null;
+    if (isEditMode || !normalizedWebsite) return null;
     
     const oneYearAgo = new Date();
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
@@ -223,16 +229,13 @@ const BookingModal: React.FC<BookingModalProps> = ({
         const bookingDate = new Date(b.date);
         if (bookingDate < oneYearAgo) return false;
 
-        const businessMatch = normalizedBusiness && b.businessName.toLowerCase().trim() === normalizedBusiness;
-        const clientMatch = normalizedClient && b.clientName.toLowerCase().trim() === normalizedClient;
-        const phoneMatch = normalizedPhone && b.clientPhone.replace(/\D/g, '') === normalizedPhone;
-        const emailMatch = normalizedEmail && b.clientEmail?.toLowerCase().trim() === normalizedEmail;
+        const websiteMatch = normalizedWebsite && normalizeWebsite(b.clientWebsite) === normalizedWebsite;
 
-        return businessMatch || clientMatch || phoneMatch || emailMatch;
+        return websiteMatch;
     });
 
     return match || null;
-  }, [formData, allBookings, isEditMode]);
+  }, [formData.clientWebsite, allBookings, isEditMode]);
   
   useEffect(() => {
     if (isEditMode && bookingToEdit) {

@@ -22,6 +22,15 @@ import { sendEmailNotification } from '../utils/emailService';
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../constants';
 import { formatDDMMYY } from '../utils/dateUtils';
 
+const normalizeWebsite = (url: string): string => {
+    if (!url) return '';
+    let cleaned = url.toLowerCase().trim();
+    cleaned = cleaned.replace(/^[a-z]+:\/\//i, "");
+    cleaned = cleaned.replace(/^www\./i, "");
+    cleaned = cleaned.split(/[/?#:]/)[0];
+    return cleaned;
+};
+
 interface BdmDashboardProps {
   currentUser: Extract<User, { role: 'bdm' }>;
   onLogout: () => void;
@@ -238,9 +247,7 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
   const handleRequestBooking = (bookingDetails: Omit<Booking, 'id' | 'status'>) => {
       const requestId = Date.now();
       
-      const normalizedBusiness = bookingDetails.businessName.toLowerCase().trim();
-      const normalizedPhone = bookingDetails.clientPhone.replace(/\D/g, '');
-      const normalizedEmail = bookingDetails.clientEmail?.toLowerCase().trim() || '';
+      const normalizedWebsite = normalizeWebsite(bookingDetails.clientWebsite);
 
       const oneYearAgo = new Date();
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
@@ -249,13 +256,7 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
           if (b.isBlocker || b.status === 'rejected') return false;
           const bDate = new Date(b.date);
           if (bDate < oneYearAgo) return false;
-          const bPhone = b.clientPhone.replace(/\D/g, '');
-          const bEmail = b.clientEmail?.toLowerCase().trim() || '';
-          return (
-              (normalizedBusiness && b.businessName.toLowerCase().trim() === normalizedBusiness) ||
-              (normalizedPhone && bPhone === normalizedPhone) ||
-              (normalizedEmail && bEmail === normalizedEmail)
-          );
+          return normalizedWebsite && normalizeWebsite(b.clientWebsite) === normalizedWebsite;
       });
 
       const newBooking: Booking = { 

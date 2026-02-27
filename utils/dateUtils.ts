@@ -115,6 +115,8 @@ export const formatToDDMMYY = (dateInput: Date | string): string => {
     return `${d}/${m}/${y}`;
 };
 
+export const formatDDMMYY = formatToDDMMYY;
+
 /**
  * Formats a Date object into a readable string format using Local components.
  */

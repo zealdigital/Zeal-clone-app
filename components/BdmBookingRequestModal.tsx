@@ -19,6 +19,15 @@ const HOURS = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11',
 const MINUTES = ['00', '15', '30', '45'];
 const PERIODS = ['AM', 'PM'];
 
+const normalizeWebsite = (url: string): string => {
+    if (!url) return '';
+    let cleaned = url.toLowerCase().trim();
+    cleaned = cleaned.replace(/^[a-z]+:\/\//i, "");
+    cleaned = cleaned.replace(/^www\./i, "");
+    cleaned = cleaned.split(/[/?#:]/)[0];
+    return cleaned;
+};
+
 const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ currentUser, vendors, onClose, onRequestBooking, prefillData, regions, appointmentTimes, allBookings }) => {
   const isManager = currentUser.role === 'manager';
   const isVendor = currentUser.role === 'vendor';
@@ -40,13 +49,11 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
   const [slotsToBlock, setSlotsToBlock] = useState<string[]>([]);
   const [timeState, setTimeState] = useState({ hour: '10', minute: '00', period: 'AM' });
 
-  // Real-time Duplicate Detection (Excluded Client Name to reduce false positives)
+  // Real-time Duplicate Detection (Based only on Website URL)
   const duplicateWarning = useMemo(() => {
-    const normalizedBusiness = formData.businessName.toLowerCase().trim();
-    const normalizedPhone = formData.clientPhone.replace(/\D/g, '');
-    const normalizedEmail = formData.clientEmail.toLowerCase().trim();
+    const normalizedWebsite = normalizeWebsite(formData.clientWebsite);
 
-    if (!normalizedBusiness && !normalizedPhone && !normalizedEmail) return null;
+    if (!normalizedWebsite) return null;
     
     const oneYearAgo = new Date();
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
@@ -57,15 +64,13 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
         const bookingDate = new Date(b.date);
         if (bookingDate < oneYearAgo) return false;
 
-        const businessMatch = normalizedBusiness && b.businessName.toLowerCase().trim() === normalizedBusiness;
-        const phoneMatch = normalizedPhone && b.clientPhone.replace(/\D/g, '') === normalizedPhone;
-        const emailMatch = normalizedEmail && b.clientEmail?.toLowerCase().trim() === normalizedEmail;
+        const websiteMatch = normalizedWebsite && normalizeWebsite(b.clientWebsite) === normalizedWebsite;
 
-        return businessMatch || phoneMatch || emailMatch;
+        return websiteMatch;
     });
 
     return match || null;
-  }, [formData, allBookings]);
+  }, [formData.clientWebsite, allBookings]);
 
   useEffect(() => {
     if (prefillData) {

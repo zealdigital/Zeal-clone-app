@@ -28,6 +28,15 @@ import { sendEmailNotification } from '../utils/emailService';
 import { DEFAULT_NOTIFICATION_PREFERENCES, MANAGERS, VENDORS, BDMS, PUBLIC_HOLIDAYS, APPOINTMENT_TIMES, DEFAULT_BRANDING, DEFAULT_REGION_COLORS } from '../constants';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const normalizeWebsite = (url: string): string => {
+    if (!url) return '';
+    let cleaned = url.toLowerCase().trim();
+    cleaned = cleaned.replace(/^[a-z]+:\/\//i, "");
+    cleaned = cleaned.replace(/^www\./i, "");
+    cleaned = cleaned.split(/[/?#:]/)[0];
+    return cleaned;
+};
 const ITEMS_PER_PAGE = 10;
 
 interface ManagerDashboardProps {
@@ -559,9 +568,27 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     
     const handleUpdateBooking = (updatedDetails: any, slotsToRemove: string[]) => {
         if (!bookingToEdit) return;
+
+        // RE-CHECK DUPLICATE
+        const normalizedWebsite = normalizeWebsite(updatedDetails.clientWebsite || bookingToEdit.clientWebsite);
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+        const existingMatch = allBookings.find(b => {
+            if (b.id === bookingToEdit.id || b.isBlocker || b.status === 'rejected') return false;
+            const bDate = new Date(b.date);
+            if (bDate < oneYearAgo) return false;
+            return normalizedWebsite && normalizeWebsite(b.clientWebsite) === normalizedWebsite;
+        });
+
         setAllBookings(prevBookings => {
             const otherBookings = prevBookings.filter(b => b.id !== bookingToEdit.id && b.parentBookingId !== bookingToEdit.id);
-            const updatedBooking: Booking = { ...bookingToEdit, ...updatedDetails };
+            const updatedBooking: Booking = { 
+                ...bookingToEdit, 
+                ...updatedDetails,
+                isDuplicate: !!existingMatch,
+                duplicateOfBookingId: existingMatch?.id
+            };
             const newBlockers: Booking[] = slotsToRemove.map((time, index) => ({ id: Date.now() + index + 1, clientName: `Slot Blocked`, businessName: `Conflict`, clientWebsite: '', clientPhone: '', address: '', callerName: 'System', date: updatedBooking.date, time: time, vendor: bookingToEdit.vendor, region: updatedBooking.region, isBlocker: true, parentBookingId: updatedBooking.id, status: 'active' }));
             return [...otherBookings, updatedBooking, ...newBlockers];
         });
@@ -630,9 +657,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const handleManualBookingEntry = (bookingDetails: Omit<Booking, 'id' | 'status'>, slotsToBlock: string[]) => {
         const mainBookingId = Date.now();
         
-        const normalizedBusiness = bookingDetails.businessName.toLowerCase().trim();
-        const normalizedPhone = bookingDetails.clientPhone.replace(/\D/g, '');
-        const normalizedEmail = bookingDetails.clientEmail?.toLowerCase().trim() || '';
+        const normalizedWebsite = normalizeWebsite(bookingDetails.clientWebsite);
 
         const oneYearAgo = new Date();
         oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
@@ -641,13 +666,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             if (b.isBlocker || b.status === 'rejected') return false;
             const bDate = new Date(b.date);
             if (bDate < oneYearAgo) return false;
-            const bPhone = b.clientPhone.replace(/\D/g, '');
-            const bEmail = b.clientEmail?.toLowerCase().trim() || '';
-            return (
-                (normalizedBusiness && b.businessName.toLowerCase().trim() === normalizedBusiness) ||
-                (normalizedPhone && bPhone === normalizedPhone) ||
-                (normalizedEmail && bEmail === normalizedEmail)
-            );
+            return normalizedWebsite && normalizeWebsite(b.clientWebsite) === normalizedWebsite;
         });
 
         const newBooking: Booking = { 

@@ -3,6 +3,15 @@ import type { Booking, Vendor, Region } from '../types';
 // Helper to normalize strings for comparison and header matching
 const normalize = (str: string) => str ? str.trim().toLowerCase() : '';
 
+const normalizeWebsite = (url: string): string => {
+    if (!url) return '';
+    let cleaned = url.toLowerCase().trim();
+    cleaned = cleaned.replace(/^[a-z]+:\/\//i, "");
+    cleaned = cleaned.replace(/^www\./i, "");
+    cleaned = cleaned.split(/[/?#:]/)[0];
+    return cleaned;
+};
+
 const extractBusinessFromUrl = (url: string): string => {
     if (!url) return '';
     const trimmed = url.trim();
@@ -226,15 +235,8 @@ export const processImportFile = async (
             const existingMap = new Map<string, number>();
             existingBookings.forEach(b => {
                 if (b.isBlocker || b.status === 'rejected') return;
-                const bizKey = normalize(b.businessName);
-                const clientKey = normalize(b.clientName);
-                const phoneKey = b.clientPhone.replace(/\D/g, '');
-                const emailKey = normalize(b.clientEmail || '');
-
-                if (bizKey) existingMap.set('biz_' + bizKey, b.id);
-                if (clientKey) existingMap.set('cli_' + clientKey, b.id);
-                if (phoneKey) existingMap.set('pho_' + phoneKey, b.id);
-                if (emailKey) existingMap.set('eml_' + emailKey, b.id);
+                const webKey = normalizeWebsite(b.clientWebsite);
+                if (webKey) existingMap.set(webKey, b.id);
             });
 
             const baseId = Date.now();
@@ -364,16 +366,8 @@ export const processImportFile = async (
                     status = 'seen';
                 }
 
-                const normBiz = normalize(businessName);
-                const normCli = normalize(clientName);
-                const normPho = phone ? phone.replace(/\D/g, '') : '';
-                const normEml = normalize(email);
-
-                const duplicateId = 
-                    existingMap.get('biz_' + normBiz) || 
-                    existingMap.get('cli_' + normCli) || 
-                    (normPho ? existingMap.get('pho_' + normPho) : undefined) || 
-                    (normEml ? existingMap.get('eml_' + normEml) : undefined);
+                const webKey = normalizeWebsite(website);
+                const duplicateId = webKey ? existingMap.get(webKey) : undefined;
 
                 if (duplicateId) duplicates++;
 
@@ -398,10 +392,7 @@ export const processImportFile = async (
                 imported++;
                 
                 // Cache for subsequent row duplicate checks within the same file
-                if (normBiz) existingMap.set('biz_' + normBiz, baseId + index);
-                if (normCli) existingMap.set('cli_' + normCli, baseId + index);
-                if (normPho) existingMap.set('pho_' + normPho, baseId + index);
-                if (normEml) existingMap.set('eml_' + normEml, baseId + index);
+                if (webKey) existingMap.set(webKey, baseId + index);
             });
 
             resolve({ newBookings, stats: { imported, duplicates, skipped } });
