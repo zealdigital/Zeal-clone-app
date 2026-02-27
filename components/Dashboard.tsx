@@ -331,7 +331,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [myBookings, searchTerm]);
 
   const myNotifications = useMemo(() => notifications.filter(n => n.vendorId === currentUser.id), [notifications, currentUser.id]);
-  const calendarBookingsForRegion = useMemo(() => allBookings.filter(b => b.region === currentRegion), [allBookings, currentRegion]);
+  const calendarBookingsForRegion = useMemo(() => 
+    allBookings.filter(b => b.region.trim().toUpperCase() === currentRegion.trim().toUpperCase()), 
+    [allBookings, currentRegion]
+  );
   const blockedSlotsForEdit = useMemo(() => bookingToEdit ? allBookings.filter(b => b.parentBookingId === bookingToEdit.id).map(b => b.time) : [], [bookingToEdit, allBookings]);
   const bgColor = getRegionBackgroundColor(currentRegion, regionColors);
 
@@ -370,12 +373,12 @@ const Dashboard: React.FC<DashboardProps> = ({
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                 {pendingRequests.map(req => (
-                                    <div key={req.id} className={`bg-white/80 backdrop-blur rounded-xl border p-3 shadow-sm flex flex-col justify-between ${req.isDuplicate ? 'border-amber-400 bg-amber-50/50' : 'border-indigo-200'}`}>
+                                    <div key={req.id} className={`bg-white/80 backdrop-blur rounded-xl border p-3 shadow-sm flex flex-col justify-between ${req.isDuplicate && (new Date(req.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'border-amber-400 bg-amber-50/50' : 'border-indigo-200'}`}>
                                         <div>
                                             <div className="flex justify-between items-center mb-1">
                                                 <div className="flex items-center gap-1">
                                                     <div className="text-[10px] font-black text-indigo-600 uppercase">Pending Approval</div>
-                                                    {req.isDuplicate && <span className="text-[8px] bg-amber-200 text-amber-800 px-1 rounded font-black">DUPLICATE</span>}
+                                                    {req.isDuplicate && (new Date(req.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) && <span className="text-[8px] bg-amber-200 text-amber-800 px-1 rounded font-black">DUPLICATE</span>}
                                                 </div>
                                                 <div className="text-[10px] font-bold text-gray-400 uppercase">{req.region}</div>
                                             </div>

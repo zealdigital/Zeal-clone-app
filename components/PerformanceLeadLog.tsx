@@ -31,6 +31,11 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
 
   const isVendorRole = role === 'vendor';
 
+  const mappedBookings = useMemo(() => {
+    if (!isVendorRole) return bookings;
+    return bookings.map(b => b.status === 'sold' ? { ...b, status: 'seen' as const } : b);
+  }, [bookings, isVendorRole]);
+
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
@@ -38,15 +43,15 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
 
   const uniqueCallers = useMemo(() => {
     const callers = new Set<string>();
-    bookings.forEach(b => {
+    mappedBookings.forEach(b => {
       const name = isVendorRole ? b.callerName : b.vendor?.name;
       if (name) callers.add(name);
     });
     return Array.from(callers).sort((a, b) => a.localeCompare(b));
-  }, [bookings, isVendorRole]);
+  }, [mappedBookings, isVendorRole]);
 
   const allFilteredLeads = useMemo(() => {
-    return bookings.filter(b => {
+    return mappedBookings.filter(b => {
       const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
       const nameToMatch = isVendorRole ? b.callerName : b.vendor?.name;
       const matchesCaller = callerFilter === 'all' || (nameToMatch === callerFilter);
@@ -72,7 +77,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
         if (dateDiff !== 0) return dateDiff;
         return b.id - a.id;
     });
-  }, [bookings, statusFilter, callerFilter, bdmFilter, searchTerm, isVendorRole]);
+  }, [mappedBookings, statusFilter, callerFilter, bdmFilter, searchTerm, isVendorRole]);
 
   const totalPages = Math.max(1, Math.ceil(allFilteredLeads.length / ITEMS_PER_PAGE));
   const paginatedLeads = useMemo(() => {
@@ -88,7 +93,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
       if (lead.status === 'rescheduled_bdm') {
           return <span className="px-2 py-1 bg-orange-100 text-orange-600 rounded font-black text-[9px] uppercase tracking-tighter">BDM Reschedule</span>;
       }
-      if (lead.isDuplicate) {
+      if (lead.isDuplicate && (new Date(lead.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1)))) {
           return <span className="px-2 py-1 bg-red-100 text-red-600 rounded font-black text-[9px] uppercase tracking-tighter">Duplicate Lead</span>;
       }
       if (lead.customReason?.toLowerCase().includes('manual') || lead.customReason?.toLowerCase().includes('request')) {
@@ -172,7 +177,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
             >
               <option value="all">All Statuses</option>
               <option value="active">Active</option>
-              <option value="sold">Sold</option>
+              {!isVendorRole && <option value="sold">Sold</option>}
               <option value="seen">Seen</option>
               <option value="rescheduled">Rescheduled</option>
               <option value="rescheduled_bdm">BDM Reschedule</option>

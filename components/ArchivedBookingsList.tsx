@@ -91,9 +91,14 @@ const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, r
                       <div className="text-sm font-normal text-gray-900 leading-tight">{booking.businessName}</div>
                       <div className="text-xs font-normal text-gray-500">{booking.clientName}</div>
                       {booking.clientWebsite && (
-                        <div className="text-[10px] text-indigo-500 font-normal mt-0.5 truncate max-w-[150px]">
+                        <a 
+                          href={booking.clientWebsite.startsWith('http') ? booking.clientWebsite : `https://${booking.clientWebsite}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-[10px] text-indigo-500 hover:text-indigo-700 hover:underline truncate max-w-[150px] block transition-colors mt-0.5"
+                        >
                           {booking.clientWebsite}
-                        </div>
+                        </a>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

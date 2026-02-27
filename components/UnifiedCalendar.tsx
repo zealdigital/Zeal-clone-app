@@ -89,16 +89,22 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
 
   // Global availability logic
   const getDayAvailability = (date: Date) => {
-    if (!region || !appointmentTimes[region] || !salespeopleCount[region]) return null;
+    if (!region || !appointmentTimes[region]) return null;
+    const normalizedRegion = region.trim().toUpperCase();
+    const bdmCount = salespeopleCount[normalizedRegion] || 0;
     
     const dateStr = formatDateForStorage(date);
     const slots = getAppointmentSlotsForDay(date, region, appointmentTimes);
-    const dayBookings = allBookingsForAvailability.filter(b => b.date === dateStr && b.region === region && b.status === 'active');
+    const occupiedStatuses = ['active', 'seen', 'rescheduled_bdm', 'pending_approval', 'sold'];
+    const dayBookings = allBookingsForAvailability.filter(b => 
+        b.date === dateStr && 
+        b.region.trim().toUpperCase() === normalizedRegion && 
+        occupiedStatuses.includes(b.status)
+    );
     
     let totalCapacity = 0;
     let totalBooked = 0;
 
-    const bdmCount = salespeopleCount[region] || 0;
     const dayLeaves = leaveDays.filter(l => l.date === dateStr && l.region === region);
 
     slots.forEach(slot => {

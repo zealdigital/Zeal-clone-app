@@ -193,7 +193,11 @@ const App: React.FC = () => {
 
   const salespeopleCount = useMemo(() => {
     return regions.reduce((acc, region) => {
-        acc[region] = bdms.filter(bdm => bdm.region === region && bdm.active !== false).length;
+        const normalizedRegion = region.trim().toUpperCase();
+        acc[normalizedRegion] = bdms.filter(bdm => 
+            bdm.region.trim().toUpperCase() === normalizedRegion && 
+            bdm.active !== false
+        ).length;
         return acc;
     }, {} as Record<Region, number>);
   }, [bdms, regions]);

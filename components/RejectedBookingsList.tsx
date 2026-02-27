@@ -63,6 +63,16 @@ const RejectedBookingsList: React.FC<RejectedBookingsListProps> = ({ bookings, r
                 <td className="px-6 py-5 whitespace-nowrap">
                   <div className="text-sm font-normal text-[#0F172A] leading-tight">{booking.businessName}</div>
                   <div className="text-xs font-normal text-gray-500 mt-0.5">{booking.clientName}</div>
+                  {booking.clientWebsite && (
+                    <a 
+                      href={booking.clientWebsite.startsWith('http') ? booking.clientWebsite : `https://${booking.clientWebsite}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-[10px] text-indigo-500 hover:text-indigo-700 hover:underline truncate max-w-[150px] block transition-colors mt-0.5"
+                    >
+                      {booking.clientWebsite}
+                    </a>
+                  )}
                 </td>
                 <td className="px-6 py-5 whitespace-nowrap">
                    <div className="flex items-center gap-1">

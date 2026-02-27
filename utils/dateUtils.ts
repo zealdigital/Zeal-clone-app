@@ -51,12 +51,13 @@ export const isWorkday = (
   }
   
   // --- PRIORITY 3: CAPACITY CHECK (Office Events / All Staff Leave) ---
-  const totalBdms = salespeopleCount[region] || 0;
+  const normalizedRegion = region.trim().toUpperCase();
+  const totalBdms = salespeopleCount[normalizedRegion] || 0;
   
   if (totalBdms > 0) {
     const bdmsOnAllDayLeave = leaveDays.filter(l => 
         l.date === dateString && 
-        l.region === region && 
+        l.region.trim().toUpperCase() === normalizedRegion && 
         (!l.slots || l.slots.length === 0)
     ).length;
 

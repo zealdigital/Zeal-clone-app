@@ -31,8 +31,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   
   const bookingsCountByDateTime = useMemo(() => {
     const map = new Map<string, number>();
-    // Only count *active* bookings (including blockers) to determine slot availability.
-    allBookingsForRegion.filter(b => b.status === 'active').forEach(booking => {
+    // Count all bookings that occupy a slot (including blockers and various active statuses)
+    const occupiedStatuses = ['active', 'seen', 'rescheduled_bdm', 'pending_approval', 'sold'];
+    allBookingsForRegion.filter(b => occupiedStatuses.includes(b.status)).forEach(booking => {
       const key = `${booking.date}_${booking.time}`;
       map.set(key, (map.get(key) || 0) + 1);
     });
@@ -41,8 +42,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
   const bookingsCountByDay = useMemo(() => {
     const map = new Map<string, number>();
-    // Only count actual, active bookings for the daily total display.
-    allBookingsForRegion.filter(b => b.status === 'active' && !b.isBlocker).forEach(booking => {
+    // Only count actual, active bookings for the daily total display (excluding blockers).
+    const occupiedStatuses = ['active', 'seen', 'rescheduled_bdm', 'pending_approval', 'sold'];
+    allBookingsForRegion.filter(b => occupiedStatuses.includes(b.status) && !b.isBlocker).forEach(booking => {
         const key = booking.date;
         map.set(key, (map.get(key) || 0) + 1);
     });
@@ -62,7 +64,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             {availableDays.map(day => {
               const dayString = formatDateForStorage(day);
               const totalBookingsForDay = bookingsCountByDay.get(dayString) || 0;
-              const leavesForDayAndRegion = leaveDays.filter(l => l.date === dayString && l.region === region);
+              const normalizedRegion = region.trim().toUpperCase();
+              const leavesForDayAndRegion = leaveDays.filter(l => 
+                  l.date === dayString && 
+                  l.region.trim().toUpperCase() === normalizedRegion
+              );
               const slotsForDay = getAppointmentSlotsForDay(day, region, appointmentTimes);
 
               return (
@@ -80,7 +86,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                         <p className="text-gray-500 text-sm italic text-center py-2">No standard slots configured for this day.</p>
                     ) : (
                         slotsForDay.map(time => {
-                          const totalCapacity = salespeopleCount[region];
+                          const normalizedRegion = region.trim().toUpperCase();
+                          const totalCapacity = salespeopleCount[normalizedRegion] || 0;
 
                           // Calculate reductions for this specific slot
                           const allDayLeavesCount = leavesForDayAndRegion.filter(l => !l.slots || l.slots.length === 0).length;
@@ -115,7 +122,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                                 ? 'bg-orange-100 text-orange-800'
                                 : 'bg-green-100 text-green-800'
                               }`}>
-                                {isFullyBooked ? 'Fully Booked' : `${availableSlots} available`}
+                                {isFullyBooked ? 'Fully Booked' : `${availableSlots} / ${slotSpecificCapacity} available`}
                               </div>
                             </button>
                           );

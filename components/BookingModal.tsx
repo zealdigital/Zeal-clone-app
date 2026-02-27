@@ -208,10 +208,17 @@ const BookingModal: React.FC<BookingModalProps> = ({
   const { bookingsInSlot, canBookNew } = useMemo(() => {
     if (!date || !time || !region) return { bookingsInSlot: [], availableSlots: 0, canBookNew: false };
     const dateString = formatDateForStorage(date);
-    const activeBookingsInSlot = allBookings.filter(b => b.date === dateString && b.time === time && b.region === region && !b.isBlocker && b.status === 'active');
-    const totalCapacity = salespeopleCount[region];
-    const available = totalCapacity - activeBookingsInSlot.length;
-    return { bookingsInSlot: activeBookingsInSlot, availableSlots: available, canBookNew: available > 0 };
+    const normalizedRegion = region.trim().toUpperCase();
+    const occupiedStatuses = ['active', 'seen', 'rescheduled_bdm', 'pending_approval', 'sold'];
+    const occupiedBookingsInSlot = allBookings.filter(b => 
+        b.date === dateString && 
+        b.time === time && 
+        b.region.trim().toUpperCase() === normalizedRegion && 
+        occupiedStatuses.includes(b.status)
+    );
+    const totalCapacity = salespeopleCount[normalizedRegion] || 0;
+    const available = totalCapacity - occupiedBookingsInSlot.length;
+    return { bookingsInSlot: occupiedBookingsInSlot.filter(b => !b.isBlocker), availableSlots: available, canBookNew: available > 0 };
   }, [allBookings, date, time, region, salespeopleCount]);
 
   // Real-time Duplicate Detection (Based only on Website URL)
@@ -315,7 +322,8 @@ const BookingModal: React.FC<BookingModalProps> = ({
         <div className="p-3 bg-gray-50 text-sm grid grid-cols-2 gap-x-4 border-b">
             <p><strong>Region:</strong> {region}</p>
             {!isCustom && <p><strong>Time:</strong> {time}</p>}
-            <p className="col-span-2"><strong>Date:</strong> {formatDDMMYY(date)}</p>
+            <p><strong>Date:</strong> {formatDDMMYY(date)}</p>
+            {!isCustom && !isEditMode && <p><strong>Capacity:</strong> {bookingsInSlot.length + (allBookings.filter(b => b.date === formatDateForStorage(date) && b.time === time && b.region === region && b.isBlocker && b.status === 'active').length)} / {salespeopleCount[region.trim().toUpperCase()] || 0}</p>}
         </div>
 
         {!isCustom && !isEditMode && (

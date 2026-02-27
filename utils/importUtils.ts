@@ -232,9 +232,14 @@ export const processImportFile = async (
             let imported = 0;
             let skipped = 0;
 
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
             const existingMap = new Map<string, number>();
             existingBookings.forEach(b => {
                 if (b.isBlocker || b.status === 'rejected') return;
+                const bDate = new Date(b.date);
+                if (bDate < oneYearAgo) return;
                 const webKey = normalizeWebsite(b.clientWebsite);
                 if (webKey) existingMap.set(webKey, b.id);
             });

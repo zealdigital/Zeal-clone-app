@@ -268,7 +268,7 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
                                 </thead>
                                 <tbody className="divide-y divide-100">
                                     {paginatedBookings.map((b, idx) => (
-                                        <tr key={idx} className={`hover:bg-gray-50 transition-colors ${b.isDuplicate ? 'bg-amber-50/50' : ''}`}>
+                                        <tr key={idx} className={`hover:bg-gray-50 transition-colors ${b.isDuplicate && (new Date(b.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'bg-amber-50/50' : ''}`}>
                                             <td className="p-3 font-bold text-gray-900 whitespace-nowrap">{b.businessName || '-'}</td>
                                             <td className="p-3 text-gray-600 whitespace-nowrap">{b.clientName || '-'}</td>
                                             <td className="p-3 text-gray-500 whitespace-nowrap">{b.clientPhone || '-'}</td>
@@ -286,7 +286,7 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
                                                 <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded font-bold uppercase text-[9px]">{b.status}</span>
                                             </td>
                                             <td className="p-3">
-                                                {b.isDuplicate ? 
+                                                {b.isDuplicate && (new Date(b.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 
                                                     <span className="text-amber-600 font-black text-[9px] uppercase">YES</span> : 
                                                     <span className="text-green-600 font-black text-[9px] uppercase">NEW</span>
                                                 }
@@ -923,7 +923,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                             {pendingRequests.map(req => (
-                                                <div key={req.id} className={`bg-white rounded-xl border-2 p-4 shadow-md transition-all flex flex-col justify-between ${req.isDuplicate ? 'border-amber-400 shadow-amber-100/50 bg-amber-50/30' : 'border-indigo-100 shadow-indigo-100/50 hover:border-indigo-300'}`}>
+                                                <div key={req.id} className={`bg-white rounded-xl border-2 p-4 shadow-md transition-all flex flex-col justify-between ${req.isDuplicate && (new Date(req.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'border-amber-400 shadow-amber-100/50 bg-amber-50/30' : 'border-indigo-100 shadow-indigo-100/50 hover:border-indigo-300'}`}>
                                                     <div>
                                                         <div className="flex justify-between items-start mb-2">
                                                             <div className="flex flex-col gap-1">
@@ -1000,12 +1000,12 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                                 <React.Fragment key={date}>
                                                                     <tr className="bg-gray-50/50"><td colSpan={7} className="px-6 py-2 text-xs font-bold text-gray-500 uppercase tracking-tighter">{displayDate}</td></tr>
                                                                     {groupedActiveLeads[date].map(b => (
-                                                                        <tr key={b.id} className={`hover:bg-gray-50 transition-all ${b.isDuplicate ? 'bg-amber-50 border-l-4 border-amber-400' : ''}`}>
+                                                                        <tr key={b.id} className={`hover:bg-gray-50 transition-all ${b.isDuplicate && (new Date(b.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'bg-amber-50 border-l-4 border-amber-400' : ''}`}>
                                                                             <td className="px-6 py-4">
                                                                                 <div className="flex flex-col">
                                                                                     <div className="flex items-center gap-2">
                                                                                         <span className="text-sm font-bold text-gray-900">{b.clientName}</span>
-                                                                                        {b.isDuplicate && (
+                                                                                        {b.isDuplicate && (new Date(b.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) && (
                                                                                             <span className="text-[9px] font-black bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">DUPLICATE</span>
                                                                                         )}
                                                                                     </div>
@@ -1395,7 +1395,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                     <div key={day} className="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center shadow-sm group">
                                                         <div className="truncate pr-4">
                                                             <span className="font-black text-indigo-600 text-xs uppercase tracking-tighter mr-2">{DAYS_OF_WEEK[parseInt(day)]}: </span>
-                                                            <span className="text-xs font-bold text-gray-500">{slots.join(', ')}</span>
+                                                            <span className="text-xs font-bold text-gray-500">{(slots as string[]).join(', ')}</span>
                                                         </div>
                                                         <button onClick={() => handleRemoveDayOverride(parseInt(day))} className="text-gray-300 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"><TrashIcon className="w-4 h-4"/></button>
                                                     </div>
@@ -1436,7 +1436,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                     <div key={date} className="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center shadow-sm group">
                                                         <div className="truncate pr-4">
                                                             <span className="font-black text-indigo-600 text-xs uppercase tracking-tighter mr-2">{date}: </span>
-                                                            <span className="text-xs font-bold text-gray-500">{slots.join(', ')}</span>
+                                                            <span className="text-xs font-bold text-gray-500">{(slots as string[]).join(', ')}</span>
                                                         </div>
                                                         <button onClick={() => handleRemoveDateOverride(date)} className="text-gray-300 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"><TrashIcon className="w-4 h-4"/></button>
                                                     </div>
