@@ -8,7 +8,7 @@ interface BdmBookingRequestModalProps {
   currentUser: User;
   vendors: Vendor[];
   onClose: () => void;
-  onRequestBooking: (bookingDetails: Omit<Booking, 'id' | 'status'>, slotsToBlock: string[]) => void;
+  onRequestBooking: (bookingDetails: Omit<Booking, 'id' | 'status'>, slotsToBlock: string[], originalId?: number) => void;
   prefillData?: Booking | null;
   regions: Region[];
   appointmentTimes: Record<Region, AppointmentSlotsConfig>;
@@ -32,6 +32,7 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
   const isManager = currentUser.role === 'manager';
   const isVendor = currentUser.role === 'vendor';
   const isBdm = currentUser.role === 'bdm';
+  const isReschedule = prefillData?.status === 'rescheduled_bdm';
 
   const [formData, setFormData] = useState({
     clientName: '',
@@ -148,17 +149,17 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
         clientPhone: formData.clientPhone,
         clientEmail: formData.clientEmail,
         address: formData.address,
-        callerName: currentUser.name,
+        callerName: isReschedule ? (prefillData?.callerName || currentUser.name) : currentUser.name,
         date: formData.date,
         time: formattedTime,
         region: formData.region as Region,
         notes: formData.notes,
-        customReason: isManager ? 'Manager Manual Entry' : isVendor ? 'Caller Manual Request' : 'BDM Requested Booking',
-        bdmId: isBdm ? currentUser.id : undefined,
+        customReason: isReschedule ? 'BDM Reschedule Request' : (isManager ? 'Manager Manual Entry' : isVendor ? 'Caller Manual Request' : 'BDM Requested Booking'),
+        bdmId: isBdm ? currentUser.id : (isReschedule ? prefillData?.bdmId : undefined),
         vendor: selectedVendor,
     };
 
-    onRequestBooking(bookingPayload, slotsToBlock);
+    onRequestBooking(bookingPayload, slotsToBlock, prefillData?.id);
   };
 
   return (
@@ -168,7 +169,7 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
         <div className="flex justify-between items-center p-5 border-b bg-gray-50/80">
           <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
             <DocumentTextIcon className="w-6 h-6 text-indigo-600" />
-            {isManager ? 'Book Lead Directly' : 'Request Booking Approval'}
+            {isManager ? 'Book Lead Directly' : (isReschedule ? 'Request Reschedule Approval' : 'Request Booking Approval')}
           </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors p-1"><XMarkIcon className="w-6 h-6" /></button>
         </div>
@@ -242,8 +243,8 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="col-span-full md:col-span-1">
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Team Assignment</label>
-                        {isVendor ? (
-                            <div className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-sm text-gray-600 font-bold">{currentUser.name}</div>
+                        {isVendor || isReschedule ? (
+                            <div className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-sm text-gray-600 font-bold">{isReschedule ? prefillData?.vendor.name : currentUser.name}</div>
                         ) : (
                             <select name="vendorId" value={formData.vendorId} onChange={handleChange} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none">
                                 <option value="">Internal / Self-Generated</option>
@@ -253,17 +254,21 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
                     </div>
                     <div>
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Region</label>
-                        <select name="region" value={formData.region} onChange={handleChange} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none">
-                            {regions.map(r => <option key={r} value={r}>{r}</option>)}
-                        </select>
+                        {isReschedule ? (
+                            <div className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-sm text-gray-600 font-bold">{formData.region}</div>
+                        ) : (
+                            <select name="region" value={formData.region} onChange={handleChange} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none">
+                                {regions.map(r => <option key={r} value={r}>{r}</option>)}
+                            </select>
+                        )}
                     </div>
                     <div className="col-span-full">
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Client Name *</label>
-                        <input type="text" name="clientName" value={formData.clientName} onChange={handleChange} required className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" />
+                        <input type="text" name="clientName" value={formData.clientName} onChange={handleChange} required disabled={isReschedule} className={`w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none ${isReschedule ? 'opacity-60 cursor-not-allowed' : ''}`} />
                     </div>
                     <div className="col-span-full">
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Business Name *</label>
-                        <input type="text" name="businessName" value={formData.businessName} onChange={handleChange} required className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" />
+                        <input type="text" name="businessName" value={formData.businessName} onChange={handleChange} required disabled={isReschedule} className={`w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none ${isReschedule ? 'opacity-60 cursor-not-allowed' : ''}`} />
                     </div>
                     <div>
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Date *</label>
@@ -285,15 +290,15 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
                     </div>
                     <div>
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Website *</label>
-                        <input type="text" name="clientWebsite" value={formData.clientWebsite} onChange={handleChange} required placeholder="example.com" className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" />
+                        <input type="text" name="clientWebsite" value={formData.clientWebsite} onChange={handleChange} required disabled={isReschedule} placeholder="example.com" className={`w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none ${isReschedule ? 'opacity-60 cursor-not-allowed' : ''}`} />
                     </div>
                     <div>
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Phone</label>
-                        <input type="tel" name="clientPhone" value={formData.clientPhone} onChange={handleChange} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" />
+                        <input type="tel" name="clientPhone" value={formData.clientPhone} onChange={handleChange} disabled={isReschedule} className={`w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none ${isReschedule ? 'opacity-60 cursor-not-allowed' : ''}`} />
                     </div>
                     <div className="col-span-full">
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Client Email</label>
-                        <input type="email" name="clientEmail" value={formData.clientEmail} onChange={handleChange} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" placeholder="client@example.com" />
+                        <input type="email" name="clientEmail" value={formData.clientEmail} onChange={handleChange} disabled={isReschedule} className={`w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none ${isReschedule ? 'opacity-60 cursor-not-allowed' : ''}`} placeholder="client@example.com" />
                     </div>
                     <div className="col-span-full">
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Meeting Address *</label>
@@ -303,8 +308,9 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
                             value={formData.address} 
                             onChange={handleChange} 
                             required 
+                            disabled={isReschedule}
                             placeholder="Full street address, suburb, state"
-                            className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" 
+                            className={`w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none ${isReschedule ? 'opacity-60 cursor-not-allowed' : ''}`} 
                         />
                     </div>
                     <div className="col-span-full">
@@ -357,7 +363,7 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
                     onClick={handleSubmit}
                     className={`flex-1 sm:flex-none px-10 py-2.5 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg transition-all active:scale-95 ${isManager ? 'bg-green-600 hover:bg-green-700 shadow-green-100' : 'bg-black hover:bg-gray-800'}`}
                 >
-                    {isManager ? 'Book Now' : 'Send Request'}
+                    {isManager ? 'Book Now' : (isReschedule ? 'Send Reschedule Request' : 'Send Request')}
                 </button>
             </div>
         </div>

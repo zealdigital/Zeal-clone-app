@@ -244,16 +244,16 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
 
   const handleOpenRequestModal = (prefill: Booking | null = null) => { setRequestModalPrefill(prefill); setIsRequestModalOpen(true); };
   
-  const handleRequestBooking = (bookingDetails: Omit<Booking, 'id' | 'status'>) => {
-      const requestId = Date.now();
+  const handleRequestBooking = (bookingDetails: Omit<Booking, 'id' | 'status'>, _slotsToBlock: string[], originalId?: number) => {
+      const requestId = originalId || Date.now();
       
       const normalizedWebsite = normalizeWebsite(bookingDetails.clientWebsite);
-
+      
       const oneYearAgo = new Date();
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
       const existingMatch = allBookings.find(b => {
-          if (b.isBlocker || b.status === 'rejected') return false;
+          if (b.id === requestId || b.isBlocker || b.status === 'rejected') return false;
           const bDate = new Date(b.date);
           if (bDate < oneYearAgo) return false;
           return normalizedWebsite && normalizeWebsite(b.clientWebsite) === normalizedWebsite;
@@ -271,18 +271,24 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
         if (m.notificationPreferences?.bookingRequest && m.email) {
             sendEmailNotification(
                 m.email, 
-                `BDM Request: Approval Required${existingMatch ? ' (DUPLICATE)' : ''}`, 
+                `BDM ${originalId ? 'Reschedule' : 'Request'}: Approval Required${existingMatch ? ' (DUPLICATE)' : ''}`, 
                 newBooking, 
-                `BDM ${currentUser.name} is requesting approval for a booking with ${bookingDetails.businessName}.${existingMatch ? ' WARNING: This appears to be a duplicate lead.' : ''} Please review it in your dashboard.`,
+                `BDM ${currentUser.name} is requesting ${originalId ? 'a reschedule' : 'approval'} for a booking with ${bookingDetails.businessName}.${existingMatch ? ' WARNING: This appears to be a duplicate lead.' : ''} Please review it in your dashboard.`,
                 "REBOOKING REQUEST"
             );
         }
       });
-      const managerNotif: Notification = { id: Date.now(), vendorId: 0, bookingId: requestId, message: `New Request from BDM ${currentUser.name}: ${bookingDetails.clientName}${existingMatch ? ' (Duplicate)' : ''}`, read: false, timestamp: new Date().toISOString() };
+      const managerNotif: Notification = { id: Date.now(), vendorId: 0, bookingId: requestId, message: `${originalId ? 'Reschedule' : 'New'} Request from BDM ${currentUser.name}: ${bookingDetails.clientName}${existingMatch ? ' (Duplicate)' : ''}`, read: false, timestamp: new Date().toISOString() };
       setNotifications(prev => [...prev, managerNotif]);
-      setAllBookings(prev => [...prev, newBooking]);
+      
+      if (originalId) {
+          setAllBookings(prev => prev.map(b => b.id === originalId ? newBooking : b));
+      } else {
+          setAllBookings(prev => [...prev, newBooking]);
+      }
+      
       setIsRequestModalOpen(false); 
-      triggerSystemAlert(existingMatch ? "Request sent (Duplicate detected)." : "Booking request sent to Managers.");
+      triggerSystemAlert(originalId ? "Reschedule request sent to Managers." : (existingMatch ? "Request sent (Duplicate detected)." : "Booking request sent to Managers."));
   };
   
   const bgColor = getRegionBackgroundColor(currentUser.region, regionColors);
@@ -398,7 +404,25 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                                                                         </div>
                                                                     )}
                                                                 </div>
-                                                            </td><td className="px-6 py-5 align-top whitespace-nowrap text-sm text-gray-600 font-medium pt-7">{booking.vendor.name}</td><td className="px-6 py-5 align-top whitespace-nowrap pt-7"><div className="text-sm font-black text-gray-900">{booking.time}</div></td><td className="px-6 py-5 align-top pt-6">{getStatusPill(booking.status)}</td><td className="px-6 py-5 align-top text-sm text-gray-500 max-w-xs pt-7"><ExpandableNote text={booking.bdmNote || booking.notes} /></td><td className="px-6 py-5 align-top whitespace-nowrap text-sm font-medium pt-6"><div className="flex justify-end gap-2"><button onClick={() => setBookingToUpdate(booking)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md border border-indigo-200" title="Update Lead Result / Status"><PencilSquareIcon className="w-4 h-4" /></button><button onClick={() => setBookingToManageNotes(booking)} className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-md border border-indigo-200" title="Private Notes & Reminders"><BellIcon className="w-4 h-4" /></button></div></td></tr>
+                                                            </td><td className="px-6 py-5 align-top whitespace-nowrap text-sm text-gray-600 font-medium pt-7">{booking.vendor.name}</td><td className="px-6 py-5 align-top whitespace-nowrap pt-7"><div className="text-sm font-black text-gray-900">{booking.time}</div></td><td className="px-6 py-5 align-top pt-6">{getStatusPill(booking.status)}</td><td className="px-6 py-5 align-top text-sm text-gray-500 max-w-xs pt-7"><ExpandableNote text={booking.bdmNote || booking.notes} /></td><td className="px-6 py-5 align-top whitespace-nowrap text-sm font-medium pt-6">
+  <div className="flex justify-end gap-2">
+    {booking.status === 'rescheduled_bdm' && (
+      <button 
+        onClick={() => handleOpenRequestModal(booking)} 
+        className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-md border border-orange-200" 
+        title="Request Reschedule Approval"
+      >
+        <ArrowPathIcon className="w-4 h-4" />
+      </button>
+    )}
+    <button onClick={() => setBookingToUpdate(booking)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md border border-indigo-200" title="Update Lead Result / Status">
+      <PencilSquareIcon className="w-4 h-4" />
+    </button>
+    <button onClick={() => setBookingToManageNotes(booking)} className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-md border border-indigo-200" title="Private Notes & Reminders">
+      <BellIcon className="w-4 h-4" />
+    </button>
+  </div>
+</td></tr>
                                                     ))}
                                                 </React.Fragment>
                                             ))
