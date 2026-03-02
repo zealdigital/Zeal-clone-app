@@ -336,12 +336,13 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                             <div className="flex items-center gap-2 mb-4"><ClockIcon className="w-4 h-4 text-indigo-600 animate-spin-slow" /><h2 className="text-sm font-black text-indigo-900 uppercase tracking-widest">Pending Rebooking Approvals ({pendingRequests.length})</h2></div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                 {pendingRequests.map(req => (
-                                    <div key={req.id} className={`bg-white/80 backdrop-blur rounded-xl border p-3 shadow-sm flex flex-col justify-between ${req.isDuplicate && (new Date(req.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'border-amber-400 bg-amber-50/50' : 'border-indigo-200'}`}>
+                                    <div key={req.id} className={`bg-white/80 backdrop-blur rounded-xl border p-3 shadow-sm flex flex-col justify-between ${req.isDuplicate && (new Date(req.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'border-amber-400 bg-amber-50/50' : (req.smsRequest?.status === 'pending' ? 'border-purple-400 bg-purple-50/50' : 'border-indigo-200')}`}>
                                         <div>
                                             <div className="flex justify-between items-center mb-1">
                                                 <div className="flex items-center gap-1">
                                                     <div className="text-[10px] font-black text-indigo-600 uppercase">Pending Review</div>
                                                     {req.isDuplicate && (new Date(req.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) && <span className="text-[8px] bg-amber-200 text-amber-800 px-1 rounded font-black">DUPLICATE</span>}
+                                                    {req.smsRequest?.status === 'pending' && <span className="text-[8px] bg-purple-200 text-purple-800 px-1 rounded font-black">SMS REQUESTED</span>}
                                                 </div>
                                                 <div className="text-[10px] font-bold text-gray-400 uppercase">{req.region}</div>
                                             </div>
@@ -394,9 +395,17 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                                                 <React.Fragment key={dateKey}>
                                                     <tr className="bg-gray-50 border-y border-gray-200"><td colSpan={6} className="px-6 py-3 text-sm font-bold text-gray-700 uppercase tracking-tight">{formatDDMMYY(dateKey)}</td></tr>
                                                     {groupedActiveBookings[dateKey].map(booking => (
-                                                        <tr key={booking.id} className="hover:bg-blue-50/30 transition-colors">
+                                                        <tr key={booking.id} className={`hover:bg-blue-50/30 transition-colors ${booking.isDuplicate && (new Date(booking.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'bg-amber-50 border-l-4 border-amber-400' : (booking.smsRequest?.status === 'pending' ? 'bg-purple-50 border-l-4 border-purple-400' : '')}`}>
                                                             <td className="px-6 py-5 align-top">
-                                                                <div className="text-base font-bold text-gray-900 mb-1">{booking.clientName}</div>
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <div className="text-base font-bold text-gray-900">{booking.clientName}</div>
+                                                                    {booking.isDuplicate && (new Date(booking.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) && (
+                                                                        <span className="text-[9px] font-black bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">DUPLICATE</span>
+                                                                    )}
+                                                                    {booking.smsRequest?.status === 'pending' && (
+                                                                        <span className="text-[9px] font-black bg-purple-200 text-purple-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">SMS REQUESTED</span>
+                                                                    )}
+                                                                </div>
                                                                 <div className="flex flex-col gap-1.5">
                                                                     {booking.clientWebsite && (
                                                                         <a href={booking.clientWebsite.startsWith('http') ? booking.clientWebsite : `https://${booking.clientWebsite}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline font-medium break-all">

@@ -966,7 +966,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                             {pendingRequests.map(req => (
-                                                <div key={req.id} className={`bg-white rounded-xl border-2 p-4 shadow-md transition-all flex flex-col justify-between ${req.isDuplicate && (new Date(req.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'border-amber-400 shadow-amber-100/50 bg-amber-50/30' : 'border-indigo-100 shadow-indigo-100/50 hover:border-indigo-300'}`}>
+                                                <div key={req.id} className={`bg-white rounded-xl border-2 p-4 shadow-md transition-all flex flex-col justify-between ${req.isDuplicate && (new Date(req.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'border-amber-400 shadow-amber-100/50 bg-amber-50/30' : (req.smsRequest?.status === 'pending' ? 'border-purple-400 shadow-purple-100/50 bg-purple-50/30' : 'border-indigo-100 shadow-indigo-100/50 hover:border-indigo-300')}`}>
                                                     <div>
                                                         <div className="flex justify-between items-start mb-2">
                                                             <div className="flex flex-col gap-1">
@@ -974,6 +974,11 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                                 {req.isDuplicate && (
                                                                     <div className="flex items-center gap-1 text-[8px] font-black text-amber-700 bg-amber-200 px-1.5 py-0.5 rounded uppercase tracking-tighter w-fit animate-pulse">
                                                                         <ExclamationTriangleIcon className="w-2.5 h-2.5" /> Potential Duplicate
+                                                                    </div>
+                                                                )}
+                                                                {req.smsRequest?.status === 'pending' && (
+                                                                    <div className="flex items-center gap-1 text-[8px] font-black text-purple-700 bg-purple-200 px-1.5 py-0.5 rounded uppercase tracking-tighter w-fit animate-pulse">
+                                                                        SMS REQUESTED
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -1043,13 +1048,16 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                                 <React.Fragment key={date}>
                                                                     <tr className="bg-gray-50/50"><td colSpan={7} className="px-6 py-2 text-xs font-bold text-gray-500 uppercase tracking-tighter">{displayDate}</td></tr>
                                                                     {groupedActiveLeads[date].map(b => (
-                                                                        <tr key={b.id} className={`hover:bg-gray-50 transition-all ${b.isDuplicate && (new Date(b.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'bg-amber-50 border-l-4 border-amber-400' : ''}`}>
+                                                                        <tr key={b.id} className={`hover:bg-gray-50 transition-all ${b.isDuplicate && (new Date(b.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'bg-amber-50 border-l-4 border-amber-400' : (b.smsRequest?.status === 'pending' ? 'bg-purple-50 border-l-4 border-purple-400' : '')}`}>
                                                                             <td className="px-6 py-4">
                                                                                 <div className="flex flex-col">
                                                                                     <div className="flex items-center gap-2">
                                                                                         <span className="text-sm font-bold text-gray-900">{b.clientName}</span>
                                                                                         {b.isDuplicate && (new Date(b.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) && (
                                                                                             <span className="text-[9px] font-black bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">DUPLICATE</span>
+                                                                                        )}
+                                                                                        {b.smsRequest?.status === 'pending' && (
+                                                                                            <span className="text-[9px] font-black bg-purple-200 text-purple-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">SMS REQUESTED</span>
                                                                                         )}
                                                                                     </div>
                                                                                     <div className="text-xs text-gray-400">{b.businessName}</div>

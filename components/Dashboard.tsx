@@ -373,12 +373,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                 {pendingRequests.map(req => (
-                                    <div key={req.id} className={`bg-white/80 backdrop-blur rounded-xl border p-3 shadow-sm flex flex-col justify-between ${req.isDuplicate && (new Date(req.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'border-amber-400 bg-amber-50/50' : 'border-indigo-200'}`}>
+                                    <div key={req.id} className={`bg-white/80 backdrop-blur rounded-xl border p-3 shadow-sm flex flex-col justify-between ${req.isDuplicate && (new Date(req.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'border-amber-400 bg-amber-50/50' : (req.smsRequest?.status === 'pending' ? 'border-purple-400 bg-purple-50/50' : 'border-indigo-200')}`}>
                                         <div>
                                             <div className="flex justify-between items-center mb-1">
                                                 <div className="flex items-center gap-1">
                                                     <div className="text-[10px] font-black text-indigo-600 uppercase">Pending Approval</div>
                                                     {req.isDuplicate && (new Date(req.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) && <span className="text-[8px] bg-amber-200 text-amber-800 px-1 rounded font-black">DUPLICATE</span>}
+                                                    {req.smsRequest?.status === 'pending' && <span className="text-[8px] bg-purple-200 text-purple-800 px-1 rounded font-black">SMS REQUESTED</span>}
                                                 </div>
                                                 <div className="text-[10px] font-bold text-gray-400 uppercase">{req.region}</div>
                                             </div>
