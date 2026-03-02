@@ -44,6 +44,27 @@ const MyBookingsList: React.FC<MyBookingsListProps> = ({ bookings, onEditBooking
       });
 
       return displayList.sort((a, b) => {
+          const today = new Date(); today.setHours(0,0,0,0);
+          const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+          const dayAfter = new Date(today); dayAfter.setDate(today.getDate() + 2);
+
+          const formatDate = (d: Date) => d.toISOString().split('T')[0];
+          const tStr = formatDate(today);
+          const tmStr = formatDate(tomorrow);
+          const daStr = formatDate(dayAfter);
+
+          const getPriority = (date: string) => {
+              if (date === tStr) return 0;
+              if (date === tmStr) return 1;
+              if (date === daStr) return 2;
+              return 3;
+          };
+
+          const pA = getPriority(a.date);
+          const pB = getPriority(b.date);
+
+          if (pA !== pB) return pA - pB;
+
           const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
           if (dateDiff !== 0) return dateDiff;
           return b.id - a.id;
@@ -66,7 +87,29 @@ const MyBookingsList: React.FC<MyBookingsListProps> = ({ bookings, onEditBooking
   }, [paginatedUniqueBookings]);
 
   const sortedGroupKeys = useMemo(() => {
-      return Object.keys(groupedBookings).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+      return Object.keys(groupedBookings).sort((a, b) => {
+          const today = new Date(); today.setHours(0,0,0,0);
+          const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+          const dayAfter = new Date(today); dayAfter.setDate(today.getDate() + 2);
+
+          const formatDate = (d: Date) => d.toISOString().split('T')[0];
+          const tStr = formatDate(today);
+          const tmStr = formatDate(tomorrow);
+          const daStr = formatDate(dayAfter);
+
+          const getPriority = (date: string) => {
+              if (date === tStr) return 0;
+              if (date === tmStr) return 1;
+              if (date === daStr) return 2;
+              return 3;
+          };
+
+          const pA = getPriority(a);
+          const pB = getPriority(b);
+
+          if (pA !== pB) return pA - pB;
+          return new Date(b).getTime() - new Date(a).getTime();
+      });
   }, [groupedBookings]);
 
   const renderVendorStatus = (booking: Booking) => {
