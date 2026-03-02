@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Booking, Region, BDM, Vendor, User, AppointmentSlotsConfig } from '../types';
-import { XMarkIcon, ClockIcon, CalendarDaysIcon, UserGroupIcon, DocumentTextIcon, ExclamationTriangleIcon } from './Icons';
+import { XMarkIcon, ClockIcon, CalendarDaysIcon, UserGroupIcon, DocumentTextIcon, ExclamationTriangleIcon, MapPinIcon } from './Icons';
 import { getAppointmentSlotsForDay } from '../utils/slotUtils';
 import { formatToDDMMYY } from '../utils/dateUtils';
 
@@ -211,6 +211,24 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
                                 {timeState.hour}:{timeState.minute} {timeState.period}
                             </span>
                         </div>
+                        <div className="flex flex-col col-span-full pt-2 border-t border-gray-100">
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Meeting Address:</span>
+                            {formData.address ? (
+                                <div className="flex items-start gap-2">
+                                    <MapPinIcon className="w-4 h-4 text-indigo-500 flex-shrink-0 mt-0.5" />
+                                    <a 
+                                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(formData.address)}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="font-bold text-indigo-600 hover:underline truncate"
+                                    >
+                                        {formData.address}
+                                    </a>
+                                </div>
+                            ) : (
+                                <span className="font-bold text-gray-400 italic">No address provided</span>
+                            )}
+                        </div>
                     </div>
                     {formData.notes && (
                         <div className="pt-3 border-t border-gray-200">
@@ -276,6 +294,18 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
                     <div className="col-span-full">
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Client Email</label>
                         <input type="email" name="clientEmail" value={formData.clientEmail} onChange={handleChange} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" placeholder="client@example.com" />
+                    </div>
+                    <div className="col-span-full">
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Meeting Address *</label>
+                        <input 
+                            type="text" 
+                            name="address" 
+                            value={formData.address} 
+                            onChange={handleChange} 
+                            required 
+                            placeholder="Full street address, suburb, state"
+                            className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" 
+                        />
                     </div>
                     <div className="col-span-full">
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Notes</label>

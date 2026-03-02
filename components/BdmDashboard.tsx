@@ -5,7 +5,7 @@ import BdmUpdateStatusModal from './BdmUpdateStatusModal';
 import { getStatusPill } from '../utils/statusUtils';
 import BdmAnalyticsDashboard from './BdmAnalyticsDashboard';
 import PerformanceLeadLog from './PerformanceLeadLog';
-import { BellIcon, DocumentTextIcon, MagnifyingGlassIcon, PlusIcon, ArrowPathIcon, PencilSquareIcon, TrashIcon, ArrowDownTrayIcon, PhoneIcon, ClockIcon, CalendarDaysIcon, XMarkIcon, ExclamationTriangleIcon, Cog6ToothIcon, PresentationChartLineIcon } from './Icons';
+import { BellIcon, DocumentTextIcon, MagnifyingGlassIcon, PlusIcon, ArrowPathIcon, PencilSquareIcon, TrashIcon, ArrowDownTrayIcon, PhoneIcon, ClockIcon, CalendarDaysIcon, XMarkIcon, ExclamationTriangleIcon, Cog6ToothIcon, PresentationChartLineIcon, MapPinIcon } from './Icons';
 import BdmNoteReminderModal from './BdmNoteReminderModal';
 import BdmBookingRequestModal from './BdmBookingRequestModal';
 import DateRangePicker from './DateRangePicker';
@@ -367,7 +367,38 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                                                 <React.Fragment key={dateKey}>
                                                     <tr className="bg-gray-50 border-y border-gray-200"><td colSpan={6} className="px-6 py-3 text-sm font-bold text-gray-700 uppercase tracking-tight">{formatDDMMYY(dateKey)}</td></tr>
                                                     {groupedActiveBookings[dateKey].map(booking => (
-                                                        <tr key={booking.id} className="hover:bg-blue-50/30 transition-colors"><td className="px-6 py-5 align-top"><div className="text-base font-bold text-gray-900 mb-1">{booking.clientName}</div><div className="flex flex-col gap-1.5">{booking.clientWebsite && (<a href={booking.clientWebsite.startsWith('http') ? booking.clientWebsite : `https://${booking.clientWebsite}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline font-medium break-all">{booking.clientWebsite}</a>)}{booking.clientPhone && (<a href={`tel:${booking.clientPhone}`} className="text-xs text-gray-500 hover:text-indigo-600 transition-colors font-medium">{booking.clientPhone}</a>)}</div></td><td className="px-6 py-5 align-top whitespace-nowrap text-sm text-gray-600 font-medium pt-7">{booking.vendor.name}</td><td className="px-6 py-5 align-top whitespace-nowrap pt-7"><div className="text-sm font-black text-gray-900">{booking.time}</div></td><td className="px-6 py-5 align-top pt-6">{getStatusPill(booking.status)}</td><td className="px-6 py-5 align-top text-sm text-gray-500 max-w-xs pt-7"><ExpandableNote text={booking.bdmNote || booking.notes} /></td><td className="px-6 py-5 align-top whitespace-nowrap text-sm font-medium pt-6"><div className="flex justify-end gap-2"><button onClick={() => setBookingToUpdate(booking)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md border border-indigo-200" title="Update Lead Result / Status"><PencilSquareIcon className="w-4 h-4" /></button><button onClick={() => setBookingToManageNotes(booking)} className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-md border border-indigo-200" title="Private Notes & Reminders"><BellIcon className="w-4 h-4" /></button></div></td></tr>
+                                                        <tr key={booking.id} className="hover:bg-blue-50/30 transition-colors">
+                                                            <td className="px-6 py-5 align-top">
+                                                                <div className="text-base font-bold text-gray-900 mb-1">{booking.clientName}</div>
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    {booking.clientWebsite && (
+                                                                        <a href={booking.clientWebsite.startsWith('http') ? booking.clientWebsite : `https://${booking.clientWebsite}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline font-medium break-all">
+                                                                            {booking.clientWebsite}
+                                                                        </a>
+                                                                    )}
+                                                                    {booking.clientPhone && (
+                                                                        <a href={`tel:${booking.clientPhone}`} className="text-xs text-gray-500 hover:text-indigo-600 transition-colors font-medium">
+                                                                            {booking.clientPhone}
+                                                                        </a>
+                                                                    )}
+                                                                    {booking.address && (
+                                                                        <div className="mt-1 pt-1 border-t border-gray-100 flex items-start gap-1.5">
+                                                                            <MapPinIcon className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                                                                            <div className="flex-1">
+                                                                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Meeting Address</p>
+                                                                                <a 
+                                                                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.address)}`}
+                                                                                    target="_blank"
+                                                                                    rel="noopener noreferrer"
+                                                                                    className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline font-medium block leading-tight transition-colors"
+                                                                                >
+                                                                                    {booking.address}
+                                                                                </a>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </td><td className="px-6 py-5 align-top whitespace-nowrap text-sm text-gray-600 font-medium pt-7">{booking.vendor.name}</td><td className="px-6 py-5 align-top whitespace-nowrap pt-7"><div className="text-sm font-black text-gray-900">{booking.time}</div></td><td className="px-6 py-5 align-top pt-6">{getStatusPill(booking.status)}</td><td className="px-6 py-5 align-top text-sm text-gray-500 max-w-xs pt-7"><ExpandableNote text={booking.bdmNote || booking.notes} /></td><td className="px-6 py-5 align-top whitespace-nowrap text-sm font-medium pt-6"><div className="flex justify-end gap-2"><button onClick={() => setBookingToUpdate(booking)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md border border-indigo-200" title="Update Lead Result / Status"><PencilSquareIcon className="w-4 h-4" /></button><button onClick={() => setBookingToManageNotes(booking)} className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-md border border-indigo-200" title="Private Notes & Reminders"><BellIcon className="w-4 h-4" /></button></div></td></tr>
                                                     ))}
                                                 </React.Fragment>
                                             ))

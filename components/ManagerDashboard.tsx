@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Booking, Region, LeaveDay, PublicHoliday, AppointmentSlotsConfig, Vendor, BDM, User, ManagerAppointment, Notification, Branding, Manager, NotificationPreferences } from '../types';
 import { Header } from './Header';
-import { Cog6ToothIcon, TrashIcon, XMarkIcon, ExclamationTriangleIcon, MagnifyingGlassIcon, PlusIcon, UserGroupIcon, ChartBarIcon, DocumentTextIcon, CalendarDaysIcon, ClockIcon, PencilSquareIcon, ArrowDownTrayIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon, CheckBadgeIcon, CloudArrowUpIcon, DocumentArrowDownIcon, PhoneIcon, ChatBubbleLeftRightIcon, PresentationChartLineIcon } from './Icons';
+import { Cog6ToothIcon, TrashIcon, XMarkIcon, ExclamationTriangleIcon, MagnifyingGlassIcon, PlusIcon, UserGroupIcon, ChartBarIcon, DocumentTextIcon, CalendarDaysIcon, ClockIcon, PencilSquareIcon, ArrowDownTrayIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon, CheckBadgeIcon, CloudArrowUpIcon, DocumentArrowDownIcon, PhoneIcon, ChatBubbleLeftRightIcon, PresentationChartLineIcon, MapPinIcon } from './Icons';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import RejectedBookingsList from './RejectedBookingsList';
 import ArchivedBookingsList from './ArchivedBookingsList';
@@ -1014,7 +1014,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                                                     {b.clientEmail && (<span className="text-[10px] text-gray-400 mt-0.5">{b.clientEmail}</span>)}
                                                                                 </div>
                                                                             </td>
-                                                                            <td className="px-6 py-4"><div className="flex items-center gap-1.5 text-xs text-gray-900 font-bold mb-1"><PhoneIcon className="w-3.5 h-3.5 text-indigo-400" /><a href={`tel:${b.clientPhone}`} className="hover:text-indigo-600 transition-colors">{b.clientPhone}</a></div><div className="text-[10px] text-gray-500 max-w-[180px] leading-tight break-words">{b.address}</div></td>
+                                                                            <td className="px-6 py-4"><div className="flex items-center gap-1.5 text-xs text-gray-900 font-bold mb-1"><PhoneIcon className="w-3.5 h-3.5 text-indigo-400" /><a href={`tel:${b.clientPhone}`} className="hover:text-indigo-600 transition-colors">{b.clientPhone}</a></div>{b.address && (<div className="mt-1 flex items-start gap-1.5"><MapPinIcon className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" /><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.address)}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-600 hover:text-indigo-800 hover:underline font-medium leading-tight break-words max-w-[180px] transition-colors">{b.address}</a></div>)}</td>
                                                                             <td className="px-6 py-4 text-xs text-gray-500 font-bold">{b.vendor.name}</td>
                                                                             <td className="px-6 py-4 text-sm font-bold text-gray-900">{b.time}</td>
                                                                             <td className="px-6 py-4"><span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-gray-100 text-gray-600 uppercase">{b.region}</span></td>

@@ -129,7 +129,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
             </div>
         </div>
         <div>
-            <label htmlFor="address" className="block text-sm font-medium text-gray-700">Address</label>
+            <label htmlFor="address" className="block text-sm font-medium text-gray-700">Meeting Address</label>
             <textarea name="address" id="address" value={formData.address} onChange={onChange} required rows={2} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
         </div>
         <div>

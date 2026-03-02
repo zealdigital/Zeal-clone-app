@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Booking } from '../types';
-import { PhoneIcon } from './Icons';
+import { PhoneIcon, MapPinIcon } from './Icons';
 
 import { formatToDDMMYY } from '../utils/dateUtils';
 
@@ -74,11 +74,24 @@ const RejectedBookingsList: React.FC<RejectedBookingsListProps> = ({ bookings, r
                     </a>
                   )}
                 </td>
-                <td className="px-6 py-5 whitespace-nowrap">
-                   <div className="flex items-center gap-1">
+                <td className="px-6 py-5 whitespace-normal">
+                   <div className="flex items-center gap-1 mb-1">
                       <PhoneIcon className="w-4 h-4 text-gray-300" />
-                      <span className="text-xs text-gray-500">{booking.clientPhone}</span>
+                      <a href={`tel:${booking.clientPhone}`} className="text-xs text-gray-500 hover:text-indigo-600 transition-colors font-medium">{booking.clientPhone}</a>
                    </div>
+                   {booking.address && (
+                      <div className="flex items-start gap-1.5 max-w-[180px]">
+                        <MapPinIcon className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                        <a 
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.address)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] text-indigo-600 hover:text-indigo-800 hover:underline font-medium leading-tight break-words transition-colors"
+                        >
+                          {booking.address}
+                        </a>
+                      </div>
+                   )}
                 </td>
                 <td className="px-6 py-5 whitespace-nowrap">
                   <div className="text-sm font-normal text-gray-600">

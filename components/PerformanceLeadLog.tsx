@@ -3,7 +3,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import type { Booking, BDM } from '../types';
 import { getStatusPill } from '../utils/statusUtils';
 import { formatToDDMMYY } from '../utils/dateUtils';
-import { ArrowDownTrayIcon, MagnifyingGlassIcon } from './Icons';
+import { ArrowDownTrayIcon, MagnifyingGlassIcon, MapPinIcon } from './Icons';
 import { exportBookingsToCSV } from '../utils/exportUtils';
 
 interface PerformanceLeadLogProps {
@@ -217,19 +217,34 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
                   <td className="px-6 py-6 whitespace-nowrap text-sm font-medium text-gray-500">
                     {formatToDDMMYY(lead.date)}
                   </td>
-                  <td className="px-6 py-6 whitespace-nowrap">
+                  <td className="px-6 py-6 whitespace-normal">
                     <div className="text-base font-bold text-gray-900 leading-tight">{lead.businessName}</div>
                     <div className="text-xs font-medium text-gray-500">{lead.clientName}</div>
-                    {lead.clientWebsite && (
-                        <a 
-                            href={lead.clientWebsite.startsWith('http') ? lead.clientWebsite : `https://${lead.clientWebsite}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="text-xs text-blue-500 hover:underline transition-colors block mt-0.5"
-                        >
-                            {lead.clientWebsite}
-                        </a>
-                    )}
+                    <div className="flex flex-col gap-1 mt-1">
+                      {lead.clientWebsite && (
+                          <a 
+                              href={lead.clientWebsite.startsWith('http') ? lead.clientWebsite : `https://${lead.clientWebsite}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="text-xs text-blue-500 hover:underline transition-colors block"
+                          >
+                              {lead.clientWebsite}
+                          </a>
+                      )}
+                      {lead.address && (
+                        <div className="flex items-start gap-1.5 max-w-[200px]">
+                          <MapPinIcon className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                          <a 
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.address)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-indigo-600 hover:text-indigo-800 hover:underline font-medium leading-tight break-words transition-colors"
+                          >
+                            {lead.address}
+                          </a>
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-6 whitespace-nowrap text-center">
                     {getHistoryBadge(lead)}

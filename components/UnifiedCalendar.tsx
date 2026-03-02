@@ -210,10 +210,11 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                               {availability.free} Free
                           </div>
                           {/* Compact direct view of available slots */}
-                          <div className="mt-1 flex flex-wrap gap-0.5 justify-end max-w-[60px]">
+                          <div className="mt-1 flex flex-wrap gap-0.5 justify-end max-w-[65px]">
                               {availability.slotBreakdown.filter(s => s.free > 0).map(slot => (
-                                  <span key={slot.time} className="text-[7px] font-bold text-green-700 bg-green-100/30 px-0.5 rounded leading-none py-0.5">
+                                  <span key={slot.time} className="text-[7px] font-black text-green-700 bg-green-100/50 px-0.5 rounded leading-none py-0.5 flex items-center gap-0.5">
                                       {slot.time.replace(':00', '').replace(' ', '')}
+                                      <span className="bg-green-600 text-white rounded-full w-2.5 h-2.5 flex items-center justify-center text-[6px]">{slot.free}</span>
                                   </span>
                               ))}
                           </div>

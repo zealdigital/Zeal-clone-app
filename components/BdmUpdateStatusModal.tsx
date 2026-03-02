@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import type { Booking } from '../types';
-import { XMarkIcon } from './Icons';
+import { XMarkIcon, MapPinIcon } from './Icons';
 
 const BDM_STATUSES: Exclude<Booking['status'], 'active' | 'rejected' | 'pending_approval'>[] = ['sold', 'seen', 'rescheduled_bdm', 'rescheduled', 'cancelled', 'dq'];
 
@@ -46,7 +46,23 @@ const BdmUpdateStatusModal: React.FC<BdmUpdateStatusModalProps> = ({ booking, on
             <div className="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100">
               <p className="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-1">Target Client</p>
               <p className="text-sm font-bold text-gray-900 leading-tight">{booking.businessName}</p>
-              <p className="text-xs text-gray-500">{booking.clientName}</p>
+              <p className="text-xs text-gray-500 mb-2">{booking.clientName}</p>
+              {booking.address && (
+                <div className="pt-2 border-t border-indigo-100">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Meeting Address</p>
+                  <div className="flex items-start gap-1.5">
+                    <MapPinIcon className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                    <a 
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.address)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline font-medium block leading-tight transition-colors"
+                    >
+                      {booking.address}
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>

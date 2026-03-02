@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import type { Booking } from '../types';
 import { getStatusPill } from '../utils/statusUtils';
-import { PhoneIcon, CalendarDaysIcon, PencilSquareIcon } from './Icons';
+import { PhoneIcon, CalendarDaysIcon, PencilSquareIcon, MapPinIcon } from './Icons';
 import { formatDDMMYY } from '../utils/dateUtils';
 
 interface ArchivedBookingsListProps {
@@ -101,11 +101,24 @@ const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, r
                         </a>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-normal text-sm text-gray-500">
                         <a href={`tel:${booking.clientPhone}`} className="flex items-center gap-1.5 hover:text-indigo-600 font-normal transition-colors">
                             <PhoneIcon className="w-4 h-4 text-gray-300" />
                             {booking.clientPhone}
                         </a>
+                        {booking.address && (
+                          <div className="mt-1 flex items-start gap-1.5 max-w-[180px]">
+                            <MapPinIcon className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                            <a 
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.address)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[10px] text-indigo-600 hover:text-indigo-800 hover:underline font-medium leading-tight break-words transition-colors"
+                            >
+                              {booking.address}
+                            </a>
+                          </div>
+                        )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-normal text-gray-900">{booking.time}</div>
