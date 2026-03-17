@@ -100,27 +100,27 @@ const BookingForm: React.FC<BookingFormProps> = ({
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <label htmlFor="clientName" className="block text-sm font-medium text-gray-700">Client Name</label>
+                <label htmlFor="clientName" className="block text-sm font-medium text-gray-700">Client Name *</label>
                 <input type="text" name="clientName" id="clientName" value={formData.clientName} onChange={onChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
             </div>
             <div>
-                <label htmlFor="callerName" className="block text-sm font-medium text-gray-700">Caller Name</label>
+                <label htmlFor="callerName" className="block text-sm font-medium text-gray-700">Caller Name *</label>
                 <input type="text" name="callerName" id="callerName" value={formData.callerName} onChange={onChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
             </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <label htmlFor="businessName" className="block text-sm font-medium text-gray-700">Business Name</label>
+                <label htmlFor="businessName" className="block text-sm font-medium text-gray-700">Business Name *</label>
                 <input type="text" name="businessName" id="businessName" value={formData.businessName} onChange={onChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
             </div>
              <div>
-                <label htmlFor="clientPhone" className="block text-sm font-medium text-gray-700">Client's Phone</label>
+                <label htmlFor="clientPhone" className="block text-sm font-medium text-gray-700">Client's Phone *</label>
                 <input type="tel" name="clientPhone" id="clientPhone" value={formData.clientPhone} onChange={onChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
             </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <label htmlFor="clientWebsite" className="block text-sm font-medium text-gray-700">Client's Website</label>
+                <label htmlFor="clientWebsite" className="block text-sm font-medium text-gray-700">Client's Website *</label>
                 <input type="text" name="clientWebsite" id="clientWebsite" value={formData.clientWebsite} onChange={onChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="e.g., example.com"/>
             </div>
             <div>
@@ -129,7 +129,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
             </div>
         </div>
         <div>
-            <label htmlFor="address" className="block text-sm font-medium text-gray-700">Meeting Address</label>
+            <label htmlFor="address" className="block text-sm font-medium text-gray-700">Meeting Address *</label>
             <textarea name="address" id="address" value={formData.address} onChange={onChange} required rows={2} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
         </div>
         <div>

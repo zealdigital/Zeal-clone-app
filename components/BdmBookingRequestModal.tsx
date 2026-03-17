@@ -49,6 +49,7 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
 
   const [slotsToBlock, setSlotsToBlock] = useState<string[]>([]);
   const [timeState, setTimeState] = useState({ hour: '10', minute: '00', period: 'AM' });
+  const [error, setError] = useState('');
 
   // Real-time Duplicate Detection (Based only on Website URL)
   const duplicateWarning = useMemo(() => {
@@ -125,8 +126,10 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.clientName || !formData.businessName || !formData.date || !formData.clientWebsite) {
-      alert('Please fill in all required fields.');
+    setError('');
+
+    if (!formData.clientName || !formData.businessName || !formData.date || !formData.clientWebsite || !formData.address) {
+      setError('Please fill in all required fields.');
       return;
     }
     
@@ -165,18 +168,25 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden animate-scaleIn">
-        {/* Header */}
-        <div className="flex justify-between items-center p-5 border-b bg-gray-50/80">
-          <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
-            <DocumentTextIcon className="w-6 h-6 text-indigo-600" />
-            {isManager ? 'Book Lead Directly' : (isReschedule ? 'Request Reschedule Approval' : 'Request Booking Approval')}
-          </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors p-1"><XMarkIcon className="w-6 h-6" /></button>
-        </div>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+            {/* Header */}
+            <div className="flex justify-between items-center p-5 border-b bg-gray-50/80">
+              <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
+                <DocumentTextIcon className="w-6 h-6 text-indigo-600" />
+                {isManager ? 'Book Lead Directly' : (isReschedule ? 'Request Reschedule Approval' : 'Request Booking Approval')}
+              </h2>
+              <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors p-1"><XMarkIcon className="w-6 h-6" /></button>
+            </div>
 
-        <form onSubmit={handleSubmit} className="overflow-y-auto flex-1">
-            <div className="p-6 space-y-6">
-                {duplicateWarning && (
+            <div className="overflow-y-auto flex-1">
+                <div className="p-6 space-y-6">
+                    {error && (
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs font-bold flex items-center gap-2 animate-shake">
+                            <ExclamationTriangleIcon className="w-4 h-4" />
+                            {error}
+                        </div>
+                    )}
+                    {duplicateWarning && (
                     <div className="p-4 bg-amber-50 border-2 border-amber-400 rounded-xl flex items-start gap-3 animate-pulse shadow-sm">
                         <ExclamationTriangleIcon className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
                         <div className="text-sm text-amber-900">
@@ -349,24 +359,25 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
                     </div>
                 )}
             </div>
-        </form>
+        </div>
 
         {/* Footer Actions */}
-        <div className="p-5 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-2 text-xs text-amber-600 font-bold bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
-                <span role="img" aria-label="info">ℹ️</span> 
-                {isManager ? 'Direct entry creates active leads and blocks slots.' : 'Requests require manager review before confirmation.'}
+            <div className="p-5 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-2 text-xs text-amber-600 font-bold bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
+                    <span role="img" aria-label="info">ℹ️</span> 
+                    {isManager ? 'Direct entry creates active leads and blocks slots.' : 'Requests require manager review before confirmation.'}
+                </div>
+                <div className="flex gap-3 w-full sm:w-auto">
+                    <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-100 font-bold text-sm shadow-sm transition-all">Cancel</button>
+                    <button 
+                        type="submit"
+                        className={`flex-1 sm:flex-none px-10 py-2.5 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg transition-all active:scale-95 ${isManager ? 'bg-green-600 hover:bg-green-700 shadow-green-100' : 'bg-black hover:bg-gray-800'}`}
+                    >
+                        {isManager ? 'Book Now' : (isReschedule ? 'Send Reschedule Request' : 'Send Request')}
+                    </button>
+                </div>
             </div>
-            <div className="flex gap-3 w-full sm:w-auto">
-                <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-100 font-bold text-sm shadow-sm transition-all">Cancel</button>
-                <button 
-                    onClick={handleSubmit}
-                    className={`flex-1 sm:flex-none px-10 py-2.5 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg transition-all active:scale-95 ${isManager ? 'bg-green-600 hover:bg-green-700 shadow-green-100' : 'bg-black hover:bg-gray-800'}`}
-                >
-                    {isManager ? 'Book Now' : (isReschedule ? 'Send Reschedule Request' : 'Send Request')}
-                </button>
-            </div>
-        </div>
+        </form>
       </div>
     </div>
   );

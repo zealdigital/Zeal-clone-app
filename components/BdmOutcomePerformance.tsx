@@ -12,6 +12,7 @@ const ITEMS_PER_PAGE = 10;
 
 const BdmOutcomePerformance: React.FC<BdmOutcomePerformanceProps> = ({ bookings, bdms }) => {
     const [currentPage, setCurrentPage] = useState(1);
+    const [showOnlyActive, setShowOnlyActive] = useState(false);
 
     const allBdmPerformance = useMemo(() => {
         return bdms.map(bdm => {
@@ -39,17 +40,25 @@ const BdmOutcomePerformance: React.FC<BdmOutcomePerformanceProps> = ({ bookings,
         }).sort((a, b) => b.total - a.total);
     }, [bookings, bdms]);
 
-    const totalPages = Math.max(1, Math.ceil(allBdmPerformance.length / ITEMS_PER_PAGE));
+    const filteredPerformance = useMemo(() => {
+        let list = allBdmPerformance;
+        if (showOnlyActive) {
+            list = list.filter(p => p.total > 0 && p.active !== false);
+        }
+        return list;
+    }, [allBdmPerformance, showOnlyActive]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredPerformance.length / ITEMS_PER_PAGE));
     const paginatedPerformance = useMemo(() => {
         const start = (currentPage - 1) * ITEMS_PER_PAGE;
-        return allBdmPerformance.slice(start, start + ITEMS_PER_PAGE);
-    }, [allBdmPerformance, currentPage]);
+        return filteredPerformance.slice(start, start + ITEMS_PER_PAGE);
+    }, [filteredPerformance, currentPage]);
 
     const handleExport = () => {
         const headers = ['BDM Name', 'Region', 'Total Assigned', 'Sold', 'Seen', 'Resched (BDM)', 'Rescheduled', 'Cancelled', 'DQ', 'Sold %'];
         const csvContent = [
             headers.join(','),
-            ...allBdmPerformance.map(p => [
+            ...filteredPerformance.map(p => [
                 p.name, p.region, p.total, p.sold, p.seen, p.reschedBdm, p.resched, p.cancelled, p.dq, `"${p.soldRate}%"`
             ].join(','))
         ].join('\n');
@@ -73,12 +82,29 @@ const BdmOutcomePerformance: React.FC<BdmOutcomePerformanceProps> = ({ bookings,
                         Detailed efficiency stats for assigned leads
                     </p>
                 </div>
-                <button 
-                    onClick={handleExport}
-                    className="flex items-center gap-2 bg-black text-white px-6 py-2 rounded-xl text-xs font-black hover:bg-gray-800 shadow-md transition-all active:scale-95 uppercase tracking-widest"
-                >
-                    <ArrowDownTrayIcon className="w-4 h-4" /> Export Analytics
-                </button>
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl border border-gray-100">
+                        <input 
+                            type="checkbox" 
+                            id="showOnlyActive"
+                            checked={showOnlyActive}
+                            onChange={(e) => {
+                                setShowOnlyActive(e.target.checked);
+                                setCurrentPage(1);
+                            }}
+                            className="w-4 h-4 rounded border-gray-300 text-black focus:ring-black cursor-pointer"
+                        />
+                        <label htmlFor="showOnlyActive" className="text-[10px] font-black text-gray-500 uppercase tracking-widest cursor-pointer select-none">
+                            Active Only
+                        </label>
+                    </div>
+                    <button 
+                        onClick={handleExport}
+                        className="flex items-center gap-2 bg-black text-white px-6 py-2 rounded-xl text-xs font-black hover:bg-gray-800 shadow-md transition-all active:scale-95 uppercase tracking-widest"
+                    >
+                        <ArrowDownTrayIcon className="w-4 h-4" /> Export Analytics
+                    </button>
+                </div>
             </div>
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -112,8 +138,8 @@ const BdmOutcomePerformance: React.FC<BdmOutcomePerformanceProps> = ({ bookings,
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-black text-green-600">{p.soldRate}%</td>
                             </tr>
                         ))}
-                        {allBdmPerformance.length === 0 && (
-                            <tr><td colSpan={9} className="p-12 text-center text-gray-400 italic">No BDMs found in database.</td></tr>
+                        {filteredPerformance.length === 0 && (
+                            <tr><td colSpan={9} className="p-12 text-center text-gray-400 italic">No BDMs found matching criteria.</td></tr>
                         )}
                     </tbody>
                 </table>
