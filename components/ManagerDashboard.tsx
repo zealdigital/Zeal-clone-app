@@ -1015,7 +1015,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                         <DateRangePicker startDate={dateRange.startDate} endDate={dateRange.endDate} onDateChange={setDateRange} />
                                         <div className="flex gap-2 w-full sm:w-auto items-end">
                                             <button onClick={() => setIsManualBookingOpen(true)} className="px-6 py-3 bg-black text-white rounded-xl hover:bg-gray-800 shadow-md transition-all font-bold uppercase text-xs tracking-widest flex items-center gap-2 h-[46px]"><PlusIcon className="w-4 h-4" /> Book Lead</button>
-                                            <button onClick={() => exportBookingsToCSV(allBookings, 'leads_report')} className="px-5 py-3 bg-white border border-gray-200 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center gap-2 h-[46px]"><ArrowDownTrayIcon className="w-4 h-4" /> Export</button>
                                         </div>
                                     </div>
                                 </div>
