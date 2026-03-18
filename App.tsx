@@ -49,13 +49,17 @@ const App: React.FC = () => {
     } catch { return null; }
   });
   
-  const [appState, setAppState] = useState<PersistedState>(defaultState);
+  const [appState, setAppState] = useState<PersistedState>(() => {
+    try {
+      const saved = localStorage.getItem('vendorBookingAppState');
+      return saved ? JSON.parse(saved) : defaultState;
+    } catch {
+      return defaultState;
+    }
+  });
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
   
-  // Ref to track if the state update is coming from Firestore to avoid redundant writes
-  const isIncomingUpdate = useRef(false);
-
   const processIncomingState = useCallback((incomingState: Partial<PersistedState>): PersistedState => {
       let mergedState = { ...defaultState, ...incomingState };
       const currentRegions = mergedState.regions || REGIONS;
@@ -118,27 +122,43 @@ const App: React.FC = () => {
         return;
     }
 
-    let unsubscribe: () => void;
+    let unsubscribe: (() => void) | undefined;
+    let active = true;
 
     signInAnonymously(auth).then(() => {
-        unsubscribe = subscribeToState((remoteData) => {
-            if (Object.keys(remoteData).length > 0) {
+        if (!active) return;
+        
+        const setupListener = () => {
+            if (unsubscribe) unsubscribe();
+            unsubscribe = subscribeToState((remoteData) => {
+                if (!active) return;
                 const processed = processIncomingState(remoteData);
-                isIncomingUpdate.current = true;
                 setAppState(processed);
-                localStorage.setItem('vendorBookingAppState', JSON.stringify(processed));
-                // Ref reset is handled in the render or next tick, but setting ready here
-            }
-            setIsFirebaseReady(true);
-            setFirebaseError(null);
-        }, (err) => {
-            setFirebaseError(err.message);
-        });
+                setIsFirebaseReady(true);
+                setFirebaseError(null);
+            }, (err) => {
+                if (!active) return;
+                console.error("Firebase Sync Error:", err);
+                setFirebaseError(err.message);
+                // If it's not a permission error, try to reconnect after 5 seconds
+                if (err.code !== 'permission-denied') {
+                    setTimeout(() => {
+                        if (active) setupListener();
+                    }, 5000);
+                }
+            });
+        };
+
+        setupListener();
     }).catch(err => {
+        if (!active) return;
         setFirebaseError("Auth Error: Enable Anonymous Sign-in in Firebase Console.");
     });
 
-    return () => { if (unsubscribe) unsubscribe(); };
+    return () => { 
+        active = false;
+        if (unsubscribe) unsubscribe(); 
+    };
   }, [processIncomingState]);
 
   const { allBookings, publicHolidays, appointmentTimes, leaveDays, bdms, vendors, managers, notifications, managerAppointments, branding, regions, regionColors } = appState;
@@ -169,18 +189,24 @@ const App: React.FC = () => {
     styleEl.innerHTML = styleContent;
   }, [branding]);
 
+  useEffect(() => {
+    localStorage.setItem('vendorBookingAppState', JSON.stringify(appState));
+  }, [appState]);
+
   /**
    * REFACTORED: Targeted Write-Through Update
-   * This ensures that every state change is immediately persisted to Firestore
-   * without waiting for a global useEffect or risking race conditions.
+   * This ensures that every state change is immediately persisted to Firestore.
    */
-  const updateState = (key: keyof PersistedState, updater: any) => {
+  const updateState = useCallback(<K extends keyof PersistedState>(key: K, updater: ((prev: PersistedState[K]) => PersistedState[K]) | PersistedState[K]) => {
       setAppState(prev => {
           const currentValue = prev[key];
-          const newValue = typeof updater === 'function' ? updater(currentValue) : updater;
+          const newValue = typeof updater === 'function' ? (updater as any)(currentValue) : updater;
           
+          // Simple equality check to avoid redundant updates
+          if (currentValue === newValue) return prev;
+
           // Persist the specific change to Firebase immediately
-          if (isFirebaseReady) {
+          if (isFirebaseConfigured) {
               saveStateToFirebase({ [key]: newValue });
           }
           
@@ -189,7 +215,7 @@ const App: React.FC = () => {
               [key]: newValue
           };
       });
-  };
+  }, []);
 
   const salespeopleCount = useMemo(() => {
     return regions.reduce((acc, region) => {
@@ -321,10 +347,6 @@ const App: React.FC = () => {
         />
       ) : (
         <>
-            <div className="fixed top-4 left-4 z-[60] flex items-center gap-2 pointer-events-none">
-                <div className={`w-2 h-2 rounded-full ${isFirebaseReady ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{isFirebaseReady ? 'Live' : 'Offline'}</span>
-            </div>
             {renderDashboard()}
         </>
       )}
