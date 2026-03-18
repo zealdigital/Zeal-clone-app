@@ -1,15 +1,17 @@
 import React, { useMemo } from 'react';
 import type { Booking } from '../types';
-import { getStatusPill } from '../utils/statusUtils';
+import { getStatusPill, getVendorStatusPill } from '../utils/statusUtils';
 
 interface StatusAnalyticsProps {
   bookings: Booking[];
   title: string;
+  role?: 'manager' | 'vendor' | 'bdm';
 }
 
 const ALL_STATUSES: Booking['status'][] = ['active', 'sold', 'seen', 'rescheduled', 'rescheduled_bdm', 'cancelled', 'dq', 'rejected'];
 
-const StatusAnalytics: React.FC<StatusAnalyticsProps> = ({ bookings, title }) => {
+const StatusAnalytics: React.FC<StatusAnalyticsProps> = ({ bookings, title, role }) => {
+    const isVendorRole = role === 'vendor';
     const analytics = useMemo(() => {
         if (!bookings) return { statusBreakdown: {}, maxCount: 1, total: 0 };
 
@@ -39,7 +41,7 @@ const StatusAnalytics: React.FC<StatusAnalyticsProps> = ({ bookings, title }) =>
                         return (
                             <div key={status} className="flex items-center">
                                 <div className="w-1/3 text-sm font-medium text-gray-700 truncate pr-2 flex items-center">
-                                    {getStatusPill(status)}
+                                    {isVendorRole ? getVendorStatusPill(status) : getStatusPill(status)}
                                 </div>
                                 <div className="w-2/3 flex items-center">
                                     <div className="w-full bg-gray-200 rounded-full h-5">

@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import type { Booking } from '../types';
 import { PencilSquareIcon, TrashIcon, ClockIcon, CheckBadgeIcon, PhoneIcon, ChatBubbleLeftRightIcon, CalendarDaysIcon } from './Icons';
-import { getStatusPill } from '../utils/statusUtils';
+import { getStatusPill, getVendorStatusPill } from '../utils/statusUtils';
 import ExpandableNote from './ExpandableNote';
 import SmsRequestModal from './SmsRequestModal';
 import { formatDDMMYY } from '../utils/dateUtils';
@@ -113,7 +113,6 @@ const MyBookingsList: React.FC<MyBookingsListProps> = ({ bookings, onEditBooking
   }, [groupedBookings]);
 
   const renderVendorStatus = (booking: Booking) => {
-    if (booking.status === 'sold') return getStatusPill('seen');
     if (booking.status === 'pending_approval') {
         return (
             <span className="px-2 inline-flex items-center gap-1 text-xs leading-5 font-normal rounded-full whitespace-nowrap bg-purple-100 text-purple-800 border border-purple-200">
@@ -130,7 +129,7 @@ const MyBookingsList: React.FC<MyBookingsListProps> = ({ bookings, onEditBooking
             </span>
         );
     }
-    return getStatusPill(booking.status);
+    return getVendorStatusPill(booking.status);
   };
 
   const handleSmsSubmit = (bookingId: number, type: string, message: string) => {

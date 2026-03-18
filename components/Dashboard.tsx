@@ -21,6 +21,7 @@ import ArchivedBookingsList from './ArchivedBookingsList';
 import { sendEmailNotification } from '../utils/emailService';
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../constants';
 import { formatDDMMYY } from '../utils/dateUtils';
+import { maskSoldText } from '../utils/statusUtils';
 
 const normalizeWebsite = (url: string): string => {
     if (!url) return '';
@@ -279,12 +280,27 @@ const Dashboard: React.FC<DashboardProps> = ({
       );
   };
 
-  const myBookings = useMemo(() => allBookings.filter(b => b.vendor.id === currentUser.id), [allBookings, currentUser.id]);
-  const vendorVisibleBookings = useMemo(() => myBookings.map(booking => (booking.status === 'sold' ? { ...booking, status: 'seen' as const } : booking)), [myBookings]);
+  const myBookings = useMemo(() => 
+    allBookings.filter(b => 
+      b.vendor.id === currentUser.id && 
+      !b.callerName?.toLowerCase().includes('zeal digital')
+    ), 
+    [allBookings, currentUser.id]
+  );
+  
+  const mappedMyBookings = useMemo(() => myBookings.map(booking => {
+    const mapped = booking.status === 'sold' ? { ...booking, status: 'seen' as const } : booking;
+    return {
+      ...mapped,
+      notes: maskSoldText(mapped.notes),
+      bdmNote: maskSoldText(mapped.bdmNote),
+      rejectionReason: maskSoldText(mapped.rejectionReason)
+    };
+  }), [myBookings]);
   
   // EXHAUSTIVE SEARCH FOR VENDORS
   const filteredVendorBookings = useMemo(() => {
-    return vendorVisibleBookings.filter(booking => {
+    return mappedMyBookings.filter(booking => {
       if (booking.status === 'rejected' || booking.status === 'pending_approval') return false; 
       
       const bookingDate = new Date(booking.date);
@@ -293,18 +309,17 @@ const Dashboard: React.FC<DashboardProps> = ({
       
       return matchesGlobalSearch(booking, searchTerm);
     });
-  }, [searchTerm, vendorVisibleBookings, dateRange]);
+  }, [searchTerm, mappedMyBookings, dateRange]);
 
   // PENDING MANUAL REQUESTS for current vendor
   const pendingRequests = useMemo(() => {
-      return myBookings.filter(b => b.status === 'pending_approval' && !b.isBlocker)
+      return mappedMyBookings.filter(b => b.status === 'pending_approval' && !b.isBlocker)
         .sort((a, b) => b.id - a.id);
-  }, [myBookings]);
+  }, [mappedMyBookings]);
 
   const analyticsBookings = useMemo(() => {
-    return allBookings.filter(b => {
+    return mappedMyBookings.filter(b => {
       if (b.isBlocker) return false;
-      if (b.vendor.id !== currentUser.id) return false;
       
       if (allowedRegions.length > 0 && !allowedRegions.includes(b.region)) return false;
       const bDate = new Date(b.date);
@@ -312,23 +327,23 @@ const Dashboard: React.FC<DashboardProps> = ({
       if (analyticsDateRange.endDate && bDate > new Date(analyticsDateRange.endDate)) return false;
       return true;
     });
-  }, [allBookings, analyticsDateRange, allowedRegions, currentUser.id]);
+  }, [mappedMyBookings, analyticsDateRange, allowedRegions]);
 
   const archivedBookings = useMemo(() => {
-    const allArchived = vendorVisibleBookings.filter(b => ['seen', 'rescheduled', 'cancelled', 'dq', 'rescheduled_bdm'].includes(b.status));
+    const allArchived = mappedMyBookings.filter(b => ['seen', 'rescheduled', 'cancelled', 'dq', 'rescheduled_bdm'].includes(b.status));
     if (searchTerm.trim()) {
         return allArchived.filter(b => matchesGlobalSearch(b, searchTerm));
     }
     const today = new Date(); today.setHours(0,0,0,0); const cutoff = new Date(today); cutoff.setDate(today.getDate() - 14);
     return allArchived.filter(b => { const bDate = new Date(b.date); return bDate >= cutoff; });
-  }, [vendorVisibleBookings, searchTerm]);
+  }, [mappedMyBookings, searchTerm]);
 
   const activeBookings = useMemo(() => filteredVendorBookings.filter(b => b.status === 'active'), [filteredVendorBookings]);
   
   const rejectedBookings = useMemo(() => {
-      const list = myBookings.filter(b => b.status === 'rejected' && !b.isBlocker);
+      const list = mappedMyBookings.filter(b => b.status === 'rejected' && !b.isBlocker);
       return list.filter(b => matchesGlobalSearch(b, searchTerm));
-  }, [myBookings, searchTerm]);
+  }, [mappedMyBookings, searchTerm]);
 
   const myNotifications = useMemo(() => notifications.filter(n => n.vendorId === currentUser.id), [notifications, currentUser.id]);
   const calendarBookingsForRegion = useMemo(() => 
@@ -476,7 +491,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               {activeTab === 'calendar' && (
                   <div className="animate-fadeIn">
                       <UnifiedCalendar 
-                        bookings={vendorVisibleBookings.filter(b => !b.isBlocker)} 
+                        bookings={mappedMyBookings.filter(b => !b.isBlocker)} 
                         currentUser={currentUser} 
                         appointments={personalAppointments}
                         setAppointments={setPersonalAppointments}
@@ -500,7 +515,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     </div>
                     <TrendAnalytics bookings={analyticsBookings} period={analyticsTimePeriod} />
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                      <StatusAnalytics bookings={analyticsBookings} title="Team Booking Status Breakdown" />
+                      <StatusAnalytics bookings={analyticsBookings} title="Team Booking Status Breakdown" role="vendor" />
                       <CallerPerformanceAnalytics bookings={analyticsBookings} />
                     </div>
                     <PerformanceLeadLog bookings={analyticsBookings} role="vendor" title="Team Performance Lead Log" />
@@ -538,8 +553,8 @@ const Dashboard: React.FC<DashboardProps> = ({
               )}
             </div>
           </main>
-          {!!slotToManage && <BookingModal slotInfo={slotToManage} bookingToEdit={null} allBookings={allBookings} blockedSlotsForEdit={[]} vendor={currentUser} onClose={closeModal} onConfirmBooking={handleConfirmBooking} onUpdateBooking={handleUpdateBooking} onEditFromModal={handleEditFromModal} salespeopleCount={salespeopleCount} appointmentTimes={appointmentTimes} />}
-          {!!bookingToEdit && <BookingModal slotInfo={null} bookingToEdit={bookingToEdit} allBookings={allBookings} blockedSlotsForEdit={blockedSlotsForEdit} vendor={currentUser} onClose={closeModal} onConfirmBooking={handleConfirmBooking} onUpdateBooking={handleUpdateBooking} onEditFromModal={handleEditFromModal} salespeopleCount={salespeopleCount} appointmentTimes={appointmentTimes} />}
+          {!!slotToManage && <BookingModal slotInfo={slotToManage} bookingToEdit={null} allBookings={allBookings} blockedSlotsForEdit={[]} vendor={currentUser} onClose={closeModal} onConfirmBooking={handleConfirmBooking} onUpdateBooking={handleUpdateBooking} onEditFromModal={handleEditFromModal} salespeopleCount={salespeopleCount} appointmentTimes={appointmentTimes} role="vendor" />}
+          {!!bookingToEdit && <BookingModal slotInfo={null} bookingToEdit={bookingToEdit} allBookings={allBookings} blockedSlotsForEdit={blockedSlotsForEdit} vendor={currentUser} onClose={closeModal} onConfirmBooking={handleConfirmBooking} onUpdateBooking={handleUpdateBooking} onEditFromModal={handleEditFromModal} salespeopleCount={salespeopleCount} appointmentTimes={appointmentTimes} role="vendor" />}
           {isRequestModalOpen && (
               <BdmBookingRequestModal 
                 currentUser={currentUser} 

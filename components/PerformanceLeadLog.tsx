@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import type { Booking, BDM } from '../types';
-import { getStatusPill } from '../utils/statusUtils';
+import { getStatusPill, getVendorStatusPill, maskSoldText } from '../utils/statusUtils';
 import { formatToDDMMYY } from '../utils/dateUtils';
 import { ArrowDownTrayIcon, MagnifyingGlassIcon, MapPinIcon } from './Icons';
 import { exportBookingsToCSV } from '../utils/exportUtils';
@@ -33,7 +33,14 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
 
   const mappedBookings = useMemo(() => {
     if (!isVendorRole) return bookings;
-    return bookings.map(b => b.status === 'sold' ? { ...b, status: 'seen' as const } : b);
+    return bookings.map(b => {
+      const mapped = b.status === 'sold' ? { ...b, status: 'seen' as const } : b;
+      return {
+        ...mapped,
+        notes: maskSoldText(mapped.notes),
+        bdmNote: maskSoldText(mapped.bdmNote)
+      };
+    });
   }, [bookings, isVendorRole]);
 
   // Reset to page 1 when filters change
@@ -181,7 +188,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
               <option value="seen">Seen</option>
               <option value="rescheduled">Rescheduled</option>
               <option value="rescheduled_bdm">BDM Reschedule</option>
-              <option value="rejected">Rejected</option>
+              <option value="rejected">{isVendorRole ? 'Declined' : 'Rejected'}</option>
               <option value="dq">DQ</option>
               <option value="cancelled">Cancelled</option>
             </select>
@@ -265,7 +272,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
                     <span className="text-[10px] font-black text-gray-400 uppercase">{lead.region}</span>
                   </td>
                   <td className="px-6 py-6 whitespace-nowrap">
-                    {getStatusPill(lead.status)}
+                    {isVendorRole ? getVendorStatusPill(lead.status) : getStatusPill(lead.status)}
                   </td>
                 </tr>
               );

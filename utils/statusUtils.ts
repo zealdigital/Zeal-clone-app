@@ -33,3 +33,30 @@ export const getStatusPill = (status: Booking['status']) => {
         className: `px-2 inline-flex text-xs leading-5 font-semibold rounded-full whitespace-nowrap ${statusStyles[status]}`
     }, statusLabels[status]);
 };
+
+export const getVendorStatusPill = (status: Booking['status']) => {
+    if (status === 'sold') return getStatusPill('seen');
+    if (status === 'rejected') {
+        return React.createElement('span', {
+            className: `px-2 inline-flex text-xs leading-5 font-semibold rounded-full whitespace-nowrap bg-red-100 text-red-800`
+        }, 'Declined');
+    }
+    return getStatusPill(status);
+};
+
+export const maskSoldText = (text: string | undefined): string | undefined => {
+    if (!text) return text;
+    let masked = text.replace(/SOLD/gi, (match) => {
+        if (match === 'SOLD') return 'SEEN';
+        if (match === 'sold') return 'seen';
+        if (match === 'Sold') return 'Seen';
+        return 'Seen';
+    });
+    masked = masked.replace(/REJECTED/gi, (match) => {
+        if (match === 'REJECTED') return 'DECLINED';
+        if (match === 'rejected') return 'declined';
+        if (match === 'Rejected') return 'Declined';
+        return 'Declined';
+    });
+    return masked;
+};

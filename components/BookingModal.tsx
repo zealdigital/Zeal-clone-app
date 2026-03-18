@@ -4,6 +4,7 @@ import type { Booking, Vendor, Region, AppointmentSlotsConfig } from '../types';
 import { XMarkIcon, UserGroupIcon, PencilSquareIcon, ExclamationTriangleIcon } from './Icons';
 import { formatDateForStorage, formatDDMMYY } from '../utils/dateUtils';
 import { getAppointmentSlotsForDay } from '../utils/slotUtils';
+import { maskSoldText } from '../utils/statusUtils';
 import TimePicker from './TimePicker';
 
 const normalizeWebsite = (url: string): string => {
@@ -34,6 +35,7 @@ interface BookingModalProps {
   onEditFromModal: (booking: Booking) => void;
   salespeopleCount: Record<Region, number>;
   appointmentTimes: Record<Region, AppointmentSlotsConfig>;
+  role?: 'manager' | 'vendor' | 'bdm';
 }
 
 interface BookingFormProps {
@@ -146,15 +148,20 @@ const BookingForm: React.FC<BookingFormProps> = ({
     </form>
 );
 
-const ExistingBookingsView: React.FC<{ bookingsInSlot: Booking[]; onEditFromModal: (booking: Booking) => void; }> = ({ bookingsInSlot, onEditFromModal }) => (
+const ExistingBookingsView: React.FC<{ bookingsInSlot: Booking[]; onEditFromModal: (booking: Booking) => void; role?: string; }> = ({ bookingsInSlot, onEditFromModal, role }) => (
     <div className="p-6 space-y-4">
         {bookingsInSlot.length > 0 ? (
             <ul className="divide-y divide-gray-200">
                 {bookingsInSlot.map(booking => (
                     <li key={booking.id} className="py-4 flex items-center justify-between">
-                        <div>
+                        <div className="flex-1 mr-4">
                             <p className="text-md font-semibold text-gray-900">{booking.clientName}</p>
                             <p className="text-sm text-gray-600">{booking.businessName}</p>
+                            {role === 'vendor' && (booking.notes || booking.bdmNote) && (
+                                <p className="text-xs text-gray-400 mt-1 italic">
+                                    Note: {maskSoldText(booking.bdmNote || booking.notes)}
+                                </p>
+                            )}
                             <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
                                 <UserGroupIcon className="w-3.5 h-3.5" />
                                 <span>Booked by: {booking.vendor.name}</span>
@@ -173,7 +180,7 @@ const ExistingBookingsView: React.FC<{ bookingsInSlot: Booking[]; onEditFromModa
 const BookingModal: React.FC<BookingModalProps> = ({ 
     slotInfo, bookingToEdit, allBookings, blockedSlotsForEdit = [],
     vendor, onClose, onConfirmBooking, onUpdateBooking, onEditFromModal,
-    salespeopleCount, appointmentTimes,
+    salespeopleCount, appointmentTimes, role = 'manager'
 }) => {
   const isEditMode = !!bookingToEdit;
   const initialData = isEditMode ? bookingToEdit : slotInfo;
@@ -254,7 +261,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
         address: bookingToEdit.address, customTime: isCustom ? bookingToEdit.time : '10:00 AM',
         customReason: bookingToEdit.customReason || '',
         callerName: bookingToEdit.callerName || '',
-        notes: bookingToEdit.notes || '',
+        notes: role === 'vendor' ? maskSoldText(bookingToEdit.notes || '') : (bookingToEdit.notes || ''),
       });
       setSlotsToRemove(blockedSlotsForEdit);
     } else if (slotInfo) {
@@ -368,6 +375,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
                 <ExistingBookingsView
                     bookingsInSlot={bookingsInSlot}
                     onEditFromModal={onEditFromModal}
+                    role={role}
                 />
             )}
         </div>

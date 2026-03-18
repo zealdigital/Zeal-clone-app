@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Booking } from '../types';
 import { PhoneIcon, MapPinIcon } from './Icons';
+import { maskSoldText } from '../utils/statusUtils';
 
 import { formatToDDMMYY } from '../utils/dateUtils';
 
@@ -110,7 +111,7 @@ const RejectedBookingsList: React.FC<RejectedBookingsListProps> = ({ bookings, r
                   </td>
                 )}
                 <td className="px-6 py-5 whitespace-normal text-sm font-normal text-red-500 max-w-xs leading-snug">
-                    {booking.rejectionReason}
+                    {role === 'vendor' ? maskSoldText(booking.rejectionReason) : booking.rejectionReason}
                 </td>
                 <td className="px-6 py-5 whitespace-nowrap text-sm font-normal text-gray-400">
                     {booking.rejectedBy || 'Manager'}

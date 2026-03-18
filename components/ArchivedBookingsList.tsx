@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import type { Booking } from '../types';
-import { getStatusPill } from '../utils/statusUtils';
+import { getStatusPill, getVendorStatusPill, maskSoldText } from '../utils/statusUtils';
 import { PhoneIcon, CalendarDaysIcon, PencilSquareIcon, MapPinIcon } from './Icons';
 import { formatDDMMYY } from '../utils/dateUtils';
 
@@ -131,9 +131,11 @@ const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, r
                     {role === 'manager' && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-500">{booking.vendor.name}</td>
                     )}
-                    <td className="px-6 py-4 whitespace-nowrap">{getStatusPill(booking.status)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                        {role === 'vendor' ? getVendorStatusPill(booking.status) : getStatusPill(booking.status)}
+                    </td>
                     <td className="px-6 py-4 whitespace-normal text-xs text-gray-400 max-w-xs leading-snug uppercase tracking-tighter font-normal">
-                        {booking.bdmNote || booking.notes || <span className="italic opacity-50">No notes</span>}
+                        {(role === 'vendor' ? maskSoldText(booking.bdmNote || booking.notes) : (booking.bdmNote || booking.notes)) || <span className="italic opacity-50">No notes</span>}
                     </td>
                     {onEditBooking && (
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
