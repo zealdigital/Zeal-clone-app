@@ -1011,8 +1011,10 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                             )}
                                         </div>
                                     </div>
-                                    <div className="flex flex-col sm:flex-row items-end justify-between gap-2 w-full">
-                                        <DateRangePicker startDate={dateRange.startDate} endDate={dateRange.endDate} onDateChange={setDateRange} />
+                                    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 w-full items-stretch">
+                                        <div className="flex-1">
+                                            <DateRangePicker startDate={dateRange.startDate} endDate={dateRange.endDate} onDateChange={setDateRange} />
+                                        </div>
                                         <div className="flex gap-2 w-full sm:w-auto items-end">
                                             <button onClick={() => setIsManualBookingOpen(true)} className="px-6 py-3 bg-black text-white rounded-xl hover:bg-gray-800 shadow-md transition-all font-bold uppercase text-xs tracking-widest flex items-center gap-2 h-[46px]"><PlusIcon className="w-4 h-4" /> Book Lead</button>
                                         </div>
@@ -1121,12 +1123,14 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                           <div className="space-y-8 animate-fadeIn pb-20">
                             <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
                                 <h3 className="text-lg font-bold text-gray-800 mb-4">Analytics Controls</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                                    <DateRangePicker startDate={analyticsDateRange.startDate} endDate={analyticsDateRange.endDate} onDateChange={setAnalyticsDateRange} />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:items-center items-stretch">
+                                    <div className="flex-1">
+                                        <DateRangePicker startDate={analyticsDateRange.startDate} endDate={analyticsDateRange.endDate} onDateChange={setAnalyticsDateRange} />
+                                    </div>
                                     <div className="flex flex-col">
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Trend Grouping</label>
-                                        <div className="flex rounded-md shadow-sm">
-                                            {['daily', 'weekly', 'monthly', 'yearly'].map(p => (<button key={p} onClick={() => setAnalyticsTimePeriod(p as any)} className={`flex-1 py-2 text-sm border capitalize transition-all ${analyticsTimePeriod === p ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>{p}</button>))}
+                                        <div className="flex flex-wrap rounded-md shadow-sm">
+                                            {['daily', 'weekly', 'monthly', 'yearly'].map(p => (<button key={p} onClick={() => setAnalyticsTimePeriod(p as any)} className={`flex-1 min-w-[70px] py-2 text-sm border capitalize transition-all ${analyticsTimePeriod === p ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>{p}</button>))}
                                         </div>
                                     </div>
                                 </div>

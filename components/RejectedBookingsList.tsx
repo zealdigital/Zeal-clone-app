@@ -41,7 +41,8 @@ const RejectedBookingsList: React.FC<RejectedBookingsListProps> = ({ bookings, r
 
   return (
     <div className="bg-white">
-      <div className="overflow-x-auto">
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="min-w-full">
           <thead>
             <tr className="border-b border-gray-100">
@@ -120,6 +121,60 @@ const RejectedBookingsList: React.FC<RejectedBookingsListProps> = ({ bookings, r
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden divide-y divide-gray-100">
+        {paginatedBookings.map((booking) => (
+          <div key={booking.id} className="p-4 space-y-3">
+            <div className="flex justify-between items-start">
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-bold text-gray-900 truncate">{booking.businessName}</h4>
+                <p className="text-xs text-gray-500">{booking.clientName}</p>
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-emerald-100 text-emerald-800 uppercase">
+                  {booking.region}
+                </span>
+                <span className="text-[10px] text-gray-400 font-medium">
+                  {formatToDDMMYY(booking.date)}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="space-y-1">
+                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Contact</p>
+                <a href={`tel:${booking.clientPhone}`} className="flex items-center gap-1.5 text-indigo-600 font-medium">
+                  <PhoneIcon className="w-3.5 h-3.5" />
+                  {booking.clientPhone}
+                </a>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Time</p>
+                <p className="font-medium text-gray-700">{booking.time}</p>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-[10px] text-red-400 uppercase font-bold tracking-wider">Reason for Rejection</p>
+              <p className="text-xs text-red-500 leading-relaxed font-medium">
+                {role === 'vendor' ? maskSoldText(booking.rejectionReason) : booking.rejectionReason}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-gray-50">
+              <div className="text-[10px] text-gray-400">
+                Rejected by: <span className="font-bold text-gray-600">{booking.rejectedBy || 'Manager'}</span>
+              </div>
+              {role !== 'bdm' && (
+                <div className="text-[10px] text-gray-400">
+                  Caller: <span className="font-bold text-gray-600">{booking.vendor.name}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
 
       {totalPages > 1 && (

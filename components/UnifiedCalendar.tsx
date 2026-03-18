@@ -286,28 +286,30 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                 const availability = getDayAvailability(day);
 
                 return (
-                    <div key={dateKey} className="grid grid-cols-12 border-b border-gray-200">
-                        <div className={`col-span-2 p-3 border-r border-gray-200 ${isToday ? 'bg-indigo-50' : 'bg-gray-50'}`}>
-                           <p className={`text-sm font-semibold ${isToday ? 'text-indigo-600' : 'text-gray-700'}`}>{day.toLocaleDateString('en-US', { weekday: 'short' })}</p>
-                           <p className={`text-2xl font-bold ${isToday ? 'text-indigo-600' : 'text-gray-800'}`}>{day.getDate()}</p>
+                    <div key={dateKey} className="flex flex-col md:grid md:grid-cols-12 border-b border-gray-200">
+                        <div className={`md:col-span-2 p-3 border-b md:border-b-0 md:border-r border-gray-200 ${isToday ? 'bg-indigo-50' : 'bg-gray-50'}`}>
+                           <div className="flex md:flex-col items-baseline md:items-start gap-2 md:gap-0">
+                               <p className={`text-sm font-semibold ${isToday ? 'text-indigo-600' : 'text-gray-700'}`}>{day.toLocaleDateString('en-US', { weekday: 'short' })}</p>
+                               <p className={`text-2xl font-bold ${isToday ? 'text-indigo-600' : 'text-gray-800'}`}>{day.getDate()}</p>
+                           </div>
                            {availability && (
                                <>
                                    <div className="mt-2 flex items-center gap-1">
                                        <div className={`w-1.5 h-1.5 rounded-full ${availability.free > 0 ? 'bg-green-500' : 'bg-gray-300'}`} />
                                        <span className="text-[10px] font-black text-gray-500 uppercase">{availability.free} Slots Free</span>
                                    </div>
-                                   <div className="mt-3 grid grid-cols-1 gap-1 border-t border-gray-200 pt-2">
+                                   <div className="mt-3 grid grid-cols-2 md:grid-cols-1 gap-1 border-t border-gray-200 pt-2">
                                        {availability.slotBreakdown.map(slot => (
-                                           <div key={slot.time} className={`flex justify-between items-center text-[11px] px-2 py-1 rounded transition-all ${slot.free > 0 ? 'bg-green-50/50 border border-green-100' : 'bg-gray-50 border border-gray-100 opacity-60'}`}>
-                                               <span className="text-gray-600 font-bold">{slot.time}</span>
-                                               <span className={`font-black px-1.5 rounded-full ${slot.free > 0 ? 'bg-green-600 text-white' : 'bg-gray-400 text-white'}`}>{slot.free}</span>
+                                           <div key={slot.time} className={`flex justify-between items-center text-xs px-2 py-1.5 rounded transition-all ${slot.free > 0 ? 'bg-green-50/50 border border-green-200 shadow-sm' : 'bg-gray-50 border border-gray-100 opacity-60'}`}>
+                                               <span className="text-gray-700 font-bold">{slot.time}</span>
+                                               <span className={`font-black px-2 py-0.5 rounded-full text-[10px] ${slot.free > 0 ? 'bg-green-600 text-white' : 'bg-gray-400 text-white'}`}>{slot.free}</span>
                                            </div>
                                        ))}
                                    </div>
                                </>
                            )}
                         </div>
-                        <div className="col-span-10 p-3 space-y-2 relative group min-h-[80px]">
+                        <div className="md:col-span-10 p-3 space-y-2 relative group min-h-[80px]">
                             {dayItems.length > 0 ? dayItems.map((item, idx) => {
                                 if (item.type === 'booking') {
                                     const booking = item.data;
@@ -389,8 +391,10 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
         </div>
       </div>
       
-      <div className="rounded-xl overflow-hidden border border-gray-200">
-        {viewMode === 'month' ? renderMonthView() : renderWeekView()}
+      <div className="rounded-xl overflow-hidden border border-gray-200 overflow-x-auto">
+        <div className="min-w-[700px] md:min-w-0">
+          {viewMode === 'month' ? renderMonthView() : renderWeekView()}
+        </div>
       </div>
 
       {isModalOpen && (

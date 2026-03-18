@@ -39,14 +39,14 @@ const StatusAnalytics: React.FC<StatusAnalyticsProps> = ({ bookings, title, role
                         
                         const widthPercentage = analytics.maxCount > 0 ? (count / analytics.maxCount) * 100 : 0;
                         return (
-                            <div key={status} className="flex items-center">
-                                <div className="w-1/3 text-sm font-medium text-gray-700 truncate pr-2 flex items-center">
+                            <div key={status} className="flex flex-col sm:flex-row sm:items-center">
+                                <div className="w-full sm:w-1/3 text-sm font-medium text-gray-700 truncate pr-2 flex items-center mb-1 sm:mb-0">
                                     {isVendorRole ? getVendorStatusPill(status) : getStatusPill(status)}
                                 </div>
-                                <div className="w-2/3 flex items-center">
+                                <div className="w-full sm:w-2/3 flex items-center">
                                     <div className="w-full bg-gray-200 rounded-full h-5">
                                         <div 
-                                            className="bg-indigo-500 h-5 rounded-full text-white text-xs flex items-center justify-end pr-2 transition-all duration-500"
+                                            className="bg-indigo-500 h-5 rounded-full text-white text-xs font-bold flex items-center justify-end pr-2 transition-all duration-500"
                                             style={{ width: `${widthPercentage}%` }}
                                         >
                                            {count > 0 && count}

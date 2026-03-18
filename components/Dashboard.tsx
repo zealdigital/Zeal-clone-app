@@ -433,9 +433,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                     {allowedRegions.length > 0 && (
                         <CalendarView allBookingsForRegion={calendarBookingsForRegion} onSelectSlot={handleOpenSlotManager} region={currentRegion} salespeopleCount={salespeopleCount} publicHolidays={publicHolidays} appointmentTimes={appointmentTimes} leaveDays={leaveDays} />
                     )}
-                    <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                        <DateRangePicker startDate={dateRange.startDate} endDate={dateRange.endDate} onDateChange={setDateRange} />
-                        <div className="flex gap-2">
+                    <div className="mt-8 flex flex-col md:flex-row gap-4 md:items-end items-stretch">
+                        <div className="flex-1">
+                            <DateRangePicker startDate={dateRange.startDate} endDate={dateRange.endDate} onDateChange={setDateRange} />
+                        </div>
+                        <div className="flex gap-2 w-full md:w-auto">
                             <div className="relative flex-grow flex items-center">
                                 <MagnifyingGlassIcon className="absolute left-3 w-5 h-5 text-gray-400" />
                                 <input 
@@ -503,12 +505,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <div className="animate-fadeIn mt-6 space-y-8">
                     <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
                       <h3 className="text-lg font-bold text-gray-800 mb-4">Team Performance Analytics</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                        <DateRangePicker startDate={analyticsDateRange.startDate} endDate={analyticsDateRange.endDate} onDateChange={setAnalyticsDateRange} />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:items-center items-stretch">
+                        <div className="flex-1">
+                          <DateRangePicker startDate={analyticsDateRange.startDate} endDate={analyticsDateRange.endDate} onDateChange={setAnalyticsDateRange} />
+                        </div>
                         <div className="flex flex-col">
                           <label className="block text-sm font-medium text-gray-700 mb-1">Trend Grouping</label>
-                          <div className="flex rounded-md shadow-sm">
-                            {['daily', 'weekly', 'monthly', 'yearly'].map(p => <button key={p} onClick={() => setAnalyticsTimePeriod(p as any)} className={`flex-1 py-2 text-sm border capitalize ${analyticsTimePeriod === p ? 'bg-indigo-600 text-white' : 'bg-white'}`}>{p}</button>)}
+                          <div className="flex flex-wrap rounded-md shadow-sm">
+                            {['daily', 'weekly', 'monthly', 'yearly'].map(p => <button key={p} onClick={() => setAnalyticsTimePeriod(p as any)} className={`flex-1 min-w-[70px] py-2 text-sm border capitalize transition-all ${analyticsTimePeriod === p ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>{p}</button>)}
                           </div>
                         </div>
                       </div>

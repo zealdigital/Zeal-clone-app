@@ -236,12 +236,14 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
                 const isToday = dateKey === getDateKey(today);
 
                 return (
-                    <div key={dateKey} className="grid grid-cols-12 border-b border-gray-200">
-                        <div className={`col-span-2 p-3 border-r border-gray-200 ${isToday ? 'bg-indigo-50' : 'bg-gray-50'}`}>
-                           <p className={`text-sm font-semibold ${isToday ? 'text-indigo-600' : 'text-gray-700'}`}>{day.toLocaleDateString('en-US', { weekday: 'short' })}</p>
-                           <p className={`text-2xl font-bold ${isToday ? 'text-indigo-600' : 'text-gray-800'}`}>{day.getDate()}</p>
+                    <div key={dateKey} className="flex flex-col md:grid md:grid-cols-12 border-b border-gray-200">
+                        <div className={`md:col-span-2 p-3 border-b md:border-b-0 md:border-r border-gray-200 ${isToday ? 'bg-indigo-50' : 'bg-gray-50'}`}>
+                           <div className="flex md:flex-col items-baseline md:items-start gap-2 md:gap-0">
+                               <p className={`text-sm font-semibold ${isToday ? 'text-indigo-600' : 'text-gray-700'}`}>{day.toLocaleDateString('en-US', { weekday: 'short' })}</p>
+                               <p className={`text-2xl font-bold ${isToday ? 'text-indigo-600' : 'text-gray-800'}`}>{day.getDate()}</p>
+                           </div>
                         </div>
-                        <div className="col-span-10 p-3 space-y-2 relative group min-h-[80px]">
+                        <div className="md:col-span-10 p-3 space-y-2 relative group min-h-[80px]">
                             {dayItems.length > 0 ? dayItems.map((item, idx) => {
                                 if (item.type === 'appointment') {
                                     const app = item.data;
@@ -357,7 +359,11 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
         </div>
       </div>
       
-      {viewMode === 'month' ? renderMonthView() : renderWeekView()}
+      <div className="rounded-xl overflow-hidden border border-gray-200 overflow-x-auto">
+        <div className="min-w-[700px] md:min-w-0">
+          {viewMode === 'month' ? renderMonthView() : renderWeekView()}
+        </div>
+      </div>
 
       {isModalOpen && (
         <ManagerAppointmentModal

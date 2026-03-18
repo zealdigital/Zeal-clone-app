@@ -369,9 +369,11 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                         <button onClick={() => handleOpenRequestModal(null)} className="flex items-center justify-center gap-2 px-6 py-2.5 bg-black text-white rounded-lg hover:bg-gray-800 shadow-md transition-all font-bold uppercase text-xs tracking-widest"><PlusIcon className="w-4 h-4" /> Request Booking</button>
                     </div>
                     
-                    <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                        <DateRangePicker startDate={dateRange.startDate} endDate={dateRange.endDate} onDateChange={setDateRange} />
-                        <div className="flex gap-2">
+                    <div className="mb-6 flex flex-col md:flex-row gap-4 md:items-end items-stretch">
+                        <div className="flex-1">
+                            <DateRangePicker startDate={dateRange.startDate} endDate={dateRange.endDate} onDateChange={setDateRange} />
+                        </div>
+                        <div className="flex gap-2 w-full md:w-auto">
                             <div className="relative flex-grow flex items-center">
                                 <MagnifyingGlassIcon className="absolute left-3 w-5 h-5 text-gray-400" />
                                 <input type="text" className="block w-full rounded-md border-0 py-2.5 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-black" placeholder="Search leads..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
@@ -384,7 +386,8 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                     <div className="space-y-12 pb-12">
                         {/* ACTIVE SECTION */}
                         <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
-                            <div className="overflow-x-auto">
+                            {/* Desktop Table View */}
+                            <div className="hidden md:block overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50"><tr><th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Client & Business</th><th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Calling Team</th><th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Time</th><th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th><th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Notes</th><th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-widest">Actions</th></tr></thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
@@ -435,24 +438,24 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                                                                     )}
                                                                 </div>
                                                             </td><td className="px-6 py-5 align-top whitespace-nowrap text-sm text-gray-600 font-medium pt-7">{booking.vendor.name}</td><td className="px-6 py-5 align-top whitespace-nowrap pt-7"><div className="text-sm font-black text-gray-900">{booking.time}</div></td><td className="px-6 py-5 align-top pt-6">{getStatusPill(booking.status)}</td><td className="px-6 py-5 align-top text-sm text-gray-500 max-w-xs pt-7"><ExpandableNote text={booking.bdmNote || booking.notes} /></td><td className="px-6 py-5 align-top whitespace-nowrap text-sm font-medium pt-6">
-  <div className="flex justify-end gap-2">
-    {booking.status === 'rescheduled_bdm' && (
-      <button 
-        onClick={() => handleOpenRequestModal(booking)} 
-        className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-md border border-orange-200" 
-        title="Request Reschedule Approval"
-      >
-        <ArrowPathIcon className="w-4 h-4" />
-      </button>
-    )}
-    <button onClick={() => setBookingToUpdate(booking)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md border border-indigo-200" title="Update Lead Result / Status">
-      <PencilSquareIcon className="w-4 h-4" />
-    </button>
-    <button onClick={() => setBookingToManageNotes(booking)} className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-md border border-indigo-200" title="Private Notes & Reminders">
-      <BellIcon className="w-4 h-4" />
-    </button>
-  </div>
-</td></tr>
+                                                                <div className="flex justify-end gap-2">
+                                                                    {booking.status === 'rescheduled_bdm' && (
+                                                                    <button 
+                                                                        onClick={() => handleOpenRequestModal(booking)} 
+                                                                        className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-md border border-orange-200" 
+                                                                        title="Request Reschedule Approval"
+                                                                    >
+                                                                        <ArrowPathIcon className="w-4 h-4" />
+                                                                    </button>
+                                                                    )}
+                                                                    <button onClick={() => setBookingToUpdate(booking)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md border border-indigo-200" title="Update Lead Result / Status">
+                                                                    <PencilSquareIcon className="w-4 h-4" />
+                                                                    </button>
+                                                                    <button onClick={() => setBookingToManageNotes(booking)} className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-md border border-indigo-200" title="Private Notes & Reminders">
+                                                                    <BellIcon className="w-4 h-4" />
+                                                                    </button>
+                                                                </div>
+                                                            </td></tr>
                                                     ))}
                                                 </React.Fragment>
                                             ))
@@ -460,6 +463,101 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                                     </tbody>
                                 </table>
                             </div>
+
+                            {/* Mobile Card View */}
+                            <div className="md:hidden divide-y divide-gray-200">
+                                {sortedDateKeysActive.length === 0 ? (
+                                    <div className="px-6 py-12 text-center text-gray-500 italic">No active appointments matching your criteria.</div>
+                                ) : (
+                                    sortedDateKeysActive.map(dateKey => (
+                                        <div key={dateKey}>
+                                            <div className="bg-gray-50 px-4 py-2 text-xs font-bold text-gray-700 uppercase tracking-tight border-y border-gray-200">
+                                                {formatDDMMYY(dateKey)}
+                                            </div>
+                                            <div className="divide-y divide-gray-100">
+                                                {groupedActiveBookings[dateKey].map(booking => (
+                                                    <div key={booking.id} className={`p-4 ${booking.isDuplicate && (new Date(booking.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'bg-amber-50 border-l-4 border-amber-400' : (booking.smsRequest?.status === 'pending' ? 'bg-purple-50 border-l-4 border-purple-400' : '')}`}>
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <div>
+                                                                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                                    <div className="text-base font-bold text-gray-900">{booking.clientName}</div>
+                                                                    {booking.isDuplicate && (new Date(booking.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) && (
+                                                                        <span className="text-[9px] font-black bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">DUPLICATE</span>
+                                                                    )}
+                                                                    {booking.smsRequest?.status === 'pending' && (
+                                                                        <span className="text-[9px] font-black bg-purple-200 text-purple-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">SMS REQUESTED</span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="text-xs text-gray-500 font-medium mb-1">{booking.businessName}</div>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <div className="text-sm font-black text-gray-900">{booking.time}</div>
+                                                                <div className="mt-1">{getStatusPill(booking.status)}</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="grid grid-cols-2 gap-3 mb-3">
+                                                            <div>
+                                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Calling Team</p>
+                                                                <p className="text-xs text-gray-600 font-medium">{booking.vendor.name}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Contact</p>
+                                                                {booking.clientPhone && (
+                                                                    <a href={`tel:${booking.clientPhone}`} className="text-xs text-indigo-600 font-medium block">
+                                                                        {booking.clientPhone}
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {booking.address && (
+                                                            <div className="mb-3 p-2 bg-gray-50 rounded-lg border border-gray-100">
+                                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1">
+                                                                    <MapPinIcon className="w-3 h-3" /> Meeting Address
+                                                                </p>
+                                                                <a 
+                                                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.address)}`}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-xs text-indigo-600 hover:underline font-medium block leading-tight"
+                                                                >
+                                                                    {booking.address}
+                                                                </a>
+                                                            </div>
+                                                        )}
+
+                                                        <div className="mb-4">
+                                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Notes</p>
+                                                            <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded border border-gray-100 italic">
+                                                                <ExpandableNote text={booking.bdmNote || booking.notes} />
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex gap-2">
+                                                            <button onClick={() => setBookingToUpdate(booking)} className="flex-1 flex items-center justify-center gap-2 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase tracking-widest shadow-sm">
+                                                                <PencilSquareIcon className="w-4 h-4" /> Update Status
+                                                            </button>
+                                                            <button onClick={() => setBookingToManageNotes(booking)} className="px-3 py-2 bg-white border border-gray-200 text-gray-400 rounded-lg hover:text-indigo-600 transition-colors shadow-sm">
+                                                                <BellIcon className="w-4 h-4" />
+                                                            </button>
+                                                            {booking.status === 'rescheduled_bdm' && (
+                                                                <button 
+                                                                    onClick={() => handleOpenRequestModal(booking)} 
+                                                                    className="px-3 py-2 bg-white border border-orange-200 text-orange-600 rounded-lg hover:bg-orange-50 transition-colors shadow-sm"
+                                                                >
+                                                                    <ArrowPathIcon className="w-4 h-4" />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+
                             <div className="p-4 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-4"><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{filteredActiveBookings.length} active records</span><div className="flex items-center gap-2"><button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white">Prev</button><span className="text-xs font-bold text-gray-600">Page {currentPage} of {totalPagesActive}</span><button onClick={() => setCurrentPage(p => Math.min(totalPagesActive, p + 1))} disabled={currentPage === totalPagesActive} className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white">Next</button></div></div>
                         </div>
 
@@ -487,7 +585,7 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                 </div>
             )}
             {activeTab === 'calendar' && <div className="animate-fadeIn"><UnifiedCalendar bookings={myUniqueBookings} currentUser={currentUser} appointments={personalAppointments} setAppointments={setPersonalAppointments} allBookingsForAvailability={allBookings} salespeopleCount={salespeopleCount} publicHolidays={publicHolidays} appointmentTimes={appointmentTimes} leaveDays={leaveDays} region={currentUser.region} /></div>}
-            {activeTab === 'performance' && (<div className="animate-fadeIn mt-6 space-y-8"><div className="bg-white p-6 rounded-lg shadow border border-gray-200"><h3 className="text-lg font-bold text-gray-800 mb-4">Analytics Controls</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center"><DateRangePicker startDate={analyticsDateRange.startDate} endDate={analyticsDateRange.endDate} onDateChange={setAnalyticsDateRange} /><div className="flex flex-col"><label className="block text-sm font-medium text-gray-700 mb-1">Trend Grouping</label><div className="flex rounded-md shadow-sm">{['daily', 'weekly', 'monthly', 'yearly'].map(p => <button key={p} onClick={() => setAnalyticsTimePeriod(p as any)} className={`flex-1 py-2 text-sm border capitalize ${analyticsTimePeriod === p ? 'bg-indigo-600 text-white' : 'bg-white'}`}>{p}</button>)}</div></div></div></div><BdmAnalyticsDashboard bookings={analyticsBookings} /><TrendAnalytics bookings={analyticsBookings} period={analyticsTimePeriod} /><StatusAnalytics bookings={analyticsBookings} title="Your Outcome Stats" /><div className="mt-12"><div className="mb-4"><h2 className="text-2xl font-black text-gray-900 tracking-tight">Your Full Assignment History</h2><p className="text-sm text-gray-500 font-medium">Complete record of every lead assigned to your profile.</p></div><PerformanceLeadLog bookings={analyticsBookings} role="bdm" title="Full Assignment Performance Log" /></div></div>)}
+            {activeTab === 'performance' && (<div className="animate-fadeIn mt-6 space-y-8"><div className="bg-white p-6 rounded-lg shadow border border-gray-200"><h3 className="text-lg font-bold text-gray-800 mb-4">Analytics Controls</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center"><DateRangePicker startDate={analyticsDateRange.startDate} endDate={analyticsDateRange.endDate} onDateChange={setAnalyticsDateRange} /><div className="flex flex-col"><label className="block text-sm font-medium text-gray-700 mb-1">Trend Grouping</label><div className="flex flex-wrap rounded-md shadow-sm">{['daily', 'weekly', 'monthly', 'yearly'].map(p => <button key={p} onClick={() => setAnalyticsTimePeriod(p as any)} className={`flex-1 min-w-[70px] py-2 text-sm border capitalize transition-all ${analyticsTimePeriod === p ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>{p}</button>)}</div></div></div></div><BdmAnalyticsDashboard bookings={analyticsBookings} /><TrendAnalytics bookings={analyticsBookings} period={analyticsTimePeriod} /><StatusAnalytics bookings={analyticsBookings} title="Your Outcome Stats" /><div className="mt-12"><div className="mb-4"><h2 className="text-2xl font-black text-gray-900 tracking-tight">Your Full Assignment History</h2><p className="text-sm text-gray-500 font-medium">Complete record of every lead assigned to your profile.</p></div><PerformanceLeadLog bookings={analyticsBookings} role="bdm" title="Full Assignment Performance Log" /></div></div>)}
             {activeTab === 'settings' && (<div className="animate-fadeIn mt-6 max-w-2xl mx-auto"><div className="bg-white p-8 rounded-lg shadow-md border border-gray-200"><h2 className="text-2xl font-black text-gray-900 mb-6">Settings</h2><form onSubmit={handleSaveSettings} className="space-y-6"><div><label className="block text-sm font-bold text-gray-700 mb-2">Contact Email</label><input type="email" value={settingsForm.email} onChange={e => setSettingsForm({...settingsForm, email: e.target.value})} className="w-full border border-gray-300 p-3 rounded-md" /></div><NotificationSettings preferences={settingsForm.notificationPreferences} onChange={(p) => setSettingsForm({...settingsForm, notificationPreferences: p})} role="bdm" /><div className="pt-6 flex justify-end"><button type="submit" className="px-8 py-3 bg-black text-white font-black rounded-lg uppercase tracking-widest text-xs">Save Changes</button></div></form></div></div>)}
             </div>
         </main>

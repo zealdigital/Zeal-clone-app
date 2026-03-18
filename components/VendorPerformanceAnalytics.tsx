@@ -32,12 +32,12 @@ const VendorPerformanceAnalytics: React.FC<VendorPerformanceAnalyticsProps> = ({
                 {analytics.bookingsByVendor.map(vendor => {
                     const widthPercentage = analytics.maxVendorBookings > 0 ? (vendor.count / analytics.maxVendorBookings) * 100 : 0;
                     return(
-                        <div key={vendor.id} className="flex items-center">
-                            <p className="w-1/3 text-sm font-medium text-gray-700 truncate pr-2">{vendor.name}</p>
-                            <div className="w-2/3 flex items-center">
+                        <div key={vendor.id} className="flex flex-col sm:flex-row sm:items-center">
+                            <p className="w-full sm:w-1/3 text-sm font-medium text-gray-700 truncate pr-2 mb-1 sm:mb-0">{vendor.name}</p>
+                            <div className="w-full sm:w-2/3 flex items-center">
                                 <div className="w-full bg-gray-200 rounded-full h-5">
                                     <div 
-                                        className="bg-indigo-500 h-5 rounded-full text-white text-xs flex items-center justify-end pr-2 transition-all duration-500"
+                                        className="bg-indigo-500 h-5 rounded-full text-white text-xs font-bold flex items-center justify-end pr-2 transition-all duration-500"
                                         style={{ width: `${widthPercentage}%` }}
                                     >
                                         {vendor.count > 0 && vendor.count}

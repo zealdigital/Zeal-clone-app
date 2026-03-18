@@ -150,7 +150,8 @@ const MyBookingsList: React.FC<MyBookingsListProps> = ({ bookings, onEditBooking
 
   return (
     <div className="mt-4 bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-      <div className="overflow-x-auto">
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -243,6 +244,78 @@ const MyBookingsList: React.FC<MyBookingsListProps> = ({ bookings, onEditBooking
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden divide-y divide-gray-200">
+        {sortedGroupKeys.map(date => (
+          <div key={date} className="animate-fadeIn">
+            <div className="bg-gray-50 px-4 py-2 text-xs font-bold text-gray-500 flex items-center gap-2 border-b border-gray-200">
+              <CalendarDaysIcon className="w-3.5 h-3.5" />
+              {formatDDMMYY(date)}
+            </div>
+            <div className="divide-y divide-gray-100">
+              {groupedBookings[date].map((booking) => (
+                <div key={booking.id} className="p-4 space-y-3 hover:bg-gray-50 transition-colors">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-900 leading-tight">{booking.businessName}</h4>
+                      <p className="text-xs text-gray-500">{booking.clientName}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase">{booking.region}</span>
+                      {renderVendorStatus(booking)}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center gap-1.5 text-gray-600">
+                      <ClockIcon className="w-3.5 h-3.5 text-gray-400" />
+                      {booking.time}
+                    </div>
+                    <a href={`tel:${booking.clientPhone}`} className="flex items-center gap-1.5 text-indigo-600 font-medium">
+                      <PhoneIcon className="w-3.5 h-3.5 text-indigo-400" />
+                      {booking.clientPhone}
+                    </a>
+                  </div>
+
+                  {booking.notes && (
+                    <div className="bg-gray-50 p-2 rounded text-[11px] text-gray-600 border border-gray-100">
+                      <p className="font-bold text-[9px] uppercase text-gray-400 mb-1">Notes</p>
+                      <ExpandableNote text={booking.notes} />
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="text-[10px] text-gray-400">
+                      Caller: <span className="font-bold text-gray-600">{booking.callerName}</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      {onRequestSms && (
+                        <button 
+                          onClick={() => setSmsModalBooking(booking)} 
+                          disabled={booking.smsRequest?.status === 'sent'}
+                          className={`flex items-center gap-1 ${
+                            booking.smsRequest?.status === 'pending' ? 'text-orange-600' : 
+                            booking.smsRequest?.status === 'sent' ? 'text-green-600' : 'text-gray-400'
+                          }`}
+                        >
+                          <ChatBubbleLeftRightIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button onClick={() => onEditBooking(booking)} className="text-gray-400 hover:text-indigo-600">
+                        <PencilSquareIcon className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => onDeleteBooking(booking.id)} className="text-gray-400 hover:text-red-600">
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
       
       <div className="p-4 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-4">

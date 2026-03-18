@@ -141,22 +141,22 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
         </div>
         
         {!hideFilters && (
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative group">
+          <div className="flex flex-col sm:flex-row flex-wrap items-center gap-3">
+            <div className="relative group w-full sm:w-auto">
               <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input 
                 type="text" 
                 placeholder="Search leads, phones, notes..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-10 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black outline-none w-full md:w-64 font-medium bg-gray-50/30"
+                className="pl-10 pr-10 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black outline-none w-full sm:w-64 font-medium bg-gray-50/30"
               />
             </div>
 
             <select 
               value={callerFilter}
               onChange={(e) => setCallerFilter(e.target.value)}
-              className="border border-gray-200 rounded-xl py-2.5 px-4 text-sm font-bold bg-white text-gray-700 outline-none focus:ring-2 focus:ring-black transition-all cursor-pointer"
+              className="w-full sm:w-auto border border-gray-200 rounded-xl py-2.5 px-4 text-sm font-bold bg-white text-gray-700 outline-none focus:ring-2 focus:ring-black transition-all cursor-pointer"
             >
               <option value="all">{isVendorRole ? 'All Individual Callers' : 'All Calling Teams'}</option>
               {uniqueCallers.map(name => (
@@ -168,7 +168,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
               <select 
                 value={bdmFilter}
                 onChange={(e) => setBdmFilter(e.target.value)}
-                className="border border-gray-200 rounded-xl py-2.5 px-4 text-sm font-bold bg-white text-gray-700 outline-none focus:ring-2 focus:ring-black transition-all cursor-pointer"
+                className="w-full sm:w-auto border border-gray-200 rounded-xl py-2.5 px-4 text-sm font-bold bg-white text-gray-700 outline-none focus:ring-2 focus:ring-black transition-all cursor-pointer"
               >
                 <option value="all">All BDMs</option>
                 {bdms.map(bdm => (
@@ -180,7 +180,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
             <select 
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="border border-gray-200 rounded-xl py-2.5 px-4 text-sm font-bold bg-white text-gray-700 outline-none focus:ring-2 focus:ring-black transition-all cursor-pointer"
+              className="w-full sm:w-auto border border-gray-200 rounded-xl py-2.5 px-4 text-sm font-bold bg-white text-gray-700 outline-none focus:ring-2 focus:ring-black transition-all cursor-pointer"
             >
               <option value="all">All Statuses</option>
               <option value="active">Active</option>
@@ -195,7 +195,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
 
             <button 
               onClick={handleExport}
-              className="flex items-center gap-2 bg-[#10B981] text-white px-6 py-2.5 rounded-xl text-xs font-black hover:bg-emerald-600 transition-all active:scale-95 uppercase tracking-widest"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#10B981] text-white px-6 py-2.5 rounded-xl text-xs font-black hover:bg-emerald-600 transition-all active:scale-95 uppercase tracking-widest"
             >
               <ArrowDownTrayIcon className="w-4 h-4" /> Export
             </button>
@@ -203,7 +203,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
         )}
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="hidden md:block overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50/50">
             <tr>
@@ -288,6 +288,83 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden divide-y divide-gray-100">
+        {paginatedLeads.length > 0 ? paginatedLeads.map((lead) => {
+          const bdm = bdms.find(b => b.id === lead.bdmId);
+          return (
+            <div key={lead.id} className="p-4 space-y-4">
+              <div className="flex justify-between items-start">
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-base font-bold text-gray-900 truncate">{lead.businessName}</h4>
+                  <p className="text-xs text-gray-500">{lead.clientName}</p>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  {isVendorRole ? getVendorStatusPill(lead.status) : getStatusPill(lead.status)}
+                  <span className="text-[10px] font-black text-gray-400 uppercase">
+                    {formatToDDMMYY(lead.date)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {getHistoryBadge(lead)}
+                <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded font-black text-[9px] uppercase tracking-tighter">
+                  {lead.region}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 text-xs">
+                <div className="space-y-1">
+                  <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Source</p>
+                  {getSourceDisplay(lead)}
+                </div>
+                {!isVendorRole && (
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Assigned BDM</p>
+                    <p className="font-bold text-gray-700">{bdm ? bdm.name : 'Unassigned'}</p>
+                  </div>
+                )}
+              </div>
+
+              {lead.clientWebsite && (
+                <div className="space-y-1">
+                  <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Website</p>
+                  <a 
+                    href={lead.clientWebsite.startsWith('http') ? lead.clientWebsite : `https://${lead.clientWebsite}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-xs text-blue-500 hover:underline break-all"
+                  >
+                    {lead.clientWebsite}
+                  </a>
+                </div>
+              )}
+
+              {lead.address && (
+                <div className="space-y-1">
+                  <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Address</p>
+                  <a 
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.address)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-indigo-600 hover:underline flex items-start gap-1.5"
+                  >
+                    <MapPinIcon className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                    {lead.address}
+                  </a>
+                </div>
+              )}
+            </div>
+          );
+        }) : (
+          <div className="p-12 text-center">
+            <MagnifyingGlassIcon className="w-10 h-10 text-gray-100 mx-auto mb-3" />
+            <p className="text-gray-400 font-bold italic text-sm">No records found matching your search criteria.</p>
+          </div>
+        )}
       </div>
       
       <div className="p-6 bg-gray-50/50 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
