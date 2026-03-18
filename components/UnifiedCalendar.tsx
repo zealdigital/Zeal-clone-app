@@ -210,11 +210,11 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                               {availability.free} Free
                           </div>
                           {/* Compact direct view of available slots */}
-                          <div className="mt-1 flex flex-wrap gap-0.5 justify-end max-w-[65px]">
+                          <div className="mt-1 flex flex-wrap gap-1 justify-end max-w-[75px]">
                               {availability.slotBreakdown.filter(s => s.free > 0).map(slot => (
-                                  <span key={slot.time} className="text-[7px] font-black text-green-700 bg-green-100/50 px-0.5 rounded leading-none py-0.5 flex items-center gap-0.5">
+                                  <span key={slot.time} className="text-[9px] font-bold text-green-800 bg-green-100 px-1 rounded leading-none py-1 flex items-center gap-1 border border-green-200 shadow-sm">
                                       {slot.time.replace(':00', '').replace(' ', '')}
-                                      <span className="bg-green-600 text-white rounded-full w-2.5 h-2.5 flex items-center justify-center text-[6px]">{slot.free}</span>
+                                      <span className="bg-green-700 text-white rounded-full w-3 h-3 flex items-center justify-center text-[8px]">{slot.free}</span>
                                   </span>
                               ))}
                           </div>
@@ -296,11 +296,11 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                                        <div className={`w-1.5 h-1.5 rounded-full ${availability.free > 0 ? 'bg-green-500' : 'bg-gray-300'}`} />
                                        <span className="text-[10px] font-black text-gray-500 uppercase">{availability.free} Slots Free</span>
                                    </div>
-                                   <div className="mt-3 grid grid-cols-1 gap-1 border-t border-gray-100 pt-2">
+                                   <div className="mt-3 grid grid-cols-1 gap-1 border-t border-gray-200 pt-2">
                                        {availability.slotBreakdown.map(slot => (
-                                           <div key={slot.time} className="flex justify-between items-center text-[9px] px-1 py-0.5 rounded hover:bg-white transition-colors">
-                                               <span className="text-gray-400 font-medium">{slot.time}</span>
-                                               <span className={`font-black ${slot.free > 0 ? 'text-green-600' : 'text-red-400'}`}>{slot.free}</span>
+                                           <div key={slot.time} className={`flex justify-between items-center text-[11px] px-2 py-1 rounded transition-all ${slot.free > 0 ? 'bg-green-50/50 border border-green-100' : 'bg-gray-50 border border-gray-100 opacity-60'}`}>
+                                               <span className="text-gray-600 font-bold">{slot.time}</span>
+                                               <span className={`font-black px-1.5 rounded-full ${slot.free > 0 ? 'bg-green-600 text-white' : 'bg-gray-400 text-white'}`}>{slot.free}</span>
                                            </div>
                                        ))}
                                    </div>
