@@ -558,7 +558,40 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                                 )}
                             </div>
 
-                            <div className="p-4 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-4"><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{filteredActiveBookings.length} active records</span><div className="flex items-center gap-2"><button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white">Prev</button><span className="text-xs font-bold text-gray-600">Page {currentPage} of {totalPagesActive}</span><button onClick={() => setCurrentPage(p => Math.min(totalPagesActive, p + 1))} disabled={currentPage === totalPagesActive} className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white">Next</button></div></div>
+                            <div className="p-4 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{filteredActiveBookings.length} active records</span>
+                                <div className="flex items-center gap-2">
+                                    <button 
+                                        onClick={() => setCurrentPage(1)} 
+                                        disabled={currentPage === 1} 
+                                        className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+                                    >
+                                        First
+                                    </button>
+                                    <button 
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                                        disabled={currentPage === 1} 
+                                        className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+                                    >
+                                        Prev
+                                    </button>
+                                    <span className="text-xs font-bold text-gray-600">Page {currentPage} of {totalPagesActive}</span>
+                                    <button 
+                                        onClick={() => setCurrentPage(p => Math.min(totalPagesActive, p + 1))} 
+                                        disabled={currentPage === totalPagesActive} 
+                                        className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+                                    >
+                                        Next
+                                    </button>
+                                    <button 
+                                        onClick={() => setCurrentPage(totalPagesActive)} 
+                                        disabled={currentPage === totalPagesActive} 
+                                        className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+                                    >
+                                        Last
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         {/* ARCHIVED SECTION */}

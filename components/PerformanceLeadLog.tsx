@@ -141,22 +141,22 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
         </div>
         
         {!hideFilters && (
-          <div className="flex flex-col sm:flex-row flex-wrap items-center gap-3">
-            <div className="relative group w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative group">
               <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input 
                 type="text" 
                 placeholder="Search leads, phones, notes..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-10 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black outline-none w-full sm:w-64 font-medium bg-gray-50/30"
+                className="pl-10 pr-10 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-black outline-none w-full md:w-64 font-medium bg-gray-50/30"
               />
             </div>
 
             <select 
               value={callerFilter}
               onChange={(e) => setCallerFilter(e.target.value)}
-              className="w-full sm:w-auto border border-gray-200 rounded-xl py-2.5 px-4 text-sm font-bold bg-white text-gray-700 outline-none focus:ring-2 focus:ring-black transition-all cursor-pointer"
+              className="border border-gray-200 rounded-xl py-2.5 px-4 text-sm font-bold bg-white text-gray-700 outline-none focus:ring-2 focus:ring-black transition-all cursor-pointer"
             >
               <option value="all">{isVendorRole ? 'All Individual Callers' : 'All Calling Teams'}</option>
               {uniqueCallers.map(name => (
@@ -168,7 +168,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
               <select 
                 value={bdmFilter}
                 onChange={(e) => setBdmFilter(e.target.value)}
-                className="w-full sm:w-auto border border-gray-200 rounded-xl py-2.5 px-4 text-sm font-bold bg-white text-gray-700 outline-none focus:ring-2 focus:ring-black transition-all cursor-pointer"
+                className="border border-gray-200 rounded-xl py-2.5 px-4 text-sm font-bold bg-white text-gray-700 outline-none focus:ring-2 focus:ring-black transition-all cursor-pointer"
               >
                 <option value="all">All BDMs</option>
                 {bdms.map(bdm => (
@@ -180,7 +180,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
             <select 
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full sm:w-auto border border-gray-200 rounded-xl py-2.5 px-4 text-sm font-bold bg-white text-gray-700 outline-none focus:ring-2 focus:ring-black transition-all cursor-pointer"
+              className="border border-gray-200 rounded-xl py-2.5 px-4 text-sm font-bold bg-white text-gray-700 outline-none focus:ring-2 focus:ring-black transition-all cursor-pointer"
             >
               <option value="all">All Statuses</option>
               <option value="active">Active</option>
@@ -195,7 +195,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
 
             <button 
               onClick={handleExport}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#10B981] text-white px-6 py-2.5 rounded-xl text-xs font-black hover:bg-emerald-600 transition-all active:scale-95 uppercase tracking-widest"
+              className="flex items-center gap-2 bg-[#10B981] text-white px-6 py-2.5 rounded-xl text-xs font-black hover:bg-emerald-600 transition-all active:scale-95 uppercase tracking-widest"
             >
               <ArrowDownTrayIcon className="w-4 h-4" /> Export
             </button>
@@ -373,6 +373,13 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
         </span>
         <div className="flex items-center gap-2 order-1 sm:order-2">
             <button 
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                First
+            </button>
+            <button 
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
                 className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -403,6 +410,13 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
                 className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 Next
+            </button>
+            <button 
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                Last
             </button>
         </div>
       </div>

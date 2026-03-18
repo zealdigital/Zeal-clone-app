@@ -202,9 +202,35 @@ const Pagination = ({ totalPages, currentPage, onPageChange, totalItems, label }
     <div className="p-4 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{totalItems} {label}</span>
         <div className="flex items-center gap-2">
-            <button onClick={() => onPageChange(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white">Prev</button>
+            <button 
+                onClick={() => onPageChange(1)} 
+                disabled={currentPage === 1} 
+                className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+            >
+                First
+            </button>
+            <button 
+                onClick={() => onPageChange(Math.max(1, currentPage - 1))} 
+                disabled={currentPage === 1} 
+                className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+            >
+                Prev
+            </button>
             <span className="text-xs font-bold text-gray-600">Page {currentPage} of {totalPages}</span>
-            <button onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages} className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white">Next</button>
+            <button 
+                onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))} 
+                disabled={currentPage === totalPages} 
+                className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+            >
+                Next
+            </button>
+            <button 
+                onClick={() => onPageChange(totalPages)} 
+                disabled={currentPage === totalPages} 
+                className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+            >
+                Last
+            </button>
         </div>
     </div>
 );

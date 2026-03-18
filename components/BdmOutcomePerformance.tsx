@@ -152,6 +152,13 @@ const BdmOutcomePerformance: React.FC<BdmOutcomePerformanceProps> = ({ bookings,
                     </span>
                     <div className="flex items-center gap-2">
                         <button 
+                            onClick={() => setCurrentPage(1)}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+                        >
+                            First
+                        </button>
+                        <button 
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
                             className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
@@ -164,6 +171,13 @@ const BdmOutcomePerformance: React.FC<BdmOutcomePerformanceProps> = ({ bookings,
                             className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
                         >
                             Next
+                        </button>
+                        <button 
+                            onClick={() => setCurrentPage(totalPages)}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+                        >
+                            Last
                         </button>
                     </div>
                 </div>
