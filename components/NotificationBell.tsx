@@ -37,7 +37,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ notifications, setN
 
       {isOpen && (
         <div 
-          className="origin-top-right absolute right-0 mt-2 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20"
+          className="origin-top-left absolute left-0 sm:left-auto sm:right-0 sm:origin-top-right mt-2 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20"
           role="menu"
           aria-orientation="vertical"
           aria-labelledby="menu-button"
