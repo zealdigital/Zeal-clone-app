@@ -31,6 +31,19 @@ const normalizeWebsite = (url: string): string => {
     return cleaned;
 };
 
+const parseTime = (timeStr: string) => {
+    if (!timeStr) return 0;
+    const parts = timeStr.split(' ');
+    if (parts.length !== 2) return 0;
+    const [time, modifier] = parts;
+    const [hoursStr, minutesStr] = time.split(':');
+    let hours = parseInt(hoursStr, 10);
+    const minutes = parseInt(minutesStr, 10);
+    if (modifier === 'PM' && hours < 12) hours += 12;
+    if (modifier === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+};
+
 interface BdmDashboardProps {
   currentUser: Extract<User, { role: 'bdm' }>;
   onLogout: () => void;
@@ -183,6 +196,10 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
         
         const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
         if (dateDiff !== 0) return dateDiff;
+        
+        const timeDiff = parseTime(a.time) - parseTime(b.time);
+        if (timeDiff !== 0) return timeDiff;
+        
         return b.id - a.id;
     });
   }, [searchTerm, activeAssignedBookings, dateRange]);
