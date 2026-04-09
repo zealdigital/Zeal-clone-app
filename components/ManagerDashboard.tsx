@@ -371,7 +371,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const [leaveReason, setLeaveReason] = useState('');
     const [leaveType, setLeaveType] = useState<'allDay' | 'specificSlots'>('allDay');
     const [leaveSlots, setLeaveSlots] = useState<string[]>([]);
-    const [userMgmtTab, setUserMgmtTab] = useState<'vendors' | 'bdms' | 'leave'>('vendors');
+    const [userMgmtTab, setUserMgmtTab] = useState<'vendors' | 'bdms' | 'managers' | 'leave'>('vendors');
     const [editingUser, setEditingUser] = useState<{ user: Vendor | BDM | Manager, type: 'vendor' | 'bdm' | 'manager' } | null>(null);
     const [isManualBookingOpen, setIsManualBookingOpen] = useState(false);
     const [importPreview, setImportPreview] = useState<{ newBookings: Booking[], stats: { imported: number, duplicates: number, skipped: number } } | null>(null);
@@ -379,6 +379,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const [activeLeadsPage, setActiveLeadsPage] = useState(1);
     const [vendorsPage, setVendorsPage] = useState(1);
     const [bdmsPage, setBdmsPage] = useState(1);
+    const [managersPage, setManagersPage] = useState(1);
 
     const [visiblePasswords, setVisiblePasswords] = useState<Record<number, boolean>>({});
 
@@ -394,6 +395,9 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const [newVendorUsername, setNewVendorUsername] = useState('');
     const [newVendorPassword, setNewVendorPassword] = useState('');
     const [newVendorRegions, setNewVendorRegions] = useState<Region[]>([]);
+    const [newManagerName, setNewManagerName] = useState('');
+    const [newManagerUsername, setNewManagerUsername] = useState('');
+    const [newManagerPassword, setNewManagerPassword] = useState('');
     const [slotConfigRegion, setSlotConfigRegion] = useState<Region>(regions[0] || 'NSW');
     const [newBaseSlot, setNewBaseSlot] = useState('10:00 AM');
     const [newDayOverrideDay, setNewDayOverrideDay] = useState('1'); 
@@ -578,9 +582,11 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
 
     const sortedVendors = useMemo(() => [...vendors].sort((a, b) => (a.active !== false === b.active !== false) ? a.name.localeCompare(b.name) : (a.active !== false ? -1 : 1)), [vendors]);
     const sortedBdms = useMemo(() => [...bdms].sort((a, b) => (a.active !== false === b.active !== false) ? a.name.localeCompare(b.name) : (a.active !== false ? -1 : 1)), [bdms]);
+    const sortedManagers = useMemo(() => [...managers].sort((a, b) => (a.active !== false === b.active !== false) ? a.name.localeCompare(b.name) : (a.active !== false ? -1 : 1)), [managers]);
     
     const paginatedVendors = useMemo(() => sortedVendors.slice((vendorsPage - 1) * ITEMS_PER_PAGE, vendorsPage * ITEMS_PER_PAGE), [sortedVendors, vendorsPage]);
     const paginatedBdms = useMemo(() => sortedBdms.slice((bdmsPage - 1) * ITEMS_PER_PAGE, bdmsPage * ITEMS_PER_PAGE), [sortedBdms, bdmsPage]);
+    const paginatedManagers = useMemo(() => sortedManagers.slice((managersPage - 1) * ITEMS_PER_PAGE, managersPage * ITEMS_PER_PAGE), [sortedManagers, managersPage]);
 
     const handleAssignBdm = (bookingId: number, bdmId: number) => { 
         setAllBookings(prev => prev.map(b => b.id === bookingId ? { ...b, bdmId } : b)); 
@@ -793,6 +799,20 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         const newVendor: Vendor = { id: Date.now(), name: newVendorName.trim(), username: newVendorUsername.trim().toLowerCase(), password: newVendorPassword.trim(), active: true, email: '', notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES, allowedRegions: newVendorRegions };
         setVendors(prev => [...prev, newVendor]);
         setNewVendorName(''); setNewVendorUsername(''); setNewVendorPassword(''); setNewVendorRegions(regions);
+    };
+
+    const handleAddManager = () => {
+        if (!newManagerName.trim() || !newManagerUsername.trim() || !newManagerPassword.trim()) return;
+        const newManager: Manager = {
+            id: Date.now(),
+            name: newManagerName.trim(),
+            username: newManagerUsername.trim().toLowerCase(),
+            password: newManagerPassword.trim(),
+            active: true,
+            notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES
+        };
+        setManagers(prev => [...prev, newManager]);
+        setNewManagerName(''); setNewManagerUsername(''); setNewManagerPassword('');
     };
 
     const handleAddBdm = () => {
@@ -1170,6 +1190,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                     <nav className="flex space-x-6">
                                         <button onClick={() => setUserMgmtTab('vendors')} className={`pb-4 px-1 border-b-2 font-bold text-sm ${userMgmtTab === 'vendors' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Calling Team Management</button>
                                         <button onClick={() => setUserMgmtTab('bdms')} className={`pb-4 px-1 border-b-2 font-bold text-sm ${userMgmtTab === 'bdms' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>BDM Management</button>
+                                        <button onClick={() => setUserMgmtTab('managers')} className={`pb-4 px-1 border-b-2 font-bold text-sm ${userMgmtTab === 'managers' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Manager Management</button>
                                         <button onClick={() => setUserMgmtTab('leave')} className={`pb-4 px-1 border-b-2 font-bold text-sm ${userMgmtTab === 'leave' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Staff Leave</button>
                                     </nav>
                                 </div>
@@ -1238,6 +1259,58 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                 </tbody>
                                             </table>
                                             <Pagination totalPages={Math.ceil(sortedBdms.length/ITEMS_PER_PAGE)} currentPage={bdmsPage} onPageChange={setBdmsPage} totalItems={sortedBdms.length} label="BDMs" />
+                                        </div>
+                                    </div>
+                                )}
+                                {userMgmtTab === 'managers' && (
+                                    <div className="space-y-8 animate-fadeIn">
+                                        <div className="bg-white p-6 rounded-xl shadow border border-gray-200">
+                                            <h4 className="font-bold mb-4 uppercase tracking-widest text-xs text-gray-400">Add New Manager</h4>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                                <div>
+                                                    <label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Name</label>
+                                                    <input type="text" value={newManagerName} onChange={e => setNewManagerName(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/>
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Username</label>
+                                                    <input type="text" value={newManagerUsername} onChange={e => setNewManagerUsername(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/>
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Password</label>
+                                                    <div className="flex gap-2">
+                                                        <input type="text" value={newManagerPassword} onChange={e => setNewManagerPassword(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/>
+                                                        <button onClick={() => setNewManagerPassword(generateSecurePassword())} className="bg-gray-100 border px-3 rounded hover:bg-gray-200 text-xs font-bold">Gen</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button onClick={handleAddManager} className="w-full mt-6 bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 uppercase tracking-widest text-xs shadow-md shadow-indigo-100">Register Manager Account</button>
+                                        </div>
+                                        <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+                                            <table className="min-w-full divide-y divide-gray-200">
+                                                <thead className="bg-gray-50 border-b border-gray-200">
+                                                    <tr>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Name</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Username</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Password</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                                                        <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="bg-white divide-y divide-100">
+                                                    {paginatedManagers.map(m => (
+                                                        <tr key={m.id} className="hover:bg-gray-50 transition-colors">
+                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">{m.name}</td>
+                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{m.username}</td>
+                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                                                <div className="flex items-center gap-2"><span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-xs">{visiblePasswords[m.id] ? m.password : '••••••••'}</span><button type="button" onClick={() => togglePasswordVisibility(m.id)} className="text-gray-400 hover:text-indigo-600">{visiblePasswords[m.id] ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}</button></div>
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap">{m.active !== false ? <span className="text-emerald-600 font-bold text-[10px] bg-emerald-50 px-2 py-1 rounded-full uppercase">Active</span> : <span className="text-red-600 font-bold text-[10px] bg-red-50 px-2 py-1 rounded-full uppercase">Inactive</span>}</td>
+                                                            <td className="px-6 py-4 text-right"><div className="flex justify-end gap-3"><button onClick={() => setEditingUser({user: m, type: 'manager'})} className="text-gray-400 hover:text-indigo-600 transition-colors p-1"><PencilSquareIcon className="w-4 h-4" /></button></div></td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                            <Pagination totalPages={Math.ceil(sortedManagers.length/ITEMS_PER_PAGE)} currentPage={managersPage} onPageChange={setManagersPage} totalItems={sortedManagers.length} label="Managers" />
                                         </div>
                                     </div>
                                 )}
