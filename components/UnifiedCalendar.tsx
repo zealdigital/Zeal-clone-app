@@ -242,11 +242,16 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                     const booking = item.data;
                     const styleClass = booking.region === 'NSW' ? 'bg-green-50 text-green-900 border-green-200' : booking.region === 'VIC' ? 'bg-blue-50 text-blue-900 border-blue-200' : 'bg-purple-50 text-purple-900 border-purple-200';
                     return (
-                      <div key={`bk-${booking.id}-${idx}`} className={`w-full text-left text-[10px] p-1 rounded border ${styleClass} select-none shadow-sm`}>
+                      <div 
+                        key={`bk-${booking.id}-${idx}`} 
+                        className={`w-full text-left text-[10px] p-1 rounded border ${styleClass} select-none shadow-sm`}
+                        title={`${booking.clientName} (${booking.businessName}) - ${booking.region} [${booking.status.toUpperCase()}]`}
+                      >
                         <div className="flex items-center gap-1 overflow-hidden">
                           <UserGroupIcon className="w-2.5 h-2.5 opacity-50 flex-shrink-0" />
                           <span className="font-mono font-bold flex-shrink-0">{booking.time.split(' ')[0]}</span>
                           <span className="truncate font-medium flex-grow">{booking.clientName}</span>
+                          <span className="text-[8px] uppercase font-bold opacity-60 flex-shrink-0">{booking.status === 'rescheduled_bdm' ? 'RESCHED' : booking.status}</span>
                         </div>
                       </div>
                     );
@@ -317,7 +322,11 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                                     const isVic = booking.region === 'VIC';
                                     const styleClass = isNsw ? 'bg-green-50 text-green-900 border-green-200' : isVic ? 'bg-blue-50 text-blue-900 border-blue-200' : 'bg-purple-50 text-purple-900 border-purple-200';
                                     return (
-                                        <div key={`bk-${booking.id}-${idx}`} className={`w-full text-left p-2 rounded-lg border ${styleClass} select-none shadow-sm`}>
+                                        <div 
+                                            key={`bk-${booking.id}-${idx}`} 
+                                            className={`w-full text-left p-2 rounded-lg border ${styleClass} select-none shadow-sm`}
+                                            title={`${booking.clientName} (${booking.businessName}) - ${booking.region} [${booking.status.toUpperCase()}]`}
+                                        >
                                             <div className="flex justify-between items-start">
                                                 <div>
                                                     <div className="flex items-center gap-2 mb-1 flex-wrap">
