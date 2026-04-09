@@ -5,6 +5,7 @@ import { PlusIcon, UserGroupIcon, BellIcon, TrashIcon, ClockIcon } from './Icons
 import ManagerAppointmentModal from './ManagerAppointmentModal';
 import { formatDateForStorage } from '../utils/dateUtils';
 import { getAppointmentSlotsForDay } from '../utils/slotUtils';
+import { normalizeWebsite, getFullUrl } from '../utils/urlUtils';
 
 interface UnifiedCalendarProps {
   bookings: Booking[];
@@ -250,7 +251,15 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                         <div className="flex items-center gap-1 overflow-hidden">
                           <UserGroupIcon className="w-2.5 h-2.5 opacity-50 flex-shrink-0" />
                           <span className="font-mono font-bold flex-shrink-0">{booking.time.split(' ')[0]}</span>
-                          <span className="truncate font-medium flex-grow">{booking.clientName}</span>
+                          <a 
+                            href={getFullUrl(booking.clientWebsite)} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="truncate font-medium flex-grow hover:underline text-blue-600"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {normalizeWebsite(booking.clientWebsite) || booking.clientName}
+                          </a>
                           <span className="text-[8px] uppercase font-bold opacity-60 flex-shrink-0">{booking.status === 'rescheduled_bdm' ? 'RESCHED' : booking.status}</span>
                         </div>
                       </div>
@@ -336,7 +345,15 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                                                             {booking.status === 'rescheduled_bdm' ? 'RESCHED (BDM)' : booking.status.toUpperCase()}
                                                         </span>
                                                     </div>
-                                                    <p className="font-semibold text-sm">{booking.clientName}</p>
+                                                    <a 
+                                                        href={getFullUrl(booking.clientWebsite)} 
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer" 
+                                                        className="font-semibold text-sm hover:underline text-blue-600 block"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        {normalizeWebsite(booking.clientWebsite) || booking.clientName}
+                                                    </a>
                                                     <p className="text-xs opacity-75">{booking.businessName}</p>
                                                 </div>
                                                 <div className="text-xs flex items-center gap-1 opacity-60"><UserGroupIcon className="w-4 h-4" /></div>
