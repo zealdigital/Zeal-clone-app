@@ -76,9 +76,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   
   const allowedRegions = useMemo(() => {
       if (currentUser.allowedRegions && currentUser.allowedRegions.length > 0) {
-          return regions.filter(r => currentUser.allowedRegions!.includes(r));
+          return (regions || []).filter(r => currentUser.allowedRegions!.includes(r));
       }
-      return regions;
+      return regions || [];
   }, [currentUser, regions]);
 
   const [currentRegion, setCurrentRegion] = useState<Region>(allowedRegions[0] || regions[0] || 'NSW');
@@ -281,7 +281,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const myBookings = useMemo(() => 
-    allBookings.filter(b => 
+    (allBookings || []).filter(b => 
       b.vendor.id === currentUser.id && 
       !b.callerName?.toLowerCase().includes('zeal digital')
     ), 
@@ -345,12 +345,12 @@ const Dashboard: React.FC<DashboardProps> = ({
       return list.filter(b => matchesGlobalSearch(b, searchTerm));
   }, [mappedMyBookings, searchTerm]);
 
-  const myNotifications = useMemo(() => notifications.filter(n => n.vendorId === currentUser.id), [notifications, currentUser.id]);
+  const myNotifications = useMemo(() => (notifications || []).filter(n => n.vendorId === currentUser.id), [notifications, currentUser.id]);
   const calendarBookingsForRegion = useMemo(() => 
-    allBookings.filter(b => b.region.trim().toUpperCase() === currentRegion.trim().toUpperCase()), 
+    (allBookings || []).filter(b => b.region.trim().toUpperCase() === currentRegion.trim().toUpperCase()), 
     [allBookings, currentRegion]
   );
-  const blockedSlotsForEdit = useMemo(() => bookingToEdit ? allBookings.filter(b => b.parentBookingId === bookingToEdit.id).map(b => b.time) : [], [bookingToEdit, allBookings]);
+  const blockedSlotsForEdit = useMemo(() => bookingToEdit ? (allBookings || []).filter(b => b.parentBookingId === bookingToEdit.id).map(b => b.time) : [], [bookingToEdit, allBookings]);
   const bgColor = getRegionBackgroundColor(currentRegion, regionColors);
 
   return (

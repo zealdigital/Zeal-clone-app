@@ -5,7 +5,7 @@ const normalize = (str: string) => str ? str.trim().toLowerCase() : '';
 
 const normalizeWebsite = (url: string): string => {
     if (!url) return '';
-    let cleaned = url.toLowerCase().trim();
+    let cleaned = url.toLowerCase().trim().replace(/[\r\n]+/g, '').replace(/\s+/g, ' ');
     cleaned = cleaned.replace(/^[a-z]+:\/\//i, "");
     cleaned = cleaned.replace(/^www\./i, "");
     cleaned = cleaned.split(/[/?#:]/)[0];
@@ -14,7 +14,7 @@ const normalizeWebsite = (url: string): string => {
 
 const extractBusinessFromUrl = (url: string): string => {
     if (!url) return '';
-    const trimmed = url.trim();
+    const trimmed = url.trim().replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ');
     // If it doesn't look like a URL (no dots or slashes), it might already be a business name
     if (!trimmed.includes('.') && !trimmed.includes('/')) return trimmed.toUpperCase();
     try {
@@ -29,80 +29,78 @@ const extractBusinessFromUrl = (url: string): string => {
 
 /**
  * Robust date and time parser for CSV imports.
+ * Returns null for date if invalid/missing to allow skipping rows.
  */
-const parseDateTime = (dateTimeStr: string): { date: string, time: string } => {
+const parseDateTime = (dateTimeStr: string): { date: string | null, time: string } => {
     const now = new Date();
     const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
-    if (!dateTimeStr || dateTimeStr.trim() === '') return { date: today, time: '10:00 AM' };
+    if (!dateTimeStr || dateTimeStr.trim() === '') return { date: null, time: '10:00 AM' };
 
     try {
-        const input = dateTimeStr.trim();
-        const parts = input.split(/\s+/);
-        let dateStr = parts[0];
-        let timeStr = parts.slice(1).join(' ').trim();
+        const input = dateTimeStr.trim().replace(/[\r\n]+/g, ' ');
+        if (!input) return { date: null, time: '10:00 AM' };
 
-        // Remove any non-date characters (Excel sometimes adds weird formatting)
-        dateStr = dateStr.replace(/[^\d/:-]/g, '').replace(/-+$/, '').trim();
-
-        let finalDate = today;
+        // Try to handle spaces around slashes, dashes, or dots first to normalize the string
+        const normalizedInput = input.replace(/\s*([/.-])\s*/g, '$1');
+        const parts = normalizedInput.split(/\s+/);
         
-        if (dateStr.includes('/')) {
-            const slashParts = dateStr.split('/');
+        let datePart = parts[0];
+        let timePart = parts.slice(1).join(' ').trim();
+
+        // Handle case where date is in a different position or input is just time
+        if (datePart.includes(':') && !datePart.includes('/') && !datePart.includes('-') && !datePart.includes('.')) {
+            timePart = datePart + (timePart ? ' ' + timePart : '');
+            datePart = '';
+        }
+
+        let finalDate: string | null = null;
+        if (datePart) {
+            // Remove any non-date characters
+            const cleanedDate = datePart.replace(/[^\d/.:-]/g, '').replace(/^[/. -]+|[/. -]+$/g, '').trim();
+            
+            // Normalize separators to /
+            const normalizedDate = cleanedDate.replace(/[.-]/g, '/');
+            const slashParts = normalizedDate.split('/');
+            
             if (slashParts.length === 3) {
-                let p1 = slashParts[0].padStart(2, '0');
-                let p2 = slashParts[1].padStart(2, '0');
-                let year = slashParts[2];
-                if (year.length === 2) year = `20${year}`;
+                let d = slashParts[0].padStart(2, '0');
+                let m = slashParts[1].padStart(2, '0');
+                let y = slashParts[2];
                 
-                const d1 = parseInt(p1);
-                const d2 = parseInt(p2);
-                
-                if (d1 > 12) {
-                    // p1 is Day, p2 is Month (DD/MM/YYYY)
-                    finalDate = `${year}-${p2}-${p1}`;
-                } else if (d2 > 12) {
-                    // p2 is Day, p1 is Month (MM/DD/YYYY)
-                    finalDate = `${year}-${p1}-${p2}`;
+                // Handle YYYY/MM/DD
+                if (d.length === 4) {
+                   finalDate = `${d}-${m.padStart(2, '0')}-${slashParts[2].padStart(2, '0')}`;
                 } else {
-                    // Ambiguous, default to DD/MM/YYYY (Australian standard)
-                    finalDate = `${year}-${p2}-${p1}`;
-                }
-            }
-        } else if (dateStr.includes('-')) {
-            const dashParts = dateStr.split('-');
-            if (dashParts.length === 3) {
-                let p1 = dashParts[0];
-                let p2 = dashParts[1];
-                let p3 = dashParts[2];
-                
-                if (p1.length === 4) {
-                    // YYYY-MM-DD
-                    finalDate = `${p1}-${p2.padStart(2, '0')}-${p3.padStart(2, '0')}`;
-                } else {
-                    // DD-MM-YYYY or MM-DD-YYYY
-                    let year = p3.length === 2 ? `20${p3}` : p3;
-                    const d1 = parseInt(p1);
-                    const d2 = parseInt(p2);
+                    if (y.length === 2) y = `20${y}`;
                     
-                    if (d1 > 12) {
-                        // p1 is Day, p2 is Month
-                        finalDate = `${year}-${p2.padStart(2, '0')}-${p1.padStart(2, '0')}`;
-                    } else if (d2 > 12) {
-                        // p2 is Day, p1 is Month
-                        finalDate = `${year}-${p1.padStart(2, '0')}-${p2.padStart(2, '0')}`;
+                    const val1 = parseInt(d);
+                    const val2 = parseInt(m);
+                    
+                    if (val1 > 12) {
+                        // DD/MM/YYYY
+                        finalDate = `${y}-${m}-${d}`;
+                    } else if (val2 > 12) {
+                        // MM/DD/YYYY
+                        finalDate = `${y}-${d}-${m}`;
                     } else {
-                        // Default to DD-MM-YYYY
-                        finalDate = `${year}-${p2.padStart(2, '0')}-${p1.padStart(2, '0')}`;
+                        // Default to Australian standard DD/MM/YYYY
+                        finalDate = `${y}-${m}-${d}`;
                     }
                 }
+            } else if (slashParts.length === 2) {
+                // MM/DD or DD/MM - assume current year
+                let d = slashParts[0].padStart(2, '0');
+                let m = slashParts[1].padStart(2, '0');
+                const y = now.getFullYear();
+                finalDate = `${y}-${m}-${d}`;
             }
         }
 
         let finalTime = '10:00 AM';
-        if (timeStr) {
-            finalTime = timeStr.toUpperCase();
-            if (!finalTime.includes('AM') && !finalTime.includes('PM')) {
-                const timeParts = finalTime.split(':');
+        if (timePart) {
+            let t = timePart.toUpperCase();
+            if (!t.includes('AM') && !t.includes('PM')) {
+                const timeParts = t.split(':');
                 if (timeParts.length >= 2) {
                     let h = parseInt(timeParts[0]);
                     let m = timeParts[1].substring(0, 2);
@@ -110,13 +108,23 @@ const parseDateTime = (dateTimeStr: string): { date: string, time: string } => {
                     h = h % 12;
                     if (h === 0) h = 12;
                     finalTime = `${h.toString().padStart(2, '0')}:${m} ${suffix}`;
+                } else if (timeParts.length === 1) {
+                    let h = parseInt(timeParts[0]);
+                    if (!isNaN(h)) {
+                        const suffix = h >= 12 ? 'PM' : 'AM';
+                        h = h % 12;
+                        if (h === 0) h = 12;
+                        finalTime = `${h.toString().padStart(2, '0')}:00 ${suffix}`;
+                    }
                 }
+            } else {
+                finalTime = t;
             }
         }
 
         return { date: finalDate, time: finalTime };
     } catch (e) {
-        return { date: today, time: '10:00 AM' };
+        return { date: null, time: '10:00 AM' };
     }
 };
 
@@ -248,109 +256,122 @@ export const processImportFile = async (
 
             dataLines.forEach((line, index) => {
                 const cols = parseCSVLine(line);
-                if (cols.every(c => !c.trim())) return; // Skip empty rows
+                if (cols.every(c => !c.trim())) return; // Skip completely empty rows
 
-                // Mapping logic based on user requirements
+                // Ghost lead prevention: Ensure we have at least SOME client info or business info
+                // We'll calculate these first
                 
                 // clientName => Client Name || Lead : First Name + Lead : Last Name || "-"
                 let clientName = '-';
                 if (headerMap['client'] !== undefined && cols[headerMap['client']]) {
-                    clientName = cols[headerMap['client']];
+                    clientName = (cols[headerMap['client']] || '').trim();
                 } else if (headerMap['firstName'] !== undefined || headerMap['lastName'] !== undefined) {
-                    const first = headerMap['firstName'] !== undefined ? cols[headerMap['firstName']] : '';
-                    const last = headerMap['lastName'] !== undefined ? cols[headerMap['lastName']] : '';
+                    const first = (headerMap['firstName'] !== undefined ? (cols[headerMap['firstName']] || '') : '').trim();
+                    const last = (headerMap['lastName'] !== undefined ? (cols[headerMap['lastName']] || '') : '').trim();
                     clientName = `${first} ${last}`.trim() || '-';
                 }
 
                 // businessName => Business Name || Company : Website (extracted) || Website (extracted) || '-'
                 let businessName = '-';
                 if (headerMap['business'] !== undefined && cols[headerMap['business']]) {
-                    businessName = cols[headerMap['business']];
+                    businessName = (cols[headerMap['business']] || '').trim();
                 } else if (headerMap['companyWebsite'] !== undefined && cols[headerMap['companyWebsite']]) {
-                    businessName = extractBusinessFromUrl(cols[headerMap['companyWebsite']]) || '-';
+                    businessName = extractBusinessFromUrl((cols[headerMap['companyWebsite']] || '').trim()) || '-';
                 } else if (headerMap['website'] !== undefined && cols[headerMap['website']]) {
-                    businessName = extractBusinessFromUrl(cols[headerMap['website']]) || '-';
+                    businessName = extractBusinessFromUrl((cols[headerMap['website']] || '').trim()) || '-';
+                }
+
+                // Skip if both are missing or just placeholders
+                if ((clientName === '-' || !clientName) && (businessName === '-' || !businessName)) {
+                    skipped++;
+                    return;
                 }
 
                 // apptDate => Appt Date || "-"
                 let apptDateRaw = '-';
                 if (headerMap['apptDate'] !== undefined && cols[headerMap['apptDate']]) {
-                    apptDateRaw = cols[headerMap['apptDate']];
+                    apptDateRaw = (cols[headerMap['apptDate']] || '').trim();
                 }
 
                 // bookedDate => Booked Date || "-"
                 let bookedDateRaw = '-';
                 if (headerMap['bookedDate'] !== undefined && cols[headerMap['bookedDate']]) {
-                    bookedDateRaw = cols[headerMap['bookedDate']];
+                    bookedDateRaw = (cols[headerMap['bookedDate']] || '').trim();
                 }
 
                 // region => Region || Lead : State || "-"
                 let regionRaw = '-';
                 if (headerMap['region'] !== undefined && cols[headerMap['region']]) {
-                    regionRaw = cols[headerMap['region']];
+                    regionRaw = (cols[headerMap['region']] || '').trim();
                 } else if (headerMap['leadState'] !== undefined && cols[headerMap['leadState']]) {
-                    regionRaw = cols[headerMap['leadState']];
+                    regionRaw = (cols[headerMap['leadState']] || '').trim();
                 }
 
                 // address => Address || Lead : Address + Lead : Suburb + Lead : Post Code || "-"
                 let address = '-';
                 if (headerMap['address'] !== undefined && cols[headerMap['address']]) {
-                    address = cols[headerMap['address']];
+                    address = (cols[headerMap['address']] || '').trim();
                 } else if (headerMap['leadAddress'] !== undefined || headerMap['suburb'] !== undefined || headerMap['postCode'] !== undefined) {
-                    const addr = headerMap['leadAddress'] !== undefined ? cols[headerMap['leadAddress']] : '';
-                    const sub = headerMap['suburb'] !== undefined ? cols[headerMap['suburb']] : '';
-                    const pc = headerMap['postCode'] !== undefined ? cols[headerMap['postCode']] : '';
+                    const addr = (headerMap['leadAddress'] !== undefined ? (cols[headerMap['leadAddress']] || '') : '').trim();
+                    const sub = (headerMap['suburb'] !== undefined ? (cols[headerMap['suburb']] || '') : '').trim();
+                    const pc = (headerMap['postCode'] !== undefined ? (cols[headerMap['postCode']] || '') : '').trim();
                     address = `${addr} ${sub} ${pc}`.trim() || '-';
                 }
 
-                // clientPhone => Phone || Lead : Mobile || Lead : Phone Number || '-'
+                // clientPhone => Phone || Lead : Mobile || Lead : Phone Number || "-"
                 let phone = '-';
                 if (headerMap['phone'] !== undefined && cols[headerMap['phone']]) {
-                    phone = cols[headerMap['phone']];
+                    phone = (cols[headerMap['phone']] || '').trim();
                 } else if (headerMap['mobile'] !== undefined && cols[headerMap['mobile']]) {
-                    phone = cols[headerMap['mobile']];
+                    phone = (cols[headerMap['mobile']] || '').trim();
                 } else if (headerMap['phoneNumber'] !== undefined && cols[headerMap['phoneNumber']]) {
-                    phone = cols[headerMap['phoneNumber']];
+                    phone = (cols[headerMap['phoneNumber']] || '').trim();
                 }
 
-                // clientEmail => Email || Lead : Emails || '-'
+                // clientEmail => Email || Lead : Emails || "-"
                 let email = '-';
                 if (headerMap['email'] !== undefined && cols[headerMap['email']]) {
-                    email = cols[headerMap['email']];
+                    email = (cols[headerMap['email']] || '').trim();
                 }
 
-                // clientWebsite => Website || ''
-                let website = '';
+                // clientWebsite => Website || "-"
+                let website = '-';
                 if (headerMap['website'] !== undefined && cols[headerMap['website']]) {
-                    website = cols[headerMap['website']];
+                    website = (cols[headerMap['website']] || '').trim();
                 }
 
-                // vendor => Calling Team || '-'
+                // vendor => Calling Team || "-"
                 let callingTeam = '-';
                 if (headerMap['team'] !== undefined && cols[headerMap['team']]) {
-                    callingTeam = cols[headerMap['team']];
+                    callingTeam = (cols[headerMap['team']] || '').trim();
                 }
 
-                // callerName => Caller || '-'
+                // callerName => Caller || "-"
                 let callerName = '-';
                 if (headerMap['caller'] !== undefined && cols[headerMap['caller']]) {
-                    callerName = cols[headerMap['caller']];
+                    callerName = (cols[headerMap['caller']] || '').trim();
                 }
 
                 // notes => Notes || notes || "-"
                 let notes = '-';
                 if (headerMap['notes'] !== undefined && cols[headerMap['notes']]) {
-                    notes = cols[headerMap['notes']];
+                    notes = (cols[headerMap['notes']] || '').trim();
                 }
 
-                // status => Status || "-"
-                let statusRaw = '-';
+                // status => Status || "seen" (default)
+                let statusRaw = 'seen';
                 if (headerMap['status'] !== undefined && cols[headerMap['status']]) {
-                    statusRaw = cols[headerMap['status']];
+                    statusRaw = (cols[headerMap['status']] || '').trim();
                 }
 
                 const { date, time } = parseDateTime(apptDateRaw !== '-' ? apptDateRaw : (bookedDateRaw !== '-' ? bookedDateRaw : ''));
                 
+                // Final ghost check: If no valid date was found, we skip it to prevent "current date" random leads
+                if (!date) {
+                    skipped++;
+                    return;
+                }
+
                 let matchedVendor = vendors.find(v => normalize(v.name) === normalize(callingTeam));
                 if (!matchedVendor) {
                     matchedVendor = { id: 999999 + index, name: callingTeam === '-' ? 'Imported' : callingTeam, username: 'imported', active: true };
@@ -359,7 +380,7 @@ export const processImportFile = async (
                 const region = (normalize(regionRaw).includes('vic') ? 'VIC' : (normalize(regionRaw).includes('nsw') ? 'NSW' : regionRaw)) as Region;
                 
                 // Map status keywords to valid app statuses
-                let status: Booking['status'] = 'active';
+                let status: Booking['status'] = 'seen';
                 const s = normalize(statusRaw);
                 if (['active', 'rejected', 'seen', 'rescheduled', 'cancelled', 'dq', 'sold', 'pending_approval', 'rescheduled_bdm'].includes(s)) {
                     status = s as Booking['status'];
@@ -371,7 +392,7 @@ export const processImportFile = async (
                     status = 'seen';
                 }
 
-                const webKey = normalizeWebsite(website);
+                const webKey = normalizeWebsite(website !== '-' ? website : '');
                 const duplicateId = webKey ? existingMap.get(webKey) : undefined;
 
                 if (duplicateId) duplicates++;
@@ -380,16 +401,16 @@ export const processImportFile = async (
                     id: baseId + index,
                     clientName,
                     businessName,
-                    date,
+                    date, // Use the parsed valid date
                     time,
                     region,
                     address,
-                    clientPhone: phone || '',
-                    clientEmail: email || '',
-                    clientWebsite: website || '',
+                    clientPhone: phone || '-',
+                    clientEmail: email || '-',
+                    clientWebsite: website || '-',
                     vendor: matchedVendor,
                     callerName: callerName,
-                    notes: notes || `-`,
+                    notes: notes || '-',
                     status,
                     isDuplicate: !!duplicateId,
                     duplicateOfBookingId: duplicateId,

@@ -52,7 +52,7 @@ const App: React.FC = () => {
   const [appState, setAppState] = useState<PersistedState>(() => {
     try {
       const saved = localStorage.getItem('vendorBookingAppState');
-      return saved ? JSON.parse(saved) : defaultState;
+      return saved ? { ...defaultState, ...JSON.parse(saved) } : defaultState;
     } catch {
       return defaultState;
     }
@@ -190,7 +190,9 @@ const App: React.FC = () => {
   }, [branding]);
 
   useEffect(() => {
-    localStorage.setItem('vendorBookingAppState', JSON.stringify(appState));
+    // Exclude large data sets (already synced via Firebase) from localStorage to avoid QuotaExceededError
+    const { allBookings, notifications, ...configState } = appState;
+    localStorage.setItem('vendorBookingAppState', JSON.stringify(configState));
   }, [appState]);
 
   /**

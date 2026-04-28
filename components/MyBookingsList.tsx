@@ -26,7 +26,7 @@ const MyBookingsList: React.FC<MyBookingsListProps> = ({ bookings, onEditBooking
   }, [searchTerm]);
 
   const uniqueBookings = useMemo(() => {
-      const nonBlockers = bookings.filter(b => !b.isBlocker);
+      const nonBlockers = (bookings || []).filter(b => !b.isBlocker);
       const grouped = nonBlockers.reduce((acc, booking) => {
           const key = `${booking.businessName.trim().toLowerCase()}|${booking.date}`;
           if (!acc[key]) acc[key] = [];
@@ -43,30 +43,30 @@ const MyBookingsList: React.FC<MyBookingsListProps> = ({ bookings, onEditBooking
           }
       });
 
+      const today = new Date(); today.setHours(0,0,0,0);
+      const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+      const dayAfter = new Date(today); dayAfter.setDate(today.getDate() + 2);
+
+      const formatDate = (d: Date) => d.toISOString().split('T')[0];
+      const tStr = formatDate(today);
+      const tmStr = formatDate(tomorrow);
+      const daStr = formatDate(dayAfter);
+
+      const getPriority = (date: string) => {
+          if (date === tStr) return 0;
+          if (date === tmStr) return 1;
+          if (date === daStr) return 2;
+          return 3;
+      };
+
       return displayList.sort((a, b) => {
-          const today = new Date(); today.setHours(0,0,0,0);
-          const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-          const dayAfter = new Date(today); dayAfter.setDate(today.getDate() + 2);
-
-          const formatDate = (d: Date) => d.toISOString().split('T')[0];
-          const tStr = formatDate(today);
-          const tmStr = formatDate(tomorrow);
-          const daStr = formatDate(dayAfter);
-
-          const getPriority = (date: string) => {
-              if (date === tStr) return 0;
-              if (date === tmStr) return 1;
-              if (date === daStr) return 2;
-              return 3;
-          };
-
           const pA = getPriority(a.date);
           const pB = getPriority(b.date);
 
           if (pA !== pB) return pA - pB;
 
-          const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
-          if (dateDiff !== 0) return dateDiff;
+          const dateDiff = b.date.localeCompare(a.date);
+          if (dateDiff !== 0) return -dateDiff; // Descending date
           return b.id - a.id;
       });
   }, [bookings]);
@@ -87,28 +87,28 @@ const MyBookingsList: React.FC<MyBookingsListProps> = ({ bookings, onEditBooking
   }, [paginatedUniqueBookings]);
 
   const sortedGroupKeys = useMemo(() => {
+      const today = new Date(); today.setHours(0,0,0,0);
+      const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+      const dayAfter = new Date(today); dayAfter.setDate(today.getDate() + 2);
+
+      const formatDate = (d: Date) => d.toISOString().split('T')[0];
+      const tStr = formatDate(today);
+      const tmStr = formatDate(tomorrow);
+      const daStr = formatDate(dayAfter);
+
+      const getPriority = (date: string) => {
+          if (date === tStr) return 0;
+          if (date === tmStr) return 1;
+          if (date === daStr) return 2;
+          return 3;
+      };
+
       return Object.keys(groupedBookings).sort((a, b) => {
-          const today = new Date(); today.setHours(0,0,0,0);
-          const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-          const dayAfter = new Date(today); dayAfter.setDate(today.getDate() + 2);
-
-          const formatDate = (d: Date) => d.toISOString().split('T')[0];
-          const tStr = formatDate(today);
-          const tmStr = formatDate(tomorrow);
-          const daStr = formatDate(dayAfter);
-
-          const getPriority = (date: string) => {
-              if (date === tStr) return 0;
-              if (date === tmStr) return 1;
-              if (date === daStr) return 2;
-              return 3;
-          };
-
           const pA = getPriority(a);
           const pB = getPriority(b);
 
           if (pA !== pB) return pA - pB;
-          return new Date(b).getTime() - new Date(a).getTime();
+          return b.localeCompare(a); // Descending date
       });
   }, [groupedBookings]);
 

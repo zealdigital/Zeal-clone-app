@@ -439,10 +439,10 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         return '#CFE59C'; 
     }, [activeTab, userMgmtTab, newBdmRegion, slotConfigRegion, regionColors]);
 
-    const myNotifications = useMemo(() => notifications.filter(n => n.vendorId === 0), [notifications]);
+    const myNotifications = useMemo(() => (notifications || []).filter(n => n.vendorId === 0), [notifications]);
 
     const visibleBookings = useMemo(() => {
-        return allBookings.filter(b => !b.isBlocker);
+        return (allBookings || []).filter(b => !b.isBlocker);
     }, [allBookings]);
 
     const matchesGlobalSearch = (b: Booking, term: string) => {
@@ -466,53 +466,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     };
 
     const activeLeads = useMemo(() => {
-        return visibleBookings.filter(b => {
-            const matchesStatus = ['active', 'rescheduled_bdm'].includes(b.status);
-            if (!matchesStatus) return false;
-            if (dateRange.startDate && b.date < dateRange.startDate) return false;
-            if (dateRange.endDate && b.date > dateRange.endDate) return false;
-            return matchesGlobalSearch(b, searchTerm);
-        }).sort((a, b) => {
-            const today = new Date(); today.setHours(0,0,0,0);
-            const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-            const dayAfter = new Date(today); dayAfter.setDate(today.getDate() + 2);
-
-            const formatDate = (d: Date) => d.toISOString().split('T')[0];
-            const tStr = formatDate(today);
-            const tmStr = formatDate(tomorrow);
-            const daStr = formatDate(dayAfter);
-
-            const getPriority = (date: string) => {
-                if (date === tStr) return 0;
-                if (date === tmStr) return 1;
-                if (date === daStr) return 2;
-                return 3;
-            };
-
-            const pA = getPriority(a.date);
-            const pB = getPriority(b.date);
-
-            if (pA !== pB) return pA - pB;
-
-            const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
-            if (dateDiff !== 0) return dateDiff;
-            return b.id - a.id; 
-        });
-    }, [visibleBookings, searchTerm, dateRange]);
-
-    const totalActiveLeadsPages = Math.max(1, Math.ceil(activeLeads.length / ITEMS_PER_PAGE));
-    const paginatedActiveLeads = useMemo(() => {
-        const start = (activeLeadsPage - 1) * ITEMS_PER_PAGE;
-        return activeLeads.slice(start, start + ITEMS_PER_PAGE);
-    }, [activeLeads, activeLeadsPage]);
-
-    const groupedActiveLeads = useMemo(() => {
-        const groups: Record<string, Booking[]> = {};
-        paginatedActiveLeads.forEach(b => { if (!groups[b.date]) groups[b.date] = []; groups[b.date].push(b); });
-        return groups;
-    }, [paginatedActiveLeads]);
-
-    const sortedActiveDates = useMemo(() => Object.keys(groupedActiveLeads).sort((a, b) => {
         const today = new Date(); today.setHours(0,0,0,0);
         const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
         const dayAfter = new Date(today); dayAfter.setDate(today.getDate() + 2);
@@ -529,12 +482,79 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             return 3;
         };
 
-        const pA = getPriority(a);
-        const pB = getPriority(b);
+        const search = searchTerm.trim().toLowerCase();
 
-        if (pA !== pB) return pA - pB;
-        return new Date(b).getTime() - new Date(a).getTime();
-    }), [groupedActiveLeads]);
+        return visibleBookings.filter(b => {
+            const matchesStatus = ['active', 'rescheduled_bdm'].includes(b.status);
+            if (!matchesStatus) return false;
+            if (dateRange.startDate && b.date < dateRange.startDate) return false;
+            if (dateRange.endDate && b.date > dateRange.endDate) return false;
+            
+            if (!search) return true;
+            return (
+                b.clientName.toLowerCase().includes(search) ||
+                b.businessName.toLowerCase().includes(search) ||
+                b.clientPhone.toLowerCase().includes(search) ||
+                b.clientWebsite.toLowerCase().includes(search) ||
+                b.address.toLowerCase().includes(search) ||
+                b.callerName.toLowerCase().includes(search) ||
+                b.vendor.name.toLowerCase().includes(search) ||
+                (b.notes?.toLowerCase() || '').includes(search) ||
+                (b.bdmNote?.toLowerCase() || '').includes(search) ||
+                b.date.includes(search) ||
+                b.time.toLowerCase().includes(search) ||
+                b.region.toLowerCase().includes(search) ||
+                b.status.toLowerCase().includes(search)
+            );
+        }).sort((a, b) => {
+            const pA = getPriority(a.date);
+            const pB = getPriority(b.date);
+
+            if (pA !== pB) return pA - pB;
+
+            const dateDiff = b.date.localeCompare(a.date);
+            if (dateDiff !== 0) return -dateDiff;
+            return b.id - a.id; 
+        });
+    }, [visibleBookings, searchTerm, dateRange]);
+
+    const totalActiveLeadsPages = Math.max(1, Math.ceil(activeLeads.length / ITEMS_PER_PAGE));
+    const paginatedActiveLeads = useMemo(() => {
+        const start = (activeLeadsPage - 1) * ITEMS_PER_PAGE;
+        return activeLeads.slice(start, start + ITEMS_PER_PAGE);
+    }, [activeLeads, activeLeadsPage]);
+
+    const groupedActiveLeads = useMemo(() => {
+        const groups: Record<string, Booking[]> = {};
+        paginatedActiveLeads.forEach(b => { if (!groups[b.date]) groups[b.date] = []; groups[b.date].push(b); });
+        return groups;
+    }, [paginatedActiveLeads]);
+
+    const sortedActiveDates = useMemo(() => {
+        const today = new Date(); today.setHours(0,0,0,0);
+        const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+        const dayAfter = new Date(today); dayAfter.setDate(today.getDate() + 2);
+
+        const formatDate = (d: Date) => d.toISOString().split('T')[0];
+        const tStr = formatDate(today);
+        const tmStr = formatDate(tomorrow);
+        const daStr = formatDate(dayAfter);
+
+        const getPriority = (date: string) => {
+            if (date === tStr) return 0;
+            if (date === tmStr) return 1;
+            if (date === daStr) return 2;
+            return 3;
+        };
+
+        return Object.keys(groupedActiveLeads).sort((a, b) => {
+            const pA = getPriority(a);
+            const pB = getPriority(b);
+
+            if (pA !== pB) return pA - pB;
+            return b.localeCompare(a);
+        });
+    }, [groupedActiveLeads]);
 
     const rejectedLeads = useMemo(() => {
         return visibleBookings.filter(b => {
@@ -558,12 +578,12 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const bdmsByRegion = useMemo(() => bdms.reduce((acc, bdm) => { if (bdm.active !== false) { if (!acc[bdm.region]) acc[bdm.region] = []; acc[bdm.region].push(bdm); } return acc; }, {} as Record<Region, BDM[]>), [bdms]);
     
     const pendingRequests = useMemo(() => {
-        return allBookings.filter(b => b.status === 'pending_approval' && !b.isBlocker)
+        return (allBookings || []).filter(b => b.status === 'pending_approval' && !b.isBlocker)
             .sort((a, b) => b.id - a.id);
     }, [allBookings]);
 
     const analyticsBookings = useMemo(() => {
-        return allBookings.filter(b => {
+        return (allBookings || []).filter(b => {
             if (b.isBlocker) return false;
             const bDate = new Date(b.date);
             if (analyticsDateRange.startDate && bDate < new Date(analyticsDateRange.startDate)) return false;
@@ -573,11 +593,11 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     }, [allBookings, analyticsDateRange]);
 
     const allBookingsForCalendar = useMemo(() => {
-        return allBookings.filter(b => !b.isBlocker);
+        return (allBookings || []).filter(b => !b.isBlocker);
     }, [allBookings]);
 
     const blockedSlotsForEdit = useMemo(() => {
-        return bookingToEdit ? allBookings.filter(b => b.parentBookingId === bookingToEdit.id).map(b => b.time) : [];
+        return bookingToEdit ? (allBookings || []).filter(b => b.parentBookingId === bookingToEdit.id).map(b => b.time) : [];
     }, [bookingToEdit, allBookings]);
 
     const sortedVendors = useMemo(() => [...vendors].sort((a, b) => (a.active !== false === b.active !== false) ? a.name.localeCompare(b.name) : (a.active !== false ? -1 : 1)), [vendors]);

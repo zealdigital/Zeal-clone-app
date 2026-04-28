@@ -123,7 +123,7 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
   };
 
   const myUniqueBookings = useMemo(() => {
-    return allBookings.filter(b => b.bdmId === currentUser.id && !b.isBlocker);
+    return (allBookings || []).filter(b => b.bdmId === currentUser.id && !b.isBlocker);
   }, [allBookings, currentUser.id]);
 
   // FIX: rescheduled_bdm is now treated as an ACTIVE status so it stays in the worklist until final outcome.
@@ -137,12 +137,12 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
   [myUniqueBookings]);
   
   const pendingRequests = useMemo(() => {
-    return allBookings.filter(b => b.bdmId === currentUser.id && b.status === 'pending_approval' && !b.isBlocker)
+    return (allBookings || []).filter(b => b.bdmId === currentUser.id && b.status === 'pending_approval' && !b.isBlocker)
         .sort((a, b) => b.id - a.id);
   }, [allBookings, currentUser.id]);
 
   const rejectedBookings = useMemo(() => {
-    return allBookings.filter(b => b.bdmId === currentUser.id && b.status === 'rejected' && !b.isBlocker)
+    return (allBookings || []).filter(b => b.bdmId === currentUser.id && b.status === 'rejected' && !b.isBlocker)
         .sort((a, b) => b.id - a.id);
   }, [allBookings, currentUser.id]);
 
@@ -168,34 +168,52 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
 
   // Logic for the ACTIVE list
   const filteredActiveBookings = useMemo(() => {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+    const dayAfter = new Date(today); dayAfter.setDate(today.getDate() + 2);
+
+    const formatDate = (d: Date) => d.toISOString().split('T')[0];
+    const tStr = formatDate(today);
+    const tmStr = formatDate(tomorrow);
+    const daStr = formatDate(dayAfter);
+
+    const getPriority = (date: string) => {
+        if (date === tStr) return 0;
+        if (date === tmStr) return 1;
+        if (date === daStr) return 2;
+        return 3;
+    };
+
+    const search = searchTerm.trim().toLowerCase();
+
     return activeAssignedBookings.filter(booking => {
       if (dateRange.startDate && booking.date < dateRange.startDate) return false;
       if (dateRange.endDate && booking.date > dateRange.endDate) return false;
-      return matchesSearch(booking, searchTerm);
+      
+      if (!search) return true;
+      return (
+          booking.clientName.toLowerCase().includes(search) ||
+          booking.businessName.toLowerCase().includes(search) ||
+          booking.clientPhone.toLowerCase().includes(search) ||
+          booking.clientWebsite.toLowerCase().includes(search) ||
+          booking.address.toLowerCase().includes(search) ||
+          booking.callerName.toLowerCase().includes(search) ||
+          booking.vendor.name.toLowerCase().includes(search) ||
+          (booking.notes?.toLowerCase() || '').includes(search) ||
+          (booking.bdmNote?.toLowerCase() || '').includes(search) ||
+          booking.date.includes(search) ||
+          booking.time.toLowerCase().includes(search) ||
+          booking.region.toLowerCase().includes(search) ||
+          booking.status.toLowerCase().includes(search)
+      );
     }).sort((a, b) => {
-        const today = new Date(); today.setHours(0,0,0,0);
-        const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-        const dayAfter = new Date(today); dayAfter.setDate(today.getDate() + 2);
-
-        const formatDate = (d: Date) => d.toISOString().split('T')[0];
-        const tStr = formatDate(today);
-        const tmStr = formatDate(tomorrow);
-        const daStr = formatDate(dayAfter);
-
-        const getPriority = (date: string) => {
-            if (date === tStr) return 0;
-            if (date === tmStr) return 1;
-            if (date === daStr) return 2;
-            return 3;
-        };
-
         const pA = getPriority(a.date);
         const pB = getPriority(b.date);
 
         if (pA !== pB) return pA - pB;
         
-        const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
-        if (dateDiff !== 0) return dateDiff;
+        const dateDiff = b.date.localeCompare(a.date);
+        if (dateDiff !== 0) return -dateDiff;
         
         const timeDiff = parseTime(a.time) - parseTime(b.time);
         if (timeDiff !== 0) return timeDiff;
@@ -206,15 +224,32 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
 
   // Logic for the ARCHIVED list
   const filteredArchivedBookings = useMemo(() => {
+      const search = searchTerm.trim().toLowerCase();
       return archivedAssignedBookings.filter(booking => {
-          const isSearching = searchTerm.trim() !== '' || dateRange.startDate || dateRange.endDate;
+          const isSearching = search !== '' || dateRange.startDate || dateRange.endDate;
           const [y, m, d] = booking.date.split('-').map(Number);
           const bookingDate = new Date(y, m - 1, d); 
           if (!isSearching && bookingDate < visibilityCutoff) return false;
           if (dateRange.startDate && booking.date < dateRange.startDate) return false;
           if (dateRange.endDate && booking.date > dateRange.endDate) return false;
-          return matchesSearch(booking, searchTerm);
-      }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          
+          if (!search) return true;
+          return (
+              booking.clientName.toLowerCase().includes(search) ||
+              booking.businessName.toLowerCase().includes(search) ||
+              booking.clientPhone.toLowerCase().includes(search) ||
+              booking.clientWebsite.toLowerCase().includes(search) ||
+              booking.address.toLowerCase().includes(search) ||
+              booking.callerName.toLowerCase().includes(search) ||
+              booking.vendor.name.toLowerCase().includes(search) ||
+              (booking.notes?.toLowerCase() || '').includes(search) ||
+              (booking.bdmNote?.toLowerCase() || '').includes(search) ||
+              booking.date.includes(search) ||
+              booking.time.toLowerCase().includes(search) ||
+              booking.region.toLowerCase().includes(search) ||
+              booking.status.toLowerCase().includes(search)
+          );
+      }).sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
   }, [searchTerm, archivedAssignedBookings, dateRange, visibilityCutoff]);
 
   const analyticsBookings = useMemo(() => {
@@ -334,7 +369,7 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
   return (
     <div className="min-h-screen transition-colors duration-300" style={{ backgroundColor: bgColor }}>
       <div>
-        <Header currentUser={currentUser} onLogout={onLogout} branding={branding} notifications={notifications.filter(n => n.vendorId === currentUser.id)} setNotifications={setNotifications} />
+        <Header currentUser={currentUser} onLogout={onLogout} branding={branding} notifications={(notifications || []).filter(n => n.vendorId === currentUser.id)} setNotifications={setNotifications} />
         <main className="p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
             <div className="mb-6 border-b border-gray-300/50 overflow-x-auto">
