@@ -3,15 +3,15 @@ import type { Region, Vendor, Manager, PublicHoliday, AppointmentSlotsConfig, BD
 
 // Default Calling Team account for Dharmesh
 export const VENDORS: Vendor[] = [
-    { 
-        id: 201, 
-        name: 'Dharmesh', 
-        username: 'dharmesh', 
-        password: 'dharm007', 
-        active: true,
-        allowedRegions: ['NSW', 'VIC'],
-        email: 'pia@zealdigital.com.au'
-    }
+    // { 
+    //     id: 201, 
+    //     name: 'Dharmesh', 
+    //     username: 'dharmesh', 
+    //     password: 'dharm007', 
+    //     active: true,
+    //     allowedRegions: ['NSW', 'VIC'],
+    //     email: 'pia@zealdigital.com.au'
+    // }
 ];
 
 export const MANAGERS: Manager[] = [
@@ -20,15 +20,15 @@ export const MANAGERS: Manager[] = [
 
 // Default BDM account for Harry
 export const BDMS: BDM[] = [
-    { 
-        id: 301, 
-        name: 'Harry', 
-        username: 'harry', 
-        password: 'harrypassword2025', 
-        region: 'NSW', 
-        active: true,
-        email: 'pia@zealdigital.com.au'
-    }
+    // { 
+    //     id: 301, 
+    //     name: 'Harry', 
+    //     username: 'harry', 
+    //     password: 'harrypassword2025', 
+    //     region: 'NSW', 
+    //     active: true,
+    //     email: 'pia@zealdigital.com.au'
+    // }
 ];
 
 export const DEFAULT_BRANDING: Branding = {

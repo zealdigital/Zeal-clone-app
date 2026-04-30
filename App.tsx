@@ -64,42 +64,53 @@ const App: React.FC = () => {
       let mergedState = { ...defaultState, ...incomingState };
       const currentRegions = mergedState.regions || REGIONS;
 
-      const migrateUser = (u: any) => ({
-          ...u, 
-          active: u.active ?? true,
-          email: u.email || '',
-          notificationPreferences: { ...DEFAULT_NOTIFICATION_PREFERENCES, ...(u.notificationPreferences || {}) }
-      });
+      const migrateUser = (u: any) => {
+          if (!u) return null;
+          return {
+              ...u, 
+              active: u.active ?? true,
+              email: u.email || '',
+              notificationPreferences: { ...DEFAULT_NOTIFICATION_PREFERENCES, ...(u.notificationPreferences || {}) }
+          };
+      };
       
-      const migrateVendor = (v: any) => ({
-          ...migrateUser(v),
-          allowedRegions: v.allowedRegions || currentRegions
-      });
+      const migrateVendor = (v: any) => {
+          const user = migrateUser(v);
+          if (!user) return null;
+          return {
+              ...user,
+              allowedRegions: v.allowedRegions || currentRegions
+          };
+      };
 
       if (mergedState.vendors && Array.isArray(mergedState.vendors)) {
-          mergedState.vendors = mergedState.vendors.map(migrateVendor);
+          mergedState.vendors = mergedState.vendors.map(migrateVendor).filter(Boolean);
           const masterVendor = VENDORS[0];
-          const hasMaster = mergedState.vendors.some((v: Vendor) => v.username.toLowerCase() === masterVendor.username.toLowerCase());
-          if (!hasMaster) {
-              mergedState.vendors.push(migrateVendor(masterVendor));
+          if (masterVendor) {
+              const hasMaster = mergedState.vendors.some((v: Vendor) => v.username.toLowerCase() === masterVendor.username.toLowerCase());
+              if (!hasMaster) {
+                  mergedState.vendors.push(migrateVendor(masterVendor));
+              }
           }
       } else {
-          mergedState.vendors = VENDORS.map(migrateVendor);
+          mergedState.vendors = VENDORS.map(migrateVendor).filter(Boolean);
       }
 
       if (mergedState.bdms && Array.isArray(mergedState.bdms)) {
-          mergedState.bdms = mergedState.bdms.map(migrateUser);
+          mergedState.bdms = mergedState.bdms.map(migrateUser).filter(Boolean);
           const masterBdm = BDMS[0];
-          const hasMaster = mergedState.bdms.some((b: BDM) => b.username.toLowerCase() === masterBdm.username.toLowerCase());
-          if (!hasMaster) {
-              mergedState.bdms.push(migrateUser(masterBdm));
+          if (masterBdm) {
+              const hasMaster = mergedState.bdms.some((b: BDM) => b.username.toLowerCase() === masterBdm.username.toLowerCase());
+              if (!hasMaster) {
+                  mergedState.bdms.push(migrateUser(masterBdm));
+              }
           }
       } else {
-          mergedState.bdms = BDMS.map(migrateUser);
+          mergedState.bdms = BDMS.map(migrateUser).filter(Boolean);
       }
       
       if (mergedState.managers && Array.isArray(mergedState.managers)) {
-          mergedState.managers = mergedState.managers.map(migrateUser);
+          mergedState.managers = mergedState.managers.map(migrateUser).filter(Boolean);
           const defaultAdmin = MANAGERS[0];
           const adminIndex = mergedState.managers.findIndex((m: Manager) => m.username === defaultAdmin.username);
           if (adminIndex !== -1) {
@@ -109,7 +120,7 @@ const App: React.FC = () => {
              mergedState.managers.push(migrateUser(defaultAdmin));
           }
       } else {
-          mergedState.managers = MANAGERS.map(migrateUser);
+          mergedState.managers = MANAGERS.map(migrateUser).filter(Boolean);
       }
 
       return mergedState;

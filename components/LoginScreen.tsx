@@ -142,13 +142,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ vendors, managers, bdms, onLo
     else if (loginAs === 'manager') userList = managers;
     else userList = bdms;
 
-    // MASTER BYPASS: Explicit check for Dharmesh credentials
-    if (loginAs === 'vendor' && searchUser === 'dharmesh' && searchPass === 'dharm007') {
-        onLogin({ id: 201, name: 'Dharmesh', username: 'dharmesh', password: 'dharm007', role: 'vendor', active: true, allowedRegions: ['NSW', 'VIC'], email: 'pia@zealdigital.com.au' } as User);
-        return;
-    }
-
-    const user = userList.find(u => u.username.toLowerCase() === searchUser);
+    const user = (userList || []).find(u => u && u.username && u.username.toLowerCase() === searchUser);
 
     if (!user) {
         setError(`User "${searchUser}" not found in ${loginAs} list.`);

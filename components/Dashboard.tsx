@@ -282,7 +282,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const myBookings = useMemo(() => 
     (allBookings || []).filter(b => 
-      b.vendor.id === currentUser.id && 
+      b && b.vendor && b.vendor.id === currentUser.id && 
       !b.callerName?.toLowerCase().includes('zeal digital')
     ), 
     [allBookings, currentUser.id]

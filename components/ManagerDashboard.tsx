@@ -575,7 +575,13 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         }).sort((a, b) => b.id - a.id);
     }, [visibleBookings, searchTerm, dateRange]);
 
-    const bdmsByRegion = useMemo(() => bdms.reduce((acc, bdm) => { if (bdm.active !== false) { if (!acc[bdm.region]) acc[bdm.region] = []; acc[bdm.region].push(bdm); } return acc; }, {} as Record<Region, BDM[]>), [bdms]);
+    const bdmsByRegion = useMemo(() => (bdms || []).reduce((acc, bdm) => { 
+        if (bdm && bdm.active !== false) { 
+            if (!acc[bdm.region]) acc[bdm.region] = []; 
+            acc[bdm.region].push(bdm); 
+        } 
+        return acc; 
+    }, {} as Record<Region, BDM[]>), [bdms]);
     
     const pendingRequests = useMemo(() => {
         return (allBookings || []).filter(b => b.status === 'pending_approval' && !b.isBlocker)
@@ -600,9 +606,9 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         return bookingToEdit ? (allBookings || []).filter(b => b.parentBookingId === bookingToEdit.id).map(b => b.time) : [];
     }, [bookingToEdit, allBookings]);
 
-    const sortedVendors = useMemo(() => [...vendors].sort((a, b) => (a.active !== false === b.active !== false) ? a.name.localeCompare(b.name) : (a.active !== false ? -1 : 1)), [vendors]);
-    const sortedBdms = useMemo(() => [...bdms].sort((a, b) => (a.active !== false === b.active !== false) ? a.name.localeCompare(b.name) : (a.active !== false ? -1 : 1)), [bdms]);
-    const sortedManagers = useMemo(() => [...managers].sort((a, b) => (a.active !== false === b.active !== false) ? a.name.localeCompare(b.name) : (a.active !== false ? -1 : 1)), [managers]);
+    const sortedVendors = useMemo(() => [...(vendors || [])].filter(Boolean).sort((a, b) => (a.active !== false === b.active !== false) ? a.name.localeCompare(b.name) : (a.active !== false ? -1 : 1)), [vendors]);
+    const sortedBdms = useMemo(() => [...(bdms || [])].filter(Boolean).sort((a, b) => (a.active !== false === b.active !== false) ? a.name.localeCompare(b.name) : (a.active !== false ? -1 : 1)), [bdms]);
+    const sortedManagers = useMemo(() => [...(managers || [])].filter(Boolean).sort((a, b) => (a.active !== false === b.active !== false) ? a.name.localeCompare(b.name) : (a.active !== false ? -1 : 1)), [managers]);
     
     const paginatedVendors = useMemo(() => sortedVendors.slice((vendorsPage - 1) * ITEMS_PER_PAGE, vendorsPage * ITEMS_PER_PAGE), [sortedVendors, vendorsPage]);
     const paginatedBdms = useMemo(() => sortedBdms.slice((bdmsPage - 1) * ITEMS_PER_PAGE, bdmsPage * ITEMS_PER_PAGE), [sortedBdms, bdmsPage]);
