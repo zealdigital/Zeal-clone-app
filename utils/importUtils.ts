@@ -366,8 +366,10 @@ export const processImportFile = async (
 
                 const { date, time } = parseDateTime(apptDateRaw !== '-' ? apptDateRaw : (bookedDateRaw !== '-' ? bookedDateRaw : ''));
                 
-                // Final ghost check: If no valid date was found, we skip it to prevent "current date" random leads
-                if (!date) {
+                // Final ghost check: 
+                // 1. If no valid date was found, skip it
+                // 2. If both client name and business name are missing/placeholders, skip it
+                if (!date || (clientName === '-' && businessName === '-')) {
                     skipped++;
                     return;
                 }
