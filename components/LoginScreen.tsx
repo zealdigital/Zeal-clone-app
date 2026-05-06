@@ -11,6 +11,7 @@ interface LoginScreenProps {
   onLogin: (user: User) => void;
   branding: Branding;
   onResetData?: () => void;
+  isFirebaseReady?: boolean;
 }
 
 type LoginRole = 'vendor' | 'manager' | 'bdm';
@@ -111,7 +112,7 @@ const ForgotPasswordView: React.FC<{
     );
 };
 
-const LoginScreen: React.FC<LoginScreenProps> = ({ vendors, managers, bdms, onLogin, branding, onResetData }) => {
+const LoginScreen: React.FC<LoginScreenProps> = ({ vendors, managers, bdms, onLogin, branding, onResetData, isFirebaseReady }) => {
   const [loginAs, setLoginAs] = useState<LoginRole>('vendor');
   const [view, setView] = useState<'login' | 'forgotPassword'>('login');
   const [username, setUsername] = useState('');
@@ -130,6 +131,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ vendors, managers, bdms, onLo
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    if (!isFirebaseReady) {
+        setError('Synchronizing with database. Please wait a few seconds...');
+        return;
+    }
+
     if (!username || !password) {
       setError('Please fill in all fields.');
       return;
@@ -142,10 +149,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ vendors, managers, bdms, onLo
     else if (loginAs === 'manager') userList = managers;
     else userList = bdms;
 
-    const user = (userList || []).find(u => u && u.username && u.username.toLowerCase() === searchUser);
+    const user = (userList || []).find(u => 
+        u && (
+            (u.username && u.username.toLowerCase() === searchUser) ||
+            (u.email && u.email.toLowerCase() === searchUser) ||
+            (u.name && u.name.toLowerCase() === searchUser)
+        )
+    );
 
     if (!user) {
-        setError(`User "${searchUser}" not found in ${loginAs} list.`);
+        setError(`User "${searchUser}" not found in ${loginAs} list. Please check your username/email and role.`);
         return;
     }
 
@@ -182,7 +195,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ vendors, managers, bdms, onLo
                     </button>
                 ))}
             </div>
-            {view === 'login' && <div className="text-center"><h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">{roleConfig[loginAs].title}</h2></div>}
+            {view === 'login' && (
+                <div className="text-center space-y-1">
+                    <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">{roleConfig[loginAs].title}</h2>
+                    {!isFirebaseReady && <div className="flex items-center justify-center gap-2 text-[10px] font-bold text-indigo-600 animate-pulse uppercase tracking-widest"><div className="w-1.5 h-1.5 bg-indigo-600 rounded-full"></div> Syncing User Database...</div>}
+                </div>
+            )}
           </div>
           {view === 'login' ? (
               <form onSubmit={handleSubmit} className="space-y-5">

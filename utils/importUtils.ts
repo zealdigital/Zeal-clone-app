@@ -1,4 +1,4 @@
-import type { Booking, Vendor, Region } from '../types';
+import type { Booking, Vendor, Region, BDM } from '../types';
 
 // Helper to normalize strings for comparison and header matching
 const normalize = (str: string) => str ? str.trim().toLowerCase() : '';
@@ -202,6 +202,9 @@ const getHeaderMap = (headers: string[]) => {
         // Notes
         if (lower === 'notes') map['notes'] = i;
         
+        // BDM mapping
+        if (lower === 'bdm' || lower.includes('salesperson') || lower.includes('sales person')) map['bdm'] = i;
+        
         // Region/Address
         if (lower === 'region') map['region'] = i;
         else if (lower === 'lead : state') map['leadState'] = i;
@@ -219,6 +222,7 @@ export const processImportFile = async (
     file: File, 
     existingBookings: Booking[], 
     vendors: Vendor[],
+    bdms: BDM[],
     currentUser: any
 ): Promise<{ newBookings: Booking[], stats: { imported: number, duplicates: number, skipped: number } }> => {
     
@@ -358,6 +362,12 @@ export const processImportFile = async (
                     notes = (cols[headerMap['notes']] || '').trim();
                 }
 
+                // bdm => BDM column in CSV
+                let bdmNameRaw = '';
+                if (headerMap['bdm'] !== undefined && cols[headerMap['bdm']]) {
+                    bdmNameRaw = (cols[headerMap['bdm']] || '').trim();
+                }
+
                 // status => Status || "seen" (default)
                 let statusRaw = 'seen';
                 if (headerMap['status'] !== undefined && cols[headerMap['status']]) {
@@ -377,6 +387,26 @@ export const processImportFile = async (
                 let matchedVendor = vendors.find(v => normalize(v.name) === normalize(callingTeam));
                 if (!matchedVendor) {
                     matchedVendor = { id: 999999 + index, name: callingTeam === '-' ? 'Imported' : callingTeam, username: 'imported', active: true };
+                }
+
+                // Map BDM if provided
+                let bdmId: number | undefined = undefined;
+                if (bdmNameRaw) {
+                    const matchedBdm = bdms.find(b => 
+                        normalize(b.username) === normalize(bdmNameRaw) || 
+                        normalize(b.name) === normalize(bdmNameRaw)
+                    );
+                    if (matchedBdm) {
+                        bdmId = matchedBdm.id;
+                    }
+                }
+
+                // Fallback to "kevin" as requested if no match was found yet
+                if (!bdmId) {
+                    const kevin = bdms.find(b => b.username.toLowerCase() === 'kevin');
+                    if (kevin) {
+                        bdmId = kevin.id;
+                    }
                 }
 
                 const region = (normalize(regionRaw).includes('vic') ? 'VIC' : (normalize(regionRaw).includes('nsw') ? 'NSW' : regionRaw)) as Region;
@@ -411,6 +441,7 @@ export const processImportFile = async (
                     clientEmail: email || '-',
                     clientWebsite: website || '-',
                     vendor: matchedVendor,
+                    bdmId,
                     callerName: callerName,
                     notes: notes || '-',
                     status,

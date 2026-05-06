@@ -61,7 +61,19 @@ const App: React.FC = () => {
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
   
   const processIncomingState = useCallback((incomingState: Partial<PersistedState>): PersistedState => {
-      let mergedState = { ...defaultState, ...incomingState };
+      // Start with a clean copy of defaultState
+      const mergedState = { ...defaultState };
+      
+      // Only merge keys that are actually present in the incoming state
+      // This prevents defaultState's empty arrays (like vendors: []) from 
+      // being processed as "new data" if incomingState doesn't have the key yet.
+      Object.keys(incomingState).forEach(key => {
+          const k = key as keyof PersistedState;
+          if (incomingState[k] !== undefined) {
+              (mergedState as any)[k] = incomingState[k];
+          }
+      });
+
       const currentRegions = mergedState.regions || REGIONS;
 
       const migrateUser = (u: any) => {
@@ -83,44 +95,55 @@ const App: React.FC = () => {
           };
       };
 
-      if (mergedState.vendors && Array.isArray(mergedState.vendors)) {
-          mergedState.vendors = mergedState.vendors.map(migrateVendor).filter(Boolean);
-          const masterVendor = VENDORS[0];
-          if (masterVendor) {
-              const hasMaster = mergedState.vendors.some((v: Vendor) => v.username.toLowerCase() === masterVendor.username.toLowerCase());
-              if (!hasMaster) {
-                  mergedState.vendors.push(migrateVendor(masterVendor));
-              }
-          }
-      } else {
+      // Handle Vendors
+      if (incomingState.vendors && Array.isArray(incomingState.vendors)) {
+          mergedState.vendors = incomingState.vendors.map(migrateVendor).filter(Boolean);
+      } else if (!mergedState.vendors || mergedState.vendors.length === 0) {
           mergedState.vendors = VENDORS.map(migrateVendor).filter(Boolean);
       }
-
-      if (mergedState.bdms && Array.isArray(mergedState.bdms)) {
-          mergedState.bdms = mergedState.bdms.map(migrateUser).filter(Boolean);
-          const masterBdm = BDMS[0];
-          if (masterBdm) {
-              const hasMaster = mergedState.bdms.some((b: BDM) => b.username.toLowerCase() === masterBdm.username.toLowerCase());
-              if (!hasMaster) {
-                  mergedState.bdms.push(migrateUser(masterBdm));
-              }
+      
+      const masterVendor = VENDORS[0];
+      if (masterVendor) {
+          const hasMaster = (mergedState.vendors || []).some((v: Vendor) => v.username.toLowerCase() === masterVendor.username.toLowerCase());
+          if (!hasMaster) {
+              if (!mergedState.vendors) mergedState.vendors = [];
+              mergedState.vendors.push(migrateVendor(masterVendor) as Vendor);
           }
-      } else {
+      }
+
+      // Handle BDMs
+      if (incomingState.bdms && Array.isArray(incomingState.bdms)) {
+          mergedState.bdms = incomingState.bdms.map(migrateUser).filter(Boolean);
+      } else if (!mergedState.bdms || mergedState.bdms.length === 0) {
           mergedState.bdms = BDMS.map(migrateUser).filter(Boolean);
       }
       
-      if (mergedState.managers && Array.isArray(mergedState.managers)) {
-          mergedState.managers = mergedState.managers.map(migrateUser).filter(Boolean);
-          const defaultAdmin = MANAGERS[0];
-          const adminIndex = mergedState.managers.findIndex((m: Manager) => m.username === defaultAdmin.username);
+      const masterBdm = BDMS[0];
+      if (masterBdm) {
+          const hasMaster = (mergedState.bdms || []).some((b: BDM) => b.username.toLowerCase() === masterBdm.username.toLowerCase());
+          if (!hasMaster) {
+              if (!mergedState.bdms) mergedState.bdms = [];
+              mergedState.bdms.push(migrateUser(masterBdm) as BDM);
+          }
+      }
+      
+      // Handle Managers
+      if (incomingState.managers && Array.isArray(incomingState.managers)) {
+          mergedState.managers = incomingState.managers.map(migrateUser).filter(Boolean);
+      } else if (!mergedState.managers || mergedState.managers.length === 0) {
+          mergedState.managers = MANAGERS.map(migrateUser).filter(Boolean);
+      }
+      
+      const defaultAdmin = MANAGERS[0];
+      if (defaultAdmin) {
+          const adminIndex = (mergedState.managers || []).findIndex((m: Manager) => m.username === defaultAdmin.username);
           if (adminIndex !== -1) {
              mergedState.managers[adminIndex].password = defaultAdmin.password;
              mergedState.managers[adminIndex].active = true;
           } else {
-             mergedState.managers.push(migrateUser(defaultAdmin));
+             if (!mergedState.managers) mergedState.managers = [];
+             mergedState.managers.push(migrateUser(defaultAdmin) as Manager);
           }
-      } else {
-          mergedState.managers = MANAGERS.map(migrateUser).filter(Boolean);
       }
 
       return mergedState;
@@ -145,7 +168,12 @@ const App: React.FC = () => {
                 if (!active) return;
                 const processed = processIncomingState(remoteData);
                 setAppState(processed);
-                setIsFirebaseReady(true);
+                
+                // Only mark as ready if we have the configuration data (which includes managers)
+                // At minimum, the default 'manager' should be present.
+                if (remoteData.managers || remoteData.vendors || remoteData.bdms) {
+                    setIsFirebaseReady(true);
+                }
                 setFirebaseError(null);
             }, (err) => {
                 if (!active) return;
@@ -357,6 +385,7 @@ const App: React.FC = () => {
             onLogin={handleLogin}
             branding={branding}
             onResetData={handleResetData}
+            isFirebaseReady={isFirebaseReady}
         />
       ) : (
         <>

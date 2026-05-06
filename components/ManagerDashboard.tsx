@@ -196,6 +196,7 @@ interface ImportPreviewModalProps {
     onConfirm: () => void;
     stats: { imported: number, duplicates: number, skipped: number };
     newBookings: Booking[];
+    bdms: BDM[];
 }
 
 const Pagination = ({ totalPages, currentPage, onPageChange, totalItems, label }: { totalPages: number, currentPage: number, onPageChange: (p: number) => void, totalItems: number, label: string }) => (
@@ -235,7 +236,7 @@ const Pagination = ({ totalPages, currentPage, onPageChange, totalItems, label }
     </div>
 );
 
-const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onConfirm, stats, newBookings }) => {
+const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onConfirm, stats, newBookings, bdms }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 20;
     const totalPages = Math.max(1, Math.ceil(newBookings.length / itemsPerPage));
@@ -285,6 +286,7 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Date</th>
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Region</th>
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Team</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">BDM</th>
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Caller</th>
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Address</th>
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Notes</th>
@@ -305,6 +307,9 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
                                                 <span className="px-1.5 py-0.5 bg-gray-100 rounded font-bold uppercase text-[9px]">{b.region}</span>
                                             </td>
                                             <td className="p-3 text-gray-500 whitespace-nowrap">{b.vendor.name || '-'}</td>
+                                            <td className="p-3 text-gray-500 whitespace-nowrap">
+                                                {b.bdmId ? (bdms.find(bdm => bdm.id === b.bdmId)?.name || b.bdmId) : '-'}
+                                            </td>
                                             <td className="p-3 text-gray-500 whitespace-nowrap">{b.callerName || '-'}</td>
                                             <td className="p-3 text-gray-500 truncate max-w-[150px]" title={b.address}>{b.address || '-'}</td>
                                             <td className="p-3 text-gray-500 truncate max-w-[150px]" title={b.notes}>{b.notes || '-'}</td>
@@ -1769,7 +1774,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                 <button 
                                                     onClick={async () => {
                                                         if (!importFile) return;
-                                                        const result = await processImportFile(importFile, allBookings, vendors, currentUser);
+                                                        const result = await processImportFile(importFile, allBookings, vendors, bdms, currentUser);
                                                         setImportPreview(result);
                                                     }}
                                                     disabled={!importFile}
@@ -1817,7 +1822,22 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             {bookingToEdit && <BookingModal slotInfo={null} bookingToEdit={bookingToEdit} allBookings={allBookings} blockedSlotsForEdit={blockedSlotsForEdit} vendor={bookingToEdit.vendor} onClose={() => setBookingToEdit(null)} onConfirmBooking={() => {}} onUpdateBooking={handleUpdateBooking} onEditFromModal={() => {}} salespeopleCount={salespeopleCount} appointmentTimes={appointmentTimes} />}
             {editingUser && <UserEditModal user={editingUser.user} type={editingUser.type} onClose={() => setEditingUser(null)} onSave={handleSaveUser} regions={regions} />}
             {isManualBookingOpen && (<BdmBookingRequestModal currentUser={currentUser} vendors={vendors} onClose={() => setIsManualBookingOpen(false)} onRequestBooking={handleManualBookingEntry} regions={regions} appointmentTimes={appointmentTimes} allBookings={allBookings} />)}
-            {importPreview && (<ImportPreviewModal stats={importPreview.stats} newBookings={importPreview.newBookings} onCancel={() => { setImportPreview(null); setImportFile(null); }} onConfirm={() => { if (importPreview) { setAllBookings(prev => [...prev, ...importPreview.newBookings]); setImportPreview(null); setImportFile(null); triggerSystemAlert(`Successfully imported ${importPreview.stats.imported} records.`); } }} />)}
+            {importPreview && (
+                <ImportPreviewModal 
+                    stats={importPreview.stats} 
+                    newBookings={importPreview.newBookings} 
+                    bdms={bdms}
+                    onCancel={() => { setImportPreview(null); setImportFile(null); }} 
+                    onConfirm={() => { 
+                        if (importPreview) { 
+                            setAllBookings(prev => [...prev, ...importPreview.newBookings]); 
+                            setImportPreview(null); 
+                            setImportFile(null); 
+                            triggerSystemAlert(`Successfully imported ${importPreview.stats.imported} records.`); 
+                        } 
+                    }} 
+                />
+            )}
             {smsActionBooking && <ManagerSmsActionModal booking={smsActionBooking} onClose={() => setSmsActionBooking(null)} onMarkAsSent={handleMarkSmsSent} />}
         </div>
     );
