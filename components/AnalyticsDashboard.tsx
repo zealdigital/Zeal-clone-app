@@ -33,10 +33,13 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ bookings }) => 
         const bookingsByDay: { [key: string]: number } = { 'Sunday': 0, 'Monday': 0, 'Tuesday': 0, 'Wednesday': 0, 'Thursday': 0, 'Friday': 0, 'Saturday': 0 };
         
         bookings.forEach(b => {
-            const dayIndex = new Date(b.date + 'T00:00:00Z').getUTCDay();
+            if (!b.date) return;
+            const d = new Date(b.date + 'T00:00:00Z');
+            if (isNaN(d.getTime())) return;
+            const dayIndex = d.getUTCDay();
             bookingsByDay[dayNames[dayIndex]]++;
         });
-        const busiestDay = Object.entries(bookingsByDay).reduce((a, b) => a[1] > b[1] ? a : b, ['', 0] as [string, number])[0];
+        const busiestDay = Object.entries(bookingsByDay).reduce((a, b) => (b[1] > a[1] ? b : a), ['', -1] as [string, number])[0];
 
         const bookingsByRegion = REGIONS.reduce((acc, region) => {
             acc[region] = bookings.filter(b => b.region === region).length;

@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { Booking, Vendor } from '../types';
 
 interface VendorPerformanceAnalyticsProps {
@@ -8,8 +8,12 @@ interface VendorPerformanceAnalyticsProps {
 }
 
 const VendorPerformanceAnalytics: React.FC<VendorPerformanceAnalyticsProps> = ({ bookings, vendors }) => {
+    const [showActiveOnly, setShowActiveOnly] = useState(true);
+
     const analytics = useMemo(() => {
-        const bookingsByVendor = vendors.map(vendor => ({
+        const filteredVendors = showActiveOnly ? vendors.filter(v => v.active !== false) : vendors;
+
+        const bookingsByVendor = filteredVendors.map(vendor => ({
             ...vendor,
             count: bookings.filter(b => b.vendor.id === vendor.id).length
         })).sort((a, b) => b.count - a.count);
@@ -20,11 +24,22 @@ const VendorPerformanceAnalytics: React.FC<VendorPerformanceAnalyticsProps> = ({
             bookingsByVendor,
             maxVendorBookings
         };
-    }, [bookings, vendors]);
+    }, [bookings, vendors, showActiveOnly]);
 
   return (
     <div className="bg-white p-6 rounded-lg shadow mt-8">
-        <h3 className="text-lg font-semibold text-gray-900">Performance by Calling Team</h3>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Performance by Calling Team</h3>
+            <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                    type="checkbox" 
+                    checked={showActiveOnly} 
+                    onChange={(e) => setShowActiveOnly(e.target.checked)}
+                    className="w-4 h-4 rounded text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                />
+                <span className="text-sm font-medium text-gray-700">Active only</span>
+            </label>
+        </div>
             {bookings.length === 0 ? (
             <p className="mt-4 text-center text-sm text-gray-500">No calling team performance data available.</p>
         ) : (
