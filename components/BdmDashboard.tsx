@@ -63,6 +63,7 @@ interface BdmDashboardProps {
   setPersonalAppointments: React.Dispatch<React.SetStateAction<ManagerAppointment[]>>;
   publicHolidays: PublicHoliday[];
   leaveDays: LeaveDay[];
+  isSyncing: boolean;
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -78,7 +79,7 @@ const triggerSystemAlert = (message: string) => {
 const BdmDashboard: React.FC<BdmDashboardProps> = ({ 
     currentUser, onLogout, allBookings, setAllBookings, notifications, setNotifications, 
     vendors, managers, salespeopleCount, appointmentTimes, branding, regions, regionColors, 
-    onUpdateProfile, personalAppointments, setPersonalAppointments, publicHolidays, leaveDays 
+    onUpdateProfile, personalAppointments, setPersonalAppointments, publicHolidays, leaveDays, isSyncing
 }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'calendar' | 'performance' | 'settings'>('dashboard');
   const [bookingToUpdate, setBookingToUpdate] = useState<Booking | null>(null);
@@ -418,7 +419,13 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                             <h1 className="text-3xl font-black text-gray-900 tracking-tight">Active Appointments</h1>
                             <p className="text-sm text-gray-500 font-medium">Confirmed leads waiting for their meeting.</p>
                         </div>
-                        <button onClick={() => handleOpenRequestModal(null)} className="flex items-center justify-center gap-2 px-6 py-2.5 bg-black text-white rounded-lg hover:bg-gray-800 shadow-md transition-all font-bold uppercase text-xs tracking-widest"><PlusIcon className="w-4 h-4" /> Request Booking</button>
+                        <button 
+                            onClick={() => handleOpenRequestModal(null)} 
+                            disabled={isSyncing}
+                            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-black text-white rounded-lg hover:bg-gray-800 shadow-md transition-all font-bold uppercase text-xs tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <PlusIcon className="w-4 h-4" /> {isSyncing ? 'Syncing...' : 'Request Booking'}
+                        </button>
                     </div>
                     
                     <div className="mb-6 flex flex-col md:flex-row gap-4 md:items-end items-stretch">

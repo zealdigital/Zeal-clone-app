@@ -52,6 +52,7 @@ interface DashboardProps {
   onUpdateProfile: (user: User) => void;
   personalAppointments: ManagerAppointment[];
   setPersonalAppointments: React.Dispatch<React.SetStateAction<ManagerAppointment[]>>;
+  isSyncing: boolean;
 }
 
 const triggerSystemAlert = (message: string) => {
@@ -67,7 +68,7 @@ interface SlotManagementInfo { date: Date; time: string; isCustom: boolean; regi
 const Dashboard: React.FC<DashboardProps> = ({ 
     currentUser, onLogout, allBookings, setAllBookings, salespeopleCount, publicHolidays, 
     appointmentTimes, leaveDays, bdms, vendors, managers, notifications, setNotifications, 
-    branding, regions, regionColors, onUpdateProfile, personalAppointments, setPersonalAppointments 
+    branding, regions, regionColors, onUpdateProfile, personalAppointments, setPersonalAppointments, isSyncing 
 }) => {
   const [activeTab, setActiveTab] = useState<'bookings' | 'calendar' | 'performance' | 'settings'>('bookings');
   const [slotToManage, setSlotToManage] = useState<SlotManagementInfo | null>(null);
@@ -425,9 +426,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                         </div>
                         <button 
                             onClick={() => setIsRequestModalOpen(true)}
-                            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-black text-white rounded-lg hover:bg-gray-800 shadow-md transition-all font-bold uppercase text-xs tracking-widest whitespace-nowrap"
+                            disabled={isSyncing}
+                            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-black text-white rounded-lg hover:bg-gray-800 shadow-md transition-all font-bold uppercase text-xs tracking-widest whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            <PlusIcon className="w-4 h-4" /> Request Manual Date
+                            <PlusIcon className="w-4 h-4" /> {isSyncing ? 'Syncing...' : 'Request Manual Date'}
                         </button>
                     </div>
                     {allowedRegions.length > 0 && (

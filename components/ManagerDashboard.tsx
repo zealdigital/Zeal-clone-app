@@ -68,6 +68,7 @@ interface ManagerDashboardProps {
     setRegions: React.Dispatch<React.SetStateAction<Region[]>>;
     regionColors: Record<string, string>;
     setRegionColors: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+    isSyncing: boolean;
 }
 
 const generateSecurePassword = () => {
@@ -197,6 +198,7 @@ interface ImportPreviewModalProps {
     stats: { imported: number, duplicates: number, skipped: number };
     newBookings: Booking[];
     bdms: BDM[];
+    isSyncing: boolean;
 }
 
 const Pagination = ({ totalPages, currentPage, onPageChange, totalItems, label }: { totalPages: number, currentPage: number, onPageChange: (p: number) => void, totalItems: number, label: string }) => (
@@ -236,7 +238,7 @@ const Pagination = ({ totalPages, currentPage, onPageChange, totalItems, label }
     </div>
 );
 
-const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onConfirm, stats, newBookings, bdms }) => {
+const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onConfirm, stats, newBookings, bdms, isSyncing }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 20;
     const totalPages = Math.max(1, Math.ceil(newBookings.length / itemsPerPage));
@@ -348,7 +350,13 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
                     </div>
                     <div className="flex gap-3 w-full sm:w-auto">
                         <button onClick={onCancel} className="flex-1 sm:flex-none px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-bold text-sm shadow-sm transition-all">Cancel</button>
-                        <button onClick={onConfirm} disabled={newBookings.length === 0} className="flex-1 sm:flex-none px-10 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 font-black text-sm shadow-md shadow-green-100 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">CONFIRM BULK IMPORT</button>
+                        <button 
+                            onClick={onConfirm} 
+                            disabled={newBookings.length === 0 || isSyncing} 
+                            className="flex-1 sm:flex-none px-10 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 font-black text-sm shadow-md shadow-green-100 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isSyncing ? 'SYNCING...' : 'CONFIRM BULK IMPORT'}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -358,7 +366,7 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
 
 const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     currentUser, onLogout, allBookings, setAllBookings, salespeopleCount, publicHolidays, setPublicHolidays,
-    appointmentTimes, setAppointmentTimes, leaveDays, setLeaveDays, vendors, setVendors, bdms, setBdms, managers, setManagers, managerAppointments, setManagerAppointments, notifications, setNotifications, branding, setBranding, onUpdateProfile, regions, setRegions, regionColors, setRegionColors
+    appointmentTimes, setAppointmentTimes, leaveDays, setLeaveDays, vendors, setVendors, bdms, setBdms, managers, setManagers, managerAppointments, setManagerAppointments, notifications, setNotifications, branding, setBranding, onUpdateProfile, regions, setRegions, regionColors, setRegionColors, isSyncing
 }) => {
     const [activeTab, setActiveTab] = useState<'bookings' | 'analytics' | 'users' | 'settings' | 'calendar'>('bookings');
     const [searchTerm, setSearchTerm] = useState('');
@@ -1093,7 +1101,13 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                             <DateRangePicker startDate={dateRange.startDate} endDate={dateRange.endDate} onDateChange={setDateRange} />
                                         </div>
                                         <div className="flex gap-2 w-full sm:w-auto items-end">
-                                            <button onClick={() => setIsManualBookingOpen(true)} className="px-6 py-3 bg-black text-white rounded-xl hover:bg-gray-800 shadow-md transition-all font-bold uppercase text-xs tracking-widest flex items-center gap-2 h-[46px]"><PlusIcon className="w-4 h-4" /> Book Lead</button>
+                                            <button 
+                                                onClick={() => setIsManualBookingOpen(true)} 
+                                                disabled={isSyncing}
+                                                className="px-6 py-3 bg-black text-white rounded-xl hover:bg-gray-800 shadow-md transition-all font-bold uppercase text-xs tracking-widest flex items-center gap-2 h-[46px] disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <PlusIcon className="w-4 h-4" /> {isSyncing ? 'Syncing...' : 'Book Lead'}
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -1827,6 +1841,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                     stats={importPreview.stats} 
                     newBookings={importPreview.newBookings} 
                     bdms={bdms}
+                    isSyncing={isSyncing}
                     onCancel={() => { setImportPreview(null); setImportFile(null); }} 
                     onConfirm={() => { 
                         if (importPreview) { 

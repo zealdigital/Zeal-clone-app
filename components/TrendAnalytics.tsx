@@ -54,7 +54,28 @@ const TrendAnalytics: React.FC<TrendAnalyticsProps> = ({ bookings, period }) => 
     return groups;
   }, [bookings, period]);
 
-  const allKeys = Object.keys(trendData);
+  const allKeys = useMemo(() => {
+    return Object.keys(trendData).sort((a, b) => {
+        let dateA: Date;
+        let dateB: Date;
+
+        if (period === 'daily') {
+            dateA = new Date(a);
+            dateB = new Date(b);
+        } else if (period === 'weekly') {
+            dateA = new Date(a.replace('Week of ', ''));
+            dateB = new Date(b.replace('Week of ', ''));
+        } else if (period === 'monthly' || period === 'yearly') {
+            dateA = new Date(a);
+            dateB = new Date(b);
+        } else {
+            dateA = new Date(a);
+            dateB = new Date(b);
+        }
+        return dateA.getTime() - dateB.getTime();
+    });
+  }, [trendData, period]);
+
   const totalPages = Math.max(1, Math.ceil(allKeys.length / ITEMS_PER_PAGE));
   
   // Reset to page 1 if period changes

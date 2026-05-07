@@ -164,14 +164,13 @@ const App: React.FC = () => {
         
         const setupListener = () => {
             if (unsubscribe) unsubscribe();
-            unsubscribe = subscribeToState((remoteData) => {
+            unsubscribe = subscribeToState((remoteData, isComplete) => {
                 if (!active) return;
                 const processed = processIncomingState(remoteData);
                 setAppState(processed);
                 
-                // Only mark as ready if we have the configuration data (which includes managers)
-                // At minimum, the default 'manager' should be present.
-                if (remoteData.managers || remoteData.vendors || remoteData.bdms) {
+                // Only mark as ready if we have completed the initial load of all shards
+                if (isComplete) {
                     setIsFirebaseReady(true);
                 }
                 setFirebaseError(null);
@@ -247,7 +246,9 @@ const App: React.FC = () => {
           if (currentValue === newValue) return prev;
 
           // Persist the specific change to Firebase immediately
-          if (isFirebaseConfigured) {
+          // CRITICAL: Only save if we are correctly configured AND initial load is complete
+          // This prevents overwriting server data with partial/empty local state during load
+          if (isFirebaseConfigured && isFirebaseReady) {
               saveStateToFirebase({ [key]: newValue });
           }
           
@@ -256,7 +257,7 @@ const App: React.FC = () => {
               [key]: newValue
           };
       });
-  }, []);
+  }, [isFirebaseReady]);
 
   const salespeopleCount = useMemo(() => {
     return regions.reduce((acc, region) => {
@@ -329,6 +330,7 @@ const App: React.FC = () => {
             setBranding={(val: any) => updateState('branding', val)}
             setRegions={(val: any) => updateState('regions', val)}
             setRegionColors={(val: any) => updateState('regionColors', val)}
+            isSyncing={!isFirebaseReady}
           />
         );
       case 'vendor':
@@ -345,6 +347,7 @@ const App: React.FC = () => {
             managers={managers} 
             personalAppointments={managerAppointments}
             setPersonalAppointments={(val: any) => updateState('managerAppointments', val)}
+            isSyncing={!isFirebaseReady}
           />
         );
       case 'bdm':
@@ -360,6 +363,7 @@ const App: React.FC = () => {
             setPersonalAppointments={(val: any) => updateState('managerAppointments', val)}
             publicHolidays={publicHolidays}
             leaveDays={leaveDays}
+            isSyncing={!isFirebaseReady}
           />
         );
       default: return null;

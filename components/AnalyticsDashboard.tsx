@@ -39,7 +39,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ bookings }) => 
             const dayIndex = d.getUTCDay();
             bookingsByDay[dayNames[dayIndex]]++;
         });
-        const busiestDay = Object.entries(bookingsByDay).reduce((a, b) => (b[1] > a[1] ? b : a), ['', -1] as [string, number])[0];
+        const totalValid = Object.values(bookingsByDay).reduce((acc, count) => acc + count, 0);
+        const busiestDay = totalValid > 0 ? Object.entries(bookingsByDay).reduce((a, b) => (b[1] > a[1] ? b : a), ['N/A', 0])[0] : 'N/A';
 
         const bookingsByRegion = REGIONS.reduce((acc, region) => {
             acc[region] = bookings.filter(b => b.region === region).length;
@@ -49,7 +50,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ bookings }) => 
         return {
             totalBookings,
             bookingsThisMonth,
-            busiestDay,
+            busiestDay: busiestDay || 'N/A',
             bookingsByRegion
         };
     }, [bookings]);
@@ -64,7 +65,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ bookings }) => 
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 <StatCard title="Total Database Leads" value={analytics.totalBookings} />
                 <StatCard title="Leads This Month" value={analytics.bookingsThisMonth} />
-                <StatCard title="Peak Calling Day" value={analytics.busiestDay || 'N/A'} />
+                <StatCard title="Peak Calling Day" value={analytics.busiestDay} />
             </div>
 
             <div className="mt-8 grid grid-cols-1 gap-8">
