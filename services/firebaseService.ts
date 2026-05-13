@@ -7,8 +7,8 @@ const COLLECTION_NAME = 'app_data';
 const CONFIG_DOC_ID = 'globalState';
 const BOOKINGS_PREFIX = 'bookings_part_';
 const NOTIFICATIONS_PREFIX = 'notifications_part_';
-const MAX_SHARDS = 150;
-const ITEMS_PER_CHUNK = 200;
+const MAX_SHARDS = 300;
+const ITEMS_PER_CHUNK = 100;
 
 /**
  * Recursively removes any keys with the value of undefined from an object.
@@ -88,7 +88,7 @@ export const subscribeToState = (
             };
 
             onUpdate(finalState, isInitialLoadComplete);
-        }, 200); // 200ms debounce
+        }, 500); // Increased debounce for large data sets
     };
 
     docIds.forEach(id => {
@@ -117,6 +117,17 @@ export const subscribeToState = (
 
 let isSaving = false;
 let pendingUpdates: Partial<PersistedState> | null = null;
+let onSyncStatusChange: ((isSaving: boolean) => void) | null = null;
+
+export const subscribeToSyncStatus = (callback: (isSaving: boolean) => void) => {
+    onSyncStatusChange = callback;
+    return () => { onSyncStatusChange = null; };
+};
+
+const setIsSaving = (val: boolean) => {
+    isSaving = val;
+    if (onSyncStatusChange) onSyncStatusChange(val);
+};
 
 /**
  * Saves specific fields of the app state to Firestore with chunking support via Batched Writes.
@@ -138,7 +149,7 @@ export const saveStateToFirebase = async (partialState: Partial<PersistedState>)
     }
 
     if (isSaving) return;
-    isSaving = true;
+    setIsSaving(true);
 
     try {
         while (pendingUpdates) {
@@ -153,7 +164,7 @@ export const saveStateToFirebase = async (partialState: Partial<PersistedState>)
     } catch (e) {
         console.error("Critical Sync Loop Error:", e);
     } finally {
-        isSaving = false;
+        setIsSaving(false);
     }
 };
 
@@ -167,10 +178,19 @@ const performSave = async (partialState: Partial<PersistedState>) => {
 
         const commitBatch = async () => {
             if (batchCount > 0) {
-                await currentBatch.commit();
-                // Mandatory yield to allow the SDK write stream to process
-                // Increased delay to prevent "Write stream exhausted"
-                await new Promise(resolve => setTimeout(resolve, 800));
+                try {
+                    await currentBatch.commit();
+                    // Increased delay and smaller batches to prevent resource exhaustion
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                } catch (err: any) {
+                    if (err?.code === 'resource-exhausted' || err?.message?.includes('stream exhausted')) {
+                        console.warn("Resource exhausted, waiting for cooldown...");
+                        await new Promise(resolve => setTimeout(resolve, 10000));
+                        await currentBatch.commit();
+                    } else {
+                        throw err;
+                    }
+                }
                 currentBatch = writeBatch(db);
                 batchCount = 0;
             }
@@ -178,19 +198,29 @@ const performSave = async (partialState: Partial<PersistedState>) => {
 
         // Handle chunking for Bookings
         if (allBookings !== undefined && Array.isArray(allBookings)) {
-            const neededShards = Math.max(1, Math.ceil(allBookings.length / ITEMS_PER_CHUNK));
+            const neededShards = Math.ceil(allBookings.length / ITEMS_PER_CHUNK);
+            // We only need to clear if the previous save was larger, but we don't know for sure
+            // To be safe but efficient, we'll only delete shards if the total count is being reduced
+            // However, without state, we must still loop. We'll reduce the batch size.
             
             for (let i = 0; i < MAX_SHARDS; i++) {
                 const docRef = doc(db, COLLECTION_NAME, `${BOOKINGS_PREFIX}${i}`);
                 if (i < neededShards) {
                     const chunk = allBookings.slice(i * ITEMS_PER_CHUNK, (i + 1) * ITEMS_PER_CHUNK);
-                    currentBatch.set(docRef, { chunk }, { merge: false });
+                    if (chunk.length > 0) {
+                        currentBatch.set(docRef, { chunk }, { merge: false });
+                        batchCount++;
+                    }
                 } else {
-                    currentBatch.delete(docRef);
+                    // If we are resetting (empty array), or if we have extra shards, clean them up
+                    // We clean up at least 50 extra shards per save to eventually reach a clean state
+                    if (allBookings.length === 0 || i < (neededShards + 50)) { 
+                        currentBatch.delete(docRef);
+                        batchCount++;
+                    }
                 }
-                batchCount++;
 
-                if (batchCount >= 10) { // Reduced to 10 for extra safety and to stay under stream limits
+                if (batchCount >= 10) { // Batch size 10 is safe for 100-item chunks (~1-2MB total)
                     await commitBatch();
                 }
             }
@@ -198,17 +228,22 @@ const performSave = async (partialState: Partial<PersistedState>) => {
 
         // Handle chunking for Notifications
         if (notifications !== undefined && Array.isArray(notifications)) {
-            const neededShards = Math.max(1, Math.ceil(notifications.length / ITEMS_PER_CHUNK));
+            const neededShards = Math.ceil(notifications.length / ITEMS_PER_CHUNK);
             
             for (let i = 0; i < MAX_SHARDS; i++) {
                 const docRef = doc(db, COLLECTION_NAME, `${NOTIFICATIONS_PREFIX}${i}`);
                 if (i < neededShards) {
                     const chunk = notifications.slice(i * ITEMS_PER_CHUNK, (i + 1) * ITEMS_PER_CHUNK);
-                    currentBatch.set(docRef, { chunk }, { merge: false });
+                    if (chunk.length > 0) {
+                        currentBatch.set(docRef, { chunk }, { merge: false });
+                        batchCount++;
+                    }
                 } else {
-                    currentBatch.delete(docRef);
+                    if (notifications.length === 0 || i < (neededShards + 50)) {
+                        currentBatch.delete(docRef);
+                        batchCount++;
+                    }
                 }
-                batchCount++;
 
                 if (batchCount >= 10) {
                     await commitBatch();

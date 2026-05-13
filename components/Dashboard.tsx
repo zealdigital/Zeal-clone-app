@@ -559,8 +559,8 @@ const Dashboard: React.FC<DashboardProps> = ({
               )}
             </div>
           </main>
-          {!!slotToManage && <BookingModal slotInfo={slotToManage} bookingToEdit={null} allBookings={allBookings} blockedSlotsForEdit={[]} vendor={currentUser} onClose={closeModal} onConfirmBooking={handleConfirmBooking} onUpdateBooking={handleUpdateBooking} onEditFromModal={handleEditFromModal} salespeopleCount={salespeopleCount} appointmentTimes={appointmentTimes} role="vendor" />}
-          {!!bookingToEdit && <BookingModal slotInfo={null} bookingToEdit={bookingToEdit} allBookings={allBookings} blockedSlotsForEdit={blockedSlotsForEdit} vendor={currentUser} onClose={closeModal} onConfirmBooking={handleConfirmBooking} onUpdateBooking={handleUpdateBooking} onEditFromModal={handleEditFromModal} salespeopleCount={salespeopleCount} appointmentTimes={appointmentTimes} role="vendor" />}
+          {!!slotToManage && <BookingModal slotInfo={slotToManage} bookingToEdit={null} allBookings={allBookings} blockedSlotsForEdit={[]} vendor={currentUser} onClose={closeModal} onConfirmBooking={handleConfirmBooking} onUpdateBooking={handleUpdateBooking} onEditFromModal={handleEditFromModal} salespeopleCount={salespeopleCount} appointmentTimes={appointmentTimes} role="vendor" regions={regions} />}
+          {!!bookingToEdit && <BookingModal slotInfo={null} bookingToEdit={bookingToEdit} allBookings={allBookings} blockedSlotsForEdit={blockedSlotsForEdit} vendor={currentUser} onClose={closeModal} onConfirmBooking={handleConfirmBooking} onUpdateBooking={handleUpdateBooking} onEditFromModal={handleEditFromModal} salespeopleCount={salespeopleCount} appointmentTimes={appointmentTimes} role="vendor" regions={regions} />}
           {isRequestModalOpen && (
               <BdmBookingRequestModal 
                 currentUser={currentUser} 

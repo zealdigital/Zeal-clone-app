@@ -6,7 +6,7 @@ import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
 import ManagerDashboard from './components/ManagerDashboard';
 import BdmDashboard from './components/BdmDashboard';
-import { subscribeToState, saveStateToFirebase } from './services/firebaseService';
+import { subscribeToState, saveStateToFirebase, subscribeToSyncStatus } from './services/firebaseService';
 import { isFirebaseConfigured, auth } from './firebaseConfig';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 
@@ -58,6 +58,7 @@ const App: React.FC = () => {
     }
   });
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
+  const [isSyncingToCloud, setIsSyncingToCloud] = useState(false);
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
   
   const processIncomingState = useCallback((incomingState: Partial<PersistedState>): PersistedState => {
@@ -199,6 +200,12 @@ const App: React.FC = () => {
     };
   }, [processIncomingState]);
 
+  useEffect(() => {
+    return subscribeToSyncStatus((isSaving) => {
+        setIsSyncingToCloud(isSaving);
+    });
+  }, []);
+
   const { allBookings, publicHolidays, appointmentTimes, leaveDays, bdms, vendors, managers, notifications, managerAppointments, branding, regions, regionColors } = appState;
 
   useEffect(() => {
@@ -330,7 +337,7 @@ const App: React.FC = () => {
             setBranding={(val: any) => updateState('branding', val)}
             setRegions={(val: any) => updateState('regions', val)}
             setRegionColors={(val: any) => updateState('regionColors', val)}
-            isSyncing={!isFirebaseReady}
+            isSyncing={!isFirebaseReady || isSyncingToCloud}
           />
         );
       case 'vendor':
@@ -347,7 +354,7 @@ const App: React.FC = () => {
             managers={managers} 
             personalAppointments={managerAppointments}
             setPersonalAppointments={(val: any) => updateState('managerAppointments', val)}
-            isSyncing={!isFirebaseReady}
+            isSyncing={!isFirebaseReady || isSyncingToCloud}
           />
         );
       case 'bdm':
@@ -363,7 +370,7 @@ const App: React.FC = () => {
             setPersonalAppointments={(val: any) => updateState('managerAppointments', val)}
             publicHolidays={publicHolidays}
             leaveDays={leaveDays}
-            isSyncing={!isFirebaseReady}
+            isSyncing={!isFirebaseReady || isSyncingToCloud}
           />
         );
       default: return null;
@@ -375,6 +382,12 @@ const App: React.FC = () => {
       <div className={`fixed top-0 left-0 right-0 z-[100] text-[10px] text-center transition-all ${isFirebaseReady ? 'h-0 overflow-hidden' : 'bg-indigo-600 text-white p-1'}`}>
           Connecting to Real-time Sync Engine...
       </div>
+      {isSyncingToCloud && (
+        <div className="fixed top-0 left-1/2 -translate-x-1/2 z-[200] bg-black/80 text-white px-4 py-2 rounded-b-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 animate-pulse transition-all">
+           <div className="w-2 h-2 bg-emerald-400 rounded-full animate-ping" />
+           Syncing Large Data Set to Cloud... Do not close tab.
+        </div>
+      )}
       {firebaseError && (
         <div className="bg-red-600 text-white px-4 py-2 text-xs flex items-center justify-between sticky top-0 z-[101]">
            <span className="font-bold uppercase tracking-widest">⚠️ Connection Lost: {firebaseError}</span>

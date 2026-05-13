@@ -31,11 +31,12 @@ interface BookingModalProps {
   vendor: Vendor;
   onClose: () => void;
   onConfirmBooking: (bookingDetails: Omit<Booking, 'id' | 'vendor' | 'status'>, slotsToRemove: string[]) => void;
-  onUpdateBooking: (bookingDetails: Omit<Booking, 'id' | 'vendor' | 'region' | 'status'>, slotsToRemove: string[]) => void;
+  onUpdateBooking: (bookingDetails: Omit<Booking, 'id' | 'vendor' | 'status'>, slotsToRemove: string[]) => void;
   onEditFromModal: (booking: Booking) => void;
   salespeopleCount: Record<Region, number>;
   appointmentTimes: Record<Region, AppointmentSlotsConfig>;
   role?: 'manager' | 'vendor' | 'bdm';
+  regions?: Region[];
 }
 
 interface BookingFormProps {
@@ -44,9 +45,9 @@ interface BookingFormProps {
     formData: {
         clientName: string; businessName: string; clientWebsite: string;
         clientPhone: string; clientEmail: string; address: string; customTime: string; customReason: string;
-        callerName: string; notes: string;
+        callerName: string; notes: string; date: string; region: string;
     };
-    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
     onCustomTimeChange: (newTime: string) => void;
     theme: { border: string; button: string; };
     standardSlotsForDay: string[];
@@ -56,11 +57,13 @@ interface BookingFormProps {
     onClose: () => void;
     isEditMode: boolean;
     duplicateWarning: Booking | null;
+    role?: string;
+    regions?: Region[];
 }
 
 const BookingForm: React.FC<BookingFormProps> = ({
     onSubmit, isCustom, formData, onChange, onCustomTimeChange, theme, standardSlotsForDay,
-    slotsToRemove, onSlotRemoveChange, error, onClose, isEditMode, duplicateWarning
+    slotsToRemove, onSlotRemoveChange, error, onClose, isEditMode, duplicateWarning, role, regions
 }) => (
     <form onSubmit={onSubmit} className="p-6 space-y-4">
         {duplicateWarning && (
@@ -74,7 +77,29 @@ const BookingForm: React.FC<BookingFormProps> = ({
             </div>
         )}
 
-        {isCustom && (
+        {isEditMode && role === 'manager' && (
+            <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-xl space-y-4">
+                <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-2">Lead Logistics (Manager Exclusive Edition)</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Region</label>
+                        <select name="region" value={formData.region} onChange={onChange} className="w-full border-2 border-gray-100 bg-white rounded-lg px-3 py-2 text-sm font-bold focus:border-indigo-500 outline-none">
+                            {regions?.map(r => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Date</label>
+                        <input type="date" name="date" value={formData.date} onChange={onChange} className="w-full border-2 border-gray-100 bg-white rounded-lg px-3 py-2 text-sm font-bold focus:border-indigo-500 outline-none" />
+                    </div>
+                </div>
+                <div>
+                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Appointment Time</label>
+                    <TimePicker value={formData.customTime} onChange={onCustomTimeChange} />
+                </div>
+            </div>
+        )}
+
+        {isCustom && !isEditMode && (
             <div className="p-4 border border-red-200 rounded-lg bg-red-50 space-y-4">
                 <div>
                     <label htmlFor="customTime" className="block text-sm font-medium text-gray-700 mb-1">Custom Time</label>
@@ -180,7 +205,7 @@ const ExistingBookingsView: React.FC<{ bookingsInSlot: Booking[]; onEditFromModa
 const BookingModal: React.FC<BookingModalProps> = ({ 
     slotInfo, bookingToEdit, allBookings, blockedSlotsForEdit = [],
     vendor, onClose, onConfirmBooking, onUpdateBooking, onEditFromModal,
-    salespeopleCount, appointmentTimes, role = 'manager'
+    salespeopleCount, appointmentTimes, role = 'manager', regions = []
 }) => {
   const isEditMode = !!bookingToEdit;
   const initialData = isEditMode ? bookingToEdit : slotInfo;
@@ -188,6 +213,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
   const [activeTab, setActiveTab] = useState<'book' | 'view'>('book');
   const [formData, setFormData] = useState({
     clientName: '', businessName: '', clientWebsite: '', clientPhone: '', clientEmail: '', address: '', customTime: '10:00 AM', customReason: '', callerName: '', notes: '',
+    date: '', region: '' as Region
   });
   const [slotsToRemove, setSlotsToRemove] = useState<string[]>([]);
   const [error, setError] = useState('');
@@ -258,14 +284,22 @@ const BookingModal: React.FC<BookingModalProps> = ({
         clientName: bookingToEdit.clientName, businessName: bookingToEdit.businessName,
         clientWebsite: bookingToEdit.clientWebsite, clientPhone: bookingToEdit.clientPhone,
         clientEmail: bookingToEdit.clientEmail || '',
-        address: bookingToEdit.address, customTime: isCustom ? bookingToEdit.time : '10:00 AM',
+        address: bookingToEdit.address, 
+        customTime: bookingToEdit.time, // Always populate time for possible editing
         customReason: bookingToEdit.customReason || '',
         callerName: bookingToEdit.callerName || '',
         notes: role === 'vendor' ? maskSoldText(bookingToEdit.notes || '') : (bookingToEdit.notes || ''),
+        date: bookingToEdit.date,
+        region: bookingToEdit.region
       });
       setSlotsToRemove(blockedSlotsForEdit);
     } else if (slotInfo) {
-      setFormData({ clientName: '', businessName: '', clientWebsite: '', clientPhone: '', clientEmail: '', address: '', customTime: '10:00 AM', customReason: '', callerName: '', notes: '' });
+      setFormData({ 
+        clientName: '', businessName: '', clientWebsite: '', clientPhone: '', clientEmail: '', address: '', 
+        customTime: slotInfo.time || '10:00 AM', customReason: '', callerName: '', notes: '',
+        date: formatDateForStorage(slotInfo.date),
+        region: slotInfo.region
+      });
       setSlotsToRemove([]);
       setError('');
       setActiveTab(canBookNew || !!slotInfo.isCustom ? 'book' : 'view');
@@ -274,7 +308,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
 
   if (!initialData || !date) return null;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -289,24 +323,35 @@ const BookingModal: React.FC<BookingModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const { clientName, businessName, clientWebsite, clientPhone, address, customTime, customReason, callerName } = formData;
+    const { clientName, businessName, clientWebsite, clientPhone, address, customTime, customReason, callerName, date: formDate, region: formRegion } = formData;
     if (!clientName || !businessName || !clientWebsite || !clientPhone || !address || !callerName) {
       setError('Please fill out all fields.'); return;
     }
-    if (isCustom && !customTime) {
-      setError('Please specify a custom time.'); return;
+    
+    // For editing or custom, check customTime/Reason
+    if ((isCustom || isEditMode) && !customTime) {
+      setError('Please specify a time.'); return;
     }
-     if (isCustom && !customReason) {
+    if (isCustom && !isEditMode && !customReason) {
       setError('Please provide a reason for the custom appointment.'); return;
     }
 
-    const finalTime = isCustom ? customTime : time!;
-    const bookingPayload = { ...formData, date: formatDateForStorage(date), time: finalTime };
+    const finalTime = (isCustom || isEditMode) ? customTime : time!;
+    const finalDate = isEditMode && role === 'manager' ? formDate : formatDateForStorage(date);
+    const finalRegion = isEditMode && role === 'manager' ? formRegion : (region || formRegion);
+
+    const bookingPayload = { 
+        ...formData, 
+        date: finalDate, 
+        time: finalTime,
+        region: finalRegion
+    };
 
     if(isEditMode) {
-        onUpdateBooking({ ...bookingPayload, time: finalTime }, slotsToRemove);
+        // Now passing full payload including possibly changed date/region
+        onUpdateBooking(bookingPayload, slotsToRemove);
     } else {
-        onConfirmBooking({ ...bookingPayload, region: region! }, slotsToRemove);
+        onConfirmBooking(bookingPayload, slotsToRemove);
     }
   };
 
@@ -326,12 +371,14 @@ const BookingModal: React.FC<BookingModalProps> = ({
           </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><XMarkIcon className="w-6 h-6" /></button>
         </div>
-        <div className="p-3 bg-gray-50 text-sm grid grid-cols-2 gap-x-4 border-b">
-            <p><strong>Region:</strong> {region}</p>
-            {!isCustom && <p><strong>Time:</strong> {time}</p>}
-            <p><strong>Date:</strong> {formatDDMMYY(date)}</p>
-            {!isCustom && !isEditMode && <p><strong>Capacity:</strong> {bookingsInSlot.length + (allBookings.filter(b => b.date === formatDateForStorage(date) && b.time === time && b.region === region && b.isBlocker && b.status === 'active').length)} / {salespeopleCount[region.trim().toUpperCase()] || 0}</p>}
-        </div>
+        {(!(isEditMode && role === 'manager')) && (
+            <div className="p-3 bg-gray-50 text-sm grid grid-cols-2 gap-x-4 border-b">
+                <p><strong>Region:</strong> {region}</p>
+                {!isCustom && <p><strong>Time:</strong> {time}</p>}
+                <p><strong>Date:</strong> {formatDDMMYY(date)}</p>
+                {!isCustom && !isEditMode && <p><strong>Capacity:</strong> {bookingsInSlot.length + (allBookings.filter(b => b.date === formatDateForStorage(date) && b.time === time && b.region === region && b.isBlocker && b.status === 'active').length)} / {salespeopleCount[region.trim().toUpperCase()] || 0}</p>}
+            </div>
+        )}
 
         {!isCustom && !isEditMode && (
           <div className="border-b border-gray-200">
@@ -370,6 +417,8 @@ const BookingModal: React.FC<BookingModalProps> = ({
                     onClose={onClose}
                     isEditMode={isEditMode}
                     duplicateWarning={duplicateWarning}
+                    role={role}
+                    regions={regions}
                 />
             ) : (
                 <ExistingBookingsView
