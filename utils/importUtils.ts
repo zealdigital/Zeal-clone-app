@@ -40,6 +40,21 @@ const parseDateTime = (dateTimeStr: string): { date: string | null, time: string
         const input = dateTimeStr.trim().replace(/[\r\n]+/g, ' ');
         if (!input) return { date: null, time: '10:00 AM' };
 
+        // Handle Excel serial dates
+        if (/^\d{5}(\.\d+)?$/.test(input)) {
+            const excelDate = parseFloat(input);
+            const jsDate = new Date((excelDate - 25569) * 86400 * 1000);
+
+            const yyyy = jsDate.getFullYear();
+            const mm = String(jsDate.getMonth() + 1).padStart(2, '0');
+            const dd = String(jsDate.getDate()).padStart(2, '0');
+
+            return {
+                date: `${yyyy}-${mm}-${dd}`,
+                time: '10:00 AM'
+            };
+        }
+
         // Try to handle spaces around slashes, dashes, or dots first to normalize the string
         const normalizedInput = input.replace(/\s*([/.-])\s*/g, '$1');
         const parts = normalizedInput.split(/\s+/);
@@ -374,7 +389,22 @@ export const processImportFile = async (
                     statusRaw = (cols[headerMap['status']] || '').trim();
                 }
 
-                const { date, time } = parseDateTime(apptDateRaw !== '-' ? apptDateRaw : (bookedDateRaw !== '-' ? bookedDateRaw : ''));
+                // Parse appointment date separately
+                const apptParsed = parseDateTime(
+                    apptDateRaw !== '-' ? apptDateRaw : ''
+                );
+
+                // Parse booked date separately
+                const bookedParsed = parseDateTime(
+                    bookedDateRaw !== '-' ? bookedDateRaw : ''
+                );
+
+                // Use appointment date first, fallback to booked date
+                const date = apptParsed.date || bookedParsed.date;
+                const time = apptParsed.time || '10:00 AM';
+
+                // Preserve booked date separately
+                const bookedDate = bookedParsed.date;
                 
                 // Final ghost check: 
                 // 1. If no valid date was found, skip it
@@ -434,6 +464,7 @@ export const processImportFile = async (
                     clientName,
                     businessName,
                     date, // Use the parsed valid date
+                    bookedDate,
                     time,
                     region,
                     address,
