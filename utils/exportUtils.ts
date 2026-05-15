@@ -1,4 +1,3 @@
-
 import type { Booking } from '../types';
 
 /**
@@ -53,7 +52,31 @@ export const exportBookingsToCSV = (bookings: Booking[], filename: string) => {
         };
 
         const apptDate = formatDateForExcel(b.date);
-        const bookedDate = formatDateForExcel(new Date(b.id).toISOString().split('T')[0]);
+        
+        // FIX: Extract actual booked date from the booking object
+        // Use b.bookedDate if available, otherwise fall back to b.createdAt or b.id
+        // Assuming the booking has a `bookedDate` or `createdAt` field
+        let bookedDateRaw = '';
+        if (b.bookedDate) {
+            bookedDateRaw = b.bookedDate;
+        } else if (b.createdAt) {
+            bookedDateRaw = b.createdAt;
+        } else if (b.id && typeof b.id === 'string' && b.id.includes('-')) {
+            // If id is a date string like "2024-01-15-...", extract just the date part
+            const possibleDate = b.id.split('T')[0];
+            if (/^\d{4}-\d{2}-\d{2}/.test(possibleDate)) {
+                bookedDateRaw = possibleDate;
+            } else {
+                // Last resort: use current date (but this shouldn't happen)
+                console.warn('No valid booked date found for booking:', b);
+                bookedDateRaw = new Date().toISOString().split('T')[0];
+            }
+        } else {
+            // Last resort: use current date
+            bookedDateRaw = new Date().toISOString().split('T')[0];
+        }
+        
+        const bookedDate = formatDateForExcel(bookedDateRaw);
 
         // Secret trick for Excel: wrapping in =" " forces it to be TEXT
         // This prevents 04... becoming 4.5E+08 and dates becoming ####
