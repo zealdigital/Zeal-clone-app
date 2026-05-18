@@ -403,7 +403,7 @@ export const processImportFile = async (
                 const date = apptParsed.date || bookedParsed.date;
                 const time = apptParsed.time || '10:00 AM';
 
-                // Preserve booked date separately
+                // Preserve booked date separately - FIX: Store the parsed booked date
                 const bookedDate = bookedParsed.date;
                 
                 // Final ghost check: 
@@ -416,7 +416,7 @@ export const processImportFile = async (
 
                 let matchedVendor = vendors.find(v => normalize(v.name) === normalize(callingTeam));
                 if (!matchedVendor) {
-                    matchedVendor = { id: 999999 + index, name: callingTeam === '-' ? 'Imported' : callingTeam, username: 'imported', active: true };
+                    matchedVendor = { id: 999999 + index, name: callingTeam === '-' ? 'Imported' : callingTeam, username: 'imported', active: true } as Vendor;
                 }
 
                 // Map BDM if provided
@@ -459,26 +459,31 @@ export const processImportFile = async (
 
                 if (duplicateId) duplicates++;
 
+                // FIX: Add createdAt field to store the booked date from the CSV
+                // If booked date exists and is valid, use it; otherwise use current date as fallback
+                const createdAt = bookedDate && bookedDate !== '-' ? bookedDate : new Date().toISOString().split('T')[0];
+
                 newBookings.push({
                     id: baseId + index,
                     clientName,
                     businessName,
-                    date, // Use the parsed valid date
-                    bookedDate,
-                    time,
-                    region,
-                    address,
+                    clientWebsite: website || '-',
                     clientPhone: phone || '-',
                     clientEmail: email || '-',
-                    clientWebsite: website || '-',
+                    address: address,
+                    callerName: callerName || '-',
+                    date, // Appointment date
+                    time,
                     vendor: matchedVendor,
-                    bdmId,
-                    callerName: callerName,
+                    region: region,
                     notes: notes || '-',
                     status,
+                    bdmId,
+                    createdAt, // ← ADD THIS: Store the booked/import date
                     isDuplicate: !!duplicateId,
                     duplicateOfBookingId: duplicateId,
-                });
+                } as any); // Use 'as any' temporarily since we're adding createdAt to Booking type
+                
                 imported++;
                 
                 // Cache for subsequent row duplicate checks within the same file
