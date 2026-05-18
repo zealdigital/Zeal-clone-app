@@ -29,6 +29,7 @@ export const exportBookingsToCSV = (bookings: Booking[], filename: string) => {
 
     // 2. Helper to format dates to DD-MMM-YYYY which Excel likes
     const formatDateForExcel = (dateStr: string) => {
+        if (!dateStr) return '';
         const d = new Date(dateStr + 'T00:00:00Z');
         if (isNaN(d.getTime())) return dateStr;
         const day = d.getUTCDate().toString().padStart(2, '0');
@@ -53,26 +54,31 @@ export const exportBookingsToCSV = (bookings: Booking[], filename: string) => {
 
         const apptDate = formatDateForExcel(b.date);
         
-        // FIX: Extract actual booked date from the booking object
-        // Use b.bookedDate if available, otherwise fall back to b.createdAt or b.id
-        // Assuming the booking has a `bookedDate` or `createdAt` field
+        // FIX: Get the actual booked/created date from the booking object
+        // Priority order: bookedDate > createdAt > created > timestamp > fallback to current date (with warning)
         let bookedDateRaw = '';
+        
         if (b.bookedDate) {
             bookedDateRaw = b.bookedDate;
         } else if (b.createdAt) {
             bookedDateRaw = b.createdAt;
-        } else if (b.id && typeof b.id === 'string' && b.id.includes('-')) {
-            // If id is a date string like "2024-01-15-...", extract just the date part
-            const possibleDate = b.id.split('T')[0];
-            if (/^\d{4}-\d{2}-\d{2}/.test(possibleDate)) {
+        } else if ((b as any).created) {
+            bookedDateRaw = (b as any).created;
+        } else if ((b as any).timestamp) {
+            bookedDateRaw = (b as any).timestamp;
+        } else if (b.id && typeof b.id === 'number') {
+            // If id is a timestamp number (like Date.now()), convert it to date string
+            const possibleDate = new Date(b.id).toISOString().split('T')[0];
+            // Check if it's a reasonable date (not too far in past or future)
+            const year = parseInt(possibleDate.split('-')[0]);
+            if (year >= 2020 && year <= 2030) {
                 bookedDateRaw = possibleDate;
             } else {
-                // Last resort: use current date (but this shouldn't happen)
-                console.warn('No valid booked date found for booking:', b);
+                console.warn('No valid booked date found for booking:', b.id, b.businessName);
                 bookedDateRaw = new Date().toISOString().split('T')[0];
             }
         } else {
-            // Last resort: use current date
+            console.warn('No valid booked date field found for booking:', b.id, b.businessName);
             bookedDateRaw = new Date().toISOString().split('T')[0];
         }
         
