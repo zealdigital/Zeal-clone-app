@@ -1,4 +1,3 @@
-
 import type { REGIONS } from './constants';
 
 export interface NotificationPreferences {
