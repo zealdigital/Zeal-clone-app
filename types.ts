@@ -60,6 +60,7 @@ export interface Branding {
 
 export interface Booking {
   id: number;
+  createdAt: string; // YYYY-MM-DD format - when the booking was created/imported
   clientName: string;
   businessName: string;
   clientWebsite: string;
@@ -67,7 +68,7 @@ export interface Booking {
   clientEmail?: string; // New field for email duplicate checking
   address: string;
   callerName: string;
-  date: string; // YYYY-MM-DD format
+  date: string; // YYYY-MM-DD format (Appointment date)
   time: string; // HH:MM AM/PM format
   vendor: Vendor;
   region: Region;
