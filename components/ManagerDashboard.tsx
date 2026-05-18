@@ -893,50 +893,60 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     
     // Delete all data handler with confirmation
     // Delete all BOOKINGS data only (keeps users, settings, holidays, etc.)
+   // Alternative: Force delete by overriding the persisted state
     const handleDeleteAllData = () => {
         const confirmDelete = window.confirm(
-            '⚠️ DANGER: This will delete ALL BOOKING DATA including:\n\n' +
-            '- All active leads\n' +
-            '- All archived leads (seen, sold, rescheduled, cancelled, DQ)\n' +
-            '- All rejected leads\n' +
-            '- All blocked slots\n' +
-            '- All pending approval requests\n\n' +
-            'This will NOT delete:\n' +
-            '✓ Vendors (Calling Teams)\n' +
-            '✓ BDMs\n' +
-            '✓ Managers\n' +
-            '✓ Public Holidays\n' +
-            '✓ Leave Days\n' +
-            '✓ Appointment time settings\n' +
-            '✓ Region settings\n\n' +
-            'Type "DELETE BOOKINGS" to confirm:'
+            '⚠️ DANGER: Delete ALL BOOKING DATA?\n\nType "DELETE BOOKINGS" to confirm:'
         );
         
         if (!confirmDelete) return;
         
-        const finalConfirm = prompt('Type "DELETE BOOKINGS" to confirm permanent deletion of ALL booking data:');
+        const finalConfirm = prompt('Type "DELETE BOOKINGS" to confirm:');
         if (finalConfirm !== 'DELETE BOOKINGS') {
-            alert('Deletion cancelled. You did not type "DELETE BOOKINGS" correctly.');
+            alert('Deletion cancelled.');
             return;
         }
         
-        // Count how many bookings are being deleted
-        const bookingsToDelete = allBookings.filter(b => !b.isBlocker).length;
-        const blockersToDelete = allBookings.filter(b => b.isBlocker).length;
+        // Save current non-booking data (users, settings, etc.)
+        const currentVendors = vendors;
+        const currentBdms = bdms;
+        const currentManagers = managers;
+        const currentPublicHolidays = publicHolidays;
+        const currentLeaveDays = leaveDays;
+        const currentAppointmentTimes = appointmentTimes;
+        const currentRegions = regions;
+        const currentRegionColors = regionColors;
+        const currentBranding = branding;
         
-        // ONLY delete bookings (both regular bookings and blockers)
+        // Clear all bookings
         setAllBookings([]);
         
-        // Clear localStorage to ensure data is wiped
-        localStorage.removeItem('zeal_app_state');
+        // Immediately save the state with empty bookings but preserve other data
+        const cleanState = {
+            allBookings: [],
+            vendors: currentVendors,
+            bdms: currentBdms,
+            managers: currentManagers,
+            publicHolidays: currentPublicHolidays,
+            leaveDays: currentLeaveDays,
+            appointmentTimes: currentAppointmentTimes,
+            regions: currentRegions,
+            regionColors: currentRegionColors,
+            branding: currentBranding,
+            notifications: [],
+            managerAppointments: []
+        };
         
-        // Show success message with count
-        triggerSystemAlert(`✅ DELETED: ${bookingsToDelete} bookings and ${blockersToDelete} blocked slots. All booking data has been permanently removed.`);
+        // Save to localStorage
+        localStorage.setItem('zeal_app_state', JSON.stringify(cleanState));
         
-        // Optional: Refresh the page to reset all state
+        // Show message
+        triggerSystemAlert('✅ All booking data has been permanently deleted. Refreshing page...');
+        
+        // Hard reload
         setTimeout(() => {
-            window.location.reload();
-        }, 2000);
+            window.location.reload(true);
+        }, 1500);
     };
 
 
