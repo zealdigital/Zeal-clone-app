@@ -46,36 +46,11 @@ export const exportBookingsToCSV = (bookings: Booking[], filename: string) => {
 
         const apptDate = formatDateForExcel(b.date);
         
-        // FIX: Try to get booked date from multiple sources
-        let bookedDateRaw = '';
-        
-        // Check if booking has a createdAt field
-        if ((b as any).createdAt) {
-            bookedDateRaw = (b as any).createdAt;
-        } 
-        // Check if booking has a bookedDate field
-        else if ((b as any).bookedDate) {
-            bookedDateRaw = (b as any).bookedDate;
-        }
-        // Fallback: Use ID as timestamp (assuming it's a Unix timestamp)
-        else if (b.id && typeof b.id === 'number' && b.id > 1000000000000) {
-            // ID looks like a Unix timestamp (milliseconds since 1970)
-            const dateFromId = new Date(b.id).toISOString().split('T')[0];
-            const year = parseInt(dateFromId.split('-')[0]);
-            // Check if year is reasonable (2020-2030)
-            if (year >= 2020 && year <= 2030) {
-                bookedDateRaw = dateFromId;
-            } else {
-                bookedDateRaw = new Date().toISOString().split('T')[0];
-            }
-        }
-        else {
-            // Last resort: use current date
-            console.warn('Cannot determine booked date for booking:', b.id, b.businessName);
-            bookedDateRaw = new Date().toISOString().split('T')[0];
-        }
-        
+        // Use the createdAt field that was added to the Booking type
+        // Fallback to current date if createdAt is missing (for existing bookings)
+        const bookedDateRaw = b.createdAt || new Date().toISOString().split('T')[0];
         const bookedDate = formatDateForExcel(bookedDateRaw);
+        
         const forceText = (val: string) => `="${val}"`;
 
         return [
