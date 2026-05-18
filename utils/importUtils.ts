@@ -403,7 +403,7 @@ export const processImportFile = async (
                 const date = apptParsed.date || bookedParsed.date;
                 const time = apptParsed.time || '10:00 AM';
 
-                // Preserve booked date separately - FIX: Store the parsed booked date
+                // Preserve booked date separately
                 const bookedDate = bookedParsed.date;
                 
                 // Final ghost check: 
@@ -459,11 +459,9 @@ export const processImportFile = async (
 
                 if (duplicateId) duplicates++;
 
-                // FIX: Add createdAt field to store the booked date from the CSV
-                // If booked date exists and is valid, use it; otherwise use current date as fallback
-               // Store the booked date from CSV as createdAt
+                // Store the booked date from CSV as createdAt
                 const createdAt = bookedDate && bookedDate !== '-' ? bookedDate : new Date().toISOString().split('T')[0];
-                
+
                 newBookings.push({
                     id: baseId + index,
                     clientName,
@@ -480,11 +478,10 @@ export const processImportFile = async (
                     callerName: callerName,
                     notes: notes || '-',
                     status,
-                    createdAt, // ← REPLACED: was 'bookedDate' now using 'createdAt'
+                    createdAt, // Store the booked/import date here
                     isDuplicate: !!duplicateId,
                     duplicateOfBookingId: duplicateId,
-                }); // Use 'as any' temporarily since we're adding createdAt to Booking type
-                
+                });
                 imported++;
                 
                 // Cache for subsequent row duplicate checks within the same file
