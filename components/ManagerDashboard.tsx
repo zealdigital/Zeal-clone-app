@@ -889,52 +889,58 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     };
 
     const handleDeleteLeave = (id: number) => { setLeaveDays(prev => prev.filter(l => l.id !== id)); };
+    
+    
     // Delete all data handler with confirmation
+    // Delete all BOOKINGS data only (keeps users, settings, holidays, etc.)
     const handleDeleteAllData = () => {
         const confirmDelete = window.confirm(
-            '⚠️ DANGER: This will delete ALL data including:\n\n' +
-            '- All bookings (active, archived, rejected)\n' +
-            '- All users (Vendors, BDMs, Managers)\n' +
-            '- All leave days\n' +
-            '- All public holidays\n' +
-            '- All notifications\n' +
-            '- All manager appointments\n' +
-            '- All region settings\n\n' +
-            'This action CANNOT be undone!\n\n' +
-            'Type "DELETE ALL" to confirm:'
+            '⚠️ DANGER: This will delete ALL BOOKING DATA including:\n\n' +
+            '- All active leads\n' +
+            '- All archived leads (seen, sold, rescheduled, cancelled, DQ)\n' +
+            '- All rejected leads\n' +
+            '- All blocked slots\n' +
+            '- All pending approval requests\n\n' +
+            'This will NOT delete:\n' +
+            '✓ Vendors (Calling Teams)\n' +
+            '✓ BDMs\n' +
+            '✓ Managers\n' +
+            '✓ Public Holidays\n' +
+            '✓ Leave Days\n' +
+            '✓ Appointment time settings\n' +
+            '✓ Region settings\n\n' +
+            'Type "DELETE BOOKINGS" to confirm:'
         );
         
         if (!confirmDelete) return;
         
-        const finalConfirm = prompt('Type "DELETE ALL" to confirm permanent deletion of ALL data:');
-        if (finalConfirm !== 'DELETE ALL') {
-            alert('Deletion cancelled. You did not type "DELETE ALL" correctly.');
+        const finalConfirm = prompt('Type "DELETE BOOKINGS" to confirm permanent deletion of ALL booking data:');
+        if (finalConfirm !== 'DELETE BOOKINGS') {
+            alert('Deletion cancelled. You did not type "DELETE BOOKINGS" correctly.');
             return;
         }
         
-        // Clear all state
+        // Count how many bookings are being deleted
+        const bookingsToDelete = allBookings.filter(b => !b.isBlocker).length;
+        const blockersToDelete = allBookings.filter(b => b.isBlocker).length;
+        
+        // ONLY delete bookings (both regular bookings and blockers)
         setAllBookings([]);
-        setVendors([]);
-        setBdms([]);
-        setManagers([]);
-        setLeaveDays([]);
-        setPublicHolidays([]);
-        setNotifications([]);
-        setManagerAppointments([]);
-        setRegions(['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT']); // Reset to default regions
-        setRegionColors({}); // Reset region colors
         
         // Clear localStorage to ensure data is wiped
         localStorage.removeItem('zeal_app_state');
         
-        // Show success message
-        triggerSystemAlert('✅ ALL DATA HAS BEEN DELETED. This action cannot be undone.');
+        // Show success message with count
+        triggerSystemAlert(`✅ DELETED: ${bookingsToDelete} bookings and ${blockersToDelete} blocked slots. All booking data has been permanently removed.`);
         
         // Optional: Refresh the page to reset all state
         setTimeout(() => {
             window.location.reload();
         }, 2000);
     };
+
+
+    
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -1859,23 +1865,24 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                     </div>
 
                                     {/* DELETE ALL DATA SECTION - Add this after the Export section */}
-                                        <div className="pt-4 border-t-2 border-red-200 mt-4">
-                                            <label className="block text-sm font-bold text-red-700 mb-2 flex items-center gap-2">
-                                                <TrashIcon className="w-4 h-4" />
-                                                Danger Zone - Delete All Data
-                                            </label>
-                                            <button
-                                                onClick={handleDeleteAllData}
-                                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm flex items-center gap-2 shadow-md shadow-red-100 transition-all active:scale-95"
-                                            >
-                                                <TrashIcon className="w-4 h-4" />
-                                                DELETE ALL DATA (Cannot Undo)
-                                            </button>
-                                            <p className="text-xs text-red-500 mt-2 font-bold">
-                                                ⚠️ WARNING: This will permanently delete ALL bookings, users, holidays, leaves, and settings. 
-                                                This action is irreversible and will clear your entire database.
-                                            </p>
-                                        </div>
+                                        {/* DELETE ALL BOOKINGS DATA SECTION */}
+                                    <div className="pt-4 border-t-2 border-red-200">
+                                        <label className="block text-sm font-bold text-red-700 mb-2 flex items-center gap-2">
+                                            <TrashIcon className="w-4 h-4" />
+                                            Danger Zone - Delete All Bookings
+                                        </label>
+                                        <button
+                                            onClick={handleDeleteAllData}
+                                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm flex items-center gap-2 shadow-md shadow-red-100 transition-all active:scale-95"
+                                        >
+                                            <TrashIcon className="w-4 h-4" />
+                                            DELETE ALL BOOKINGS (Cannot Undo)
+                                        </button>
+                                        <p className="text-xs text-red-500 mt-2 font-bold">
+                                            ⚠️ WARNING: This will permanently delete ALL booking data (active, archived, rejected, and blocked slots). 
+                                            Users, holidays, leave days, and settings will remain intact.
+                                        </p>
+                                    </div>
                                     
                                     
                                 </div>
