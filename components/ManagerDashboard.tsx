@@ -889,7 +889,52 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     };
 
     const handleDeleteLeave = (id: number) => { setLeaveDays(prev => prev.filter(l => l.id !== id)); };
-
+    // Delete all data handler with confirmation
+    const handleDeleteAllData = () => {
+        const confirmDelete = window.confirm(
+            '⚠️ DANGER: This will delete ALL data including:\n\n' +
+            '- All bookings (active, archived, rejected)\n' +
+            '- All users (Vendors, BDMs, Managers)\n' +
+            '- All leave days\n' +
+            '- All public holidays\n' +
+            '- All notifications\n' +
+            '- All manager appointments\n' +
+            '- All region settings\n\n' +
+            'This action CANNOT be undone!\n\n' +
+            'Type "DELETE ALL" to confirm:'
+        );
+        
+        if (!confirmDelete) return;
+        
+        const finalConfirm = prompt('Type "DELETE ALL" to confirm permanent deletion of ALL data:');
+        if (finalConfirm !== 'DELETE ALL') {
+            alert('Deletion cancelled. You did not type "DELETE ALL" correctly.');
+            return;
+        }
+        
+        // Clear all state
+        setAllBookings([]);
+        setVendors([]);
+        setBdms([]);
+        setManagers([]);
+        setLeaveDays([]);
+        setPublicHolidays([]);
+        setNotifications([]);
+        setManagerAppointments([]);
+        setRegions(['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT']); // Reset to default regions
+        setRegionColors({}); // Reset region colors
+        
+        // Clear localStorage to ensure data is wiped
+        localStorage.removeItem('zeal_app_state');
+        
+        // Show success message
+        triggerSystemAlert('✅ ALL DATA HAS BEEN DELETED. This action cannot be undone.');
+        
+        // Optional: Refresh the page to reset all state
+        setTimeout(() => {
+            window.location.reload();
+        }, 2000);
+    };
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
