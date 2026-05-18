@@ -1857,6 +1857,27 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                             </button>
                                         </div>
                                     </div>
+
+                                    {/* DELETE ALL DATA SECTION - Add this after the Export section */}
+                                        <div className="pt-4 border-t-2 border-red-200 mt-4">
+                                            <label className="block text-sm font-bold text-red-700 mb-2 flex items-center gap-2">
+                                                <TrashIcon className="w-4 h-4" />
+                                                Danger Zone - Delete All Data
+                                            </label>
+                                            <button
+                                                onClick={handleDeleteAllData}
+                                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm flex items-center gap-2 shadow-md shadow-red-100 transition-all active:scale-95"
+                                            >
+                                                <TrashIcon className="w-4 h-4" />
+                                                DELETE ALL DATA (Cannot Undo)
+                                            </button>
+                                            <p className="text-xs text-red-500 mt-2 font-bold">
+                                                ⚠️ WARNING: This will permanently delete ALL bookings, users, holidays, leaves, and settings. 
+                                                This action is irreversible and will clear your entire database.
+                                            </p>
+                                        </div>
+                                    
+                                    
                                 </div>
                             </div>
                         )}
