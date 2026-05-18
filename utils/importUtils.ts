@@ -461,28 +461,29 @@ export const processImportFile = async (
 
                 // FIX: Add createdAt field to store the booked date from the CSV
                 // If booked date exists and is valid, use it; otherwise use current date as fallback
+               // Store the booked date from CSV as createdAt
                 const createdAt = bookedDate && bookedDate !== '-' ? bookedDate : new Date().toISOString().split('T')[0];
-
+                
                 newBookings.push({
                     id: baseId + index,
                     clientName,
                     businessName,
-                    clientWebsite: website || '-',
+                    date, // Use the parsed valid date (Appointment date)
+                    time,
+                    region,
+                    address,
                     clientPhone: phone || '-',
                     clientEmail: email || '-',
-                    address: address,
-                    callerName: callerName || '-',
-                    date, // Appointment date
-                    time,
+                    clientWebsite: website || '-',
                     vendor: matchedVendor,
-                    region: region,
+                    bdmId,
+                    callerName: callerName,
                     notes: notes || '-',
                     status,
-                    bdmId,
-                    createdAt, // ← ADD THIS: Store the booked/import date
+                    createdAt, // ← REPLACED: was 'bookedDate' now using 'createdAt'
                     isDuplicate: !!duplicateId,
                     duplicateOfBookingId: duplicateId,
-                } as any); // Use 'as any' temporarily since we're adding createdAt to Booking type
+                }); // Use 'as any' temporarily since we're adding createdAt to Booking type
                 
                 imported++;
                 
