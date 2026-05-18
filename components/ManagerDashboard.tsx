@@ -891,62 +891,77 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const handleDeleteLeave = (id: number) => { setLeaveDays(prev => prev.filter(l => l.id !== id)); };
     
     
-    // Delete all data handler with confirmation
-    // Delete all BOOKINGS data only (keeps users, settings, holidays, etc.)
-   // Alternative: Force delete by overriding the persisted state
+    // Delete all BOOKINGS data only (complete wipe with multiple storage clearance)
     const handleDeleteAllData = () => {
         const confirmDelete = window.confirm(
-            '⚠️ DANGER: Delete ALL BOOKING DATA?\n\nType "DELETE BOOKINGS" to confirm:'
+            '⚠️ DANGER: This will delete ALL BOOKING DATA including:\n\n' +
+            '- All active leads\n' +
+            '- All archived leads (seen, sold, rescheduled, cancelled, DQ)\n' +
+            '- All rejected leads\n' +
+            '- All blocked slots\n' +
+            '- All pending approval requests\n\n' +
+            'Type "DELETE BOOKINGS" to confirm:'
         );
         
         if (!confirmDelete) return;
         
-        const finalConfirm = prompt('Type "DELETE BOOKINGS" to confirm:');
+        const finalConfirm = prompt('Type "DELETE BOOKINGS" to confirm permanent deletion of ALL booking data:');
         if (finalConfirm !== 'DELETE BOOKINGS') {
             alert('Deletion cancelled.');
             return;
         }
         
-        // Save current non-booking data (users, settings, etc.)
-        const currentVendors = vendors;
-        const currentBdms = bdms;
-        const currentManagers = managers;
-        const currentPublicHolidays = publicHolidays;
-        const currentLeaveDays = leaveDays;
-        const currentAppointmentTimes = appointmentTimes;
-        const currentRegions = regions;
-        const currentRegionColors = regionColors;
-        const currentBranding = branding;
+        // Count before deletion
+        const bookingsToDelete = allBookings.filter(b => !b.isBlocker).length;
+        const blockersToDelete = allBookings.filter(b => b.isBlocker).length;
         
-        // Clear all bookings
+        // METHOD 1: Update React state
         setAllBookings([]);
         
-        // Immediately save the state with empty bookings but preserve other data
-        const cleanState = {
-            allBookings: [],
-            vendors: currentVendors,
-            bdms: currentBdms,
-            managers: currentManagers,
-            publicHolidays: currentPublicHolidays,
-            leaveDays: currentLeaveDays,
-            appointmentTimes: currentAppointmentTimes,
-            regions: currentRegions,
-            regionColors: currentRegionColors,
-            branding: currentBranding,
-            notifications: [],
-            managerAppointments: []
-        };
+        // METHOD 2: Clear ALL possible storage locations
+        try {
+            // Clear localStorage completely
+            localStorage.clear();
+            
+            // Clear sessionStorage
+            sessionStorage.clear();
+            
+            // Clear specific keys that might be used
+            localStorage.removeItem('zeal_app_state');
+            localStorage.removeItem('appointments-storage');
+            localStorage.removeItem('persist:root');
+            localStorage.removeItem('bookings');
+            localStorage.removeItem('allBookings');
+            
+            // Clear IndexedDB if present
+            if (window.indexedDB) {
+                const databases = ['zeal_app_db', 'bookings_db', 'app_db', 'ZealDB'];
+                databases.forEach(dbName => {
+                    try {
+                        window.indexedDB.deleteDatabase(dbName);
+                        console.log(`Deleted database: ${dbName}`);
+                    } catch(e) { console.log(e); }
+                });
+            }
+            
+            // Clear Cache Storage if possible
+            if ('caches' in window) {
+                caches.keys().then(keys => {
+                    keys.forEach(key => caches.delete(key));
+                });
+            }
+        } catch(e) {
+            console.error('Storage clear error:', e);
+        }
         
-        // Save to localStorage
-        localStorage.setItem('zeal_app_state', JSON.stringify(cleanState));
+        // Show success message
+        triggerSystemAlert(`✅ DELETED: ${bookingsToDelete} bookings and ${blockersToDelete} blocked slots. Clearing all storage...`);
         
-        // Show message
-        triggerSystemAlert('✅ All booking data has been permanently deleted. Refreshing page...');
-        
-        // Hard reload
+        // Force hard reload without cache after 2 seconds
         setTimeout(() => {
-            window.location.reload(true);
-        }, 1500);
+            // Use hard reload with cache busting
+            window.location.href = window.location.pathname + '?nocache=' + Date.now();
+        }, 2000);
     };
 
 
