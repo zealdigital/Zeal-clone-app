@@ -891,78 +891,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const handleDeleteLeave = (id: number) => { setLeaveDays(prev => prev.filter(l => l.id !== id)); };
     
     
-    // Delete all BOOKINGS data only (complete wipe with multiple storage clearance)
-    const handleDeleteAllData = () => {
-        const confirmDelete = window.confirm(
-            '⚠️ DANGER: This will delete ALL BOOKING DATA including:\n\n' +
-            '- All active leads\n' +
-            '- All archived leads (seen, sold, rescheduled, cancelled, DQ)\n' +
-            '- All rejected leads\n' +
-            '- All blocked slots\n' +
-            '- All pending approval requests\n\n' +
-            'Type "DELETE BOOKINGS" to confirm:'
-        );
-        
-        if (!confirmDelete) return;
-        
-        const finalConfirm = prompt('Type "DELETE BOOKINGS" to confirm permanent deletion of ALL booking data:');
-        if (finalConfirm !== 'DELETE BOOKINGS') {
-            alert('Deletion cancelled.');
-            return;
-        }
-        
-        // Count before deletion
-        const bookingsToDelete = allBookings.filter(b => !b.isBlocker).length;
-        const blockersToDelete = allBookings.filter(b => b.isBlocker).length;
-        
-        // METHOD 1: Update React state
-        setAllBookings([]);
-        
-        // METHOD 2: Clear ALL possible storage locations
-        try {
-            // Clear localStorage completely
-            localStorage.clear();
-            
-            // Clear sessionStorage
-            sessionStorage.clear();
-            
-            // Clear specific keys that might be used
-            localStorage.removeItem('zeal_app_state');
-            localStorage.removeItem('appointments-storage');
-            localStorage.removeItem('persist:root');
-            localStorage.removeItem('bookings');
-            localStorage.removeItem('allBookings');
-            
-            // Clear IndexedDB if present
-            if (window.indexedDB) {
-                const databases = ['zeal_app_db', 'bookings_db', 'app_db', 'ZealDB'];
-                databases.forEach(dbName => {
-                    try {
-                        window.indexedDB.deleteDatabase(dbName);
-                        console.log(`Deleted database: ${dbName}`);
-                    } catch(e) { console.log(e); }
-                });
-            }
-            
-            // Clear Cache Storage if possible
-            if ('caches' in window) {
-                caches.keys().then(keys => {
-                    keys.forEach(key => caches.delete(key));
-                });
-            }
-        } catch(e) {
-            console.error('Storage clear error:', e);
-        }
-        
-        // Show success message
-        triggerSystemAlert(`✅ DELETED: ${bookingsToDelete} bookings and ${blockersToDelete} blocked slots. Clearing all storage...`);
-        
-        // Force hard reload without cache after 2 seconds
-        setTimeout(() => {
-            // Use hard reload with cache busting
-            window.location.href = window.location.pathname + '?nocache=' + Date.now();
-        }, 2000);
-    };
+    
 
 
     
@@ -1889,25 +1818,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                         </div>
                                     </div>
 
-                                    {/* DELETE ALL DATA SECTION - Add this after the Export section */}
-                                        {/* DELETE ALL BOOKINGS DATA SECTION */}
-                                    <div className="pt-4 border-t-2 border-red-200">
-                                        <label className="block text-sm font-bold text-red-700 mb-2 flex items-center gap-2">
-                                            <TrashIcon className="w-4 h-4" />
-                                            Danger Zone - Delete All Bookings
-                                        </label>
-                                        <button
-                                            onClick={handleDeleteAllData}
-                                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm flex items-center gap-2 shadow-md shadow-red-100 transition-all active:scale-95"
-                                        >
-                                            <TrashIcon className="w-4 h-4" />
-                                            DELETE ALL BOOKINGS (Cannot Undo)
-                                        </button>
-                                        <p className="text-xs text-red-500 mt-2 font-bold">
-                                            ⚠️ WARNING: This will permanently delete ALL booking data (active, archived, rejected, and blocked slots). 
-                                            Users, holidays, leave days, and settings will remain intact.
-                                        </p>
-                                    </div>
+                                    
                                     
                                     
                                 </div>
