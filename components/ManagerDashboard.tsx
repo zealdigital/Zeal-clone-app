@@ -892,6 +892,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     
     
     // Delete all BOOKINGS data only (complete wipe with multiple storage clearance)
+    // Delete all BOOKINGS data from localStorage and state
     const handleDeleteAllData = () => {
         const confirmDelete = window.confirm(
             '⚠️ DANGER: This will delete ALL BOOKING DATA including:\n\n' +
@@ -907,7 +908,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         
         const finalConfirm = prompt('Type "DELETE BOOKINGS" to confirm permanent deletion of ALL booking data:');
         if (finalConfirm !== 'DELETE BOOKINGS') {
-            alert('Deletion cancelled.');
+            alert('Deletion cancelled. You did not type "DELETE BOOKINGS" correctly.');
             return;
         }
         
@@ -915,53 +916,26 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         const bookingsToDelete = allBookings.filter(b => !b.isBlocker).length;
         const blockersToDelete = allBookings.filter(b => b.isBlocker).length;
         
-        // METHOD 1: Update React state
+        // 1. Clear React state
         setAllBookings([]);
         
-        // METHOD 2: Clear ALL possible storage locations
-        try {
-            // Clear localStorage completely
-            localStorage.clear();
-            
-            // Clear sessionStorage
-            sessionStorage.clear();
-            
-            // Clear specific keys that might be used
-            localStorage.removeItem('zeal_app_state');
-            localStorage.removeItem('appointments-storage');
-            localStorage.removeItem('persist:root');
-            localStorage.removeItem('bookings');
-            localStorage.removeItem('allBookings');
-            
-            // Clear IndexedDB if present
-            if (window.indexedDB) {
-                const databases = ['zeal_app_db', 'bookings_db', 'app_db', 'ZealDB'];
-                databases.forEach(dbName => {
-                    try {
-                        window.indexedDB.deleteDatabase(dbName);
-                        console.log(`Deleted database: ${dbName}`);
-                    } catch(e) { console.log(e); }
-                });
-            }
-            
-            // Clear Cache Storage if possible
-            if ('caches' in window) {
-                caches.keys().then(keys => {
-                    keys.forEach(key => caches.delete(key));
-                });
-            }
-        } catch(e) {
-            console.error('Storage clear error:', e);
-        }
+        // 2. Clear localStorage (where data persists)
+        localStorage.removeItem('zeal_app_state');
         
-        // Show success message
-        triggerSystemAlert(`✅ DELETED: ${bookingsToDelete} bookings and ${blockersToDelete} blocked slots. Clearing all storage...`);
+        // 3. Also try to clear any other storage keys that might contain booking data
+        localStorage.removeItem('bookings_backup');
+        localStorage.removeItem('appointments-storage');
         
-        // Force hard reload without cache after 2 seconds
+        // 4. Clear sessionStorage just in case
+        sessionStorage.clear();
+        
+        // Show success message with count
+        triggerSystemAlert(`✅ DELETED: ${bookingsToDelete} bookings and ${blockersToDelete} blocked slots. Refreshing page...`);
+        
+        // Force a hard reload without cache to ensure UI is reset
         setTimeout(() => {
-            // Use hard reload with cache busting
-            window.location.href = window.location.pathname + '?nocache=' + Date.now();
-        }, 2000);
+            window.location.reload(true);
+        }, 1500);
     };
 
 
