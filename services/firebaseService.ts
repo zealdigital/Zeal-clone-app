@@ -2,6 +2,7 @@
 import { db } from '../firebaseConfig';
 import { doc, onSnapshot, writeBatch } from 'firebase/firestore';
 import type { PersistedState } from '../types';
+import { getFirestore, collection, getDocs, writeBatch } from 'firebase/firestore';
 
 const COLLECTION_NAME = 'app_data';
 const CONFIG_DOC_ID = 'globalState';
@@ -9,6 +10,52 @@ const BOOKINGS_PREFIX = 'bookings_part_';
 const NOTIFICATIONS_PREFIX = 'notifications_part_';
 const MAX_SHARDS = 300;
 const ITEMS_PER_CHUNK = 100;
+
+const db = getFirestore(app);
+/**
+ * Deletes all booking documents from Firebase Firestore
+ * This permanently removes the data from the cloud
+ */
+export const deleteAllBookingsFromFirebase = async (): Promise<{ success: boolean, count: number }> => {
+    try {
+        const bookingsRef = collection(db, 'bookings');
+        const snapshot = await getDocs(bookingsRef);
+        
+        if (snapshot.empty) {
+            return { success: true, count: 0 };
+        }
+        
+        // Firestore batches can only delete 500 documents at once
+        const batches = [];
+        let currentBatch = writeBatch(db);
+        let operationCount = 0;
+        let deletedCount = 0;
+        
+        for (const doc of snapshot.docs) {
+            currentBatch.delete(doc.ref);
+            operationCount++;
+            deletedCount++;
+            
+            if (operationCount === 500) {
+                batches.push(currentBatch.commit());
+                currentBatch = writeBatch(db);
+                operationCount = 0;
+            }
+        }
+        
+        if (operationCount > 0) {
+            batches.push(currentBatch.commit());
+        }
+        
+        await Promise.all(batches);
+        return { success: true, count: deletedCount };
+        
+    } catch (error) {
+        console.error('Error deleting bookings from Firebase:', error);
+        throw error;
+    }
+};
+
 
 /**
  * Recursively removes any keys with the value of undefined from an object.
