@@ -1,8 +1,8 @@
 
 import { db } from '../firebaseConfig';
-import { doc, onSnapshot, writeBatch } from 'firebase/firestore';
+import { doc, onSnapshot, writeBatch,getFirestore, collection, getDocs } from 'firebase/firestore';
 import type { PersistedState } from '../types';
-import { getFirestore, collection, getDocs, writeBatch } from 'firebase/firestore';
+
 
 const COLLECTION_NAME = 'app_data';
 const CONFIG_DOC_ID = 'globalState';
