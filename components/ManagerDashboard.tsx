@@ -893,50 +893,62 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     
     // Delete all BOOKINGS data only (complete wipe with multiple storage clearance)
     // Delete all BOOKINGS data from localStorage and state
-    const handleDeleteAllData = () => {
-        const confirmDelete = window.confirm(
-            '⚠️ DANGER: This will delete ALL BOOKING DATA including:\n\n' +
-            '- All active leads\n' +
-            '- All archived leads (seen, sold, rescheduled, cancelled, DQ)\n' +
-            '- All rejected leads\n' +
-            '- All blocked slots\n' +
-            '- All pending approval requests\n\n' +
-            'Type "DELETE BOOKINGS" to confirm:'
-        );
+    import { deleteAllBookingsFromFirebase } from '../services/firebaseService';
+const [isDeleting, setIsDeleting] = useState(false);
+const handleDeleteAllData = async () => {
+    const confirmDelete = window.confirm(
+        '⚠️ DANGER: This will delete ALL BOOKING DATA from:\n\n' +
+        '- Local browser storage\n' +
+        '- Firebase Cloud Database (permanent)\n\n' +
+        'This includes:\n' +
+        '- All active leads\n' +
+        '- All archived leads (seen, sold, rescheduled, cancelled, DQ)\n' +
+        '- All rejected leads\n' +
+        '- All blocked slots\n' +
+        '- All pending approval requests\n\n' +
+        'Type "DELETE BOOKINGS" to confirm:'
+    );
+    
+    if (!confirmDelete) return;
+    
+    const finalConfirm = prompt('Type "DELETE BOOKINGS" to confirm permanent deletion from BOTH local and cloud storage:');
+    if (finalConfirm !== 'DELETE BOOKINGS') {
+        alert('Deletion cancelled.');
+        return;
+    }
+
+    setIsDeleting(true);
+    triggerSystemAlert('🚀 Deleting bookings from Firebase and local storage...');
+
+    try {
+        // 1. Delete from Firebase Cloud
+        const result = await deleteAllBookingsFromFirebase();
+        console.log(`Deleted ${result.count} bookings from Firebase`);
         
-        if (!confirmDelete) return;
-        
-        const finalConfirm = prompt('Type "DELETE BOOKINGS" to confirm permanent deletion of ALL booking data:');
-        if (finalConfirm !== 'DELETE BOOKINGS') {
-            alert('Deletion cancelled. You did not type "DELETE BOOKINGS" correctly.');
-            return;
-        }
-        
-        // Count before deletion
-        const bookingsToDelete = allBookings.filter(b => !b.isBlocker).length;
-        const blockersToDelete = allBookings.filter(b => b.isBlocker).length;
-        
-        // 1. Clear React state
+        // 2. Clear local state
         setAllBookings([]);
         
-        // 2. Clear localStorage (where data persists)
+        // 3. Clear localStorage
         localStorage.removeItem('zeal_app_state');
+        localStorage.removeItem('vendorBookingAppState');
         
-        // 3. Also try to clear any other storage keys that might contain booking data
-        localStorage.removeItem('bookings_backup');
-        localStorage.removeItem('appointments-storage');
-        
-        // 4. Clear sessionStorage just in case
+        // 4. Clear sessionStorage
         sessionStorage.clear();
         
-        // Show success message with count
-        triggerSystemAlert(`✅ DELETED: ${bookingsToDelete} bookings and ${blockersToDelete} blocked slots. Refreshing page...`);
+        triggerSystemAlert(`✅ SUCCESS: Deleted ${result.count} bookings from database. Refreshing page...`);
         
-        // Force a hard reload without cache to ensure UI is reset
+        // 5. Reload the page to reset all state
         setTimeout(() => {
-            window.location.reload(true);
-        }, 1500);
-    };
+            window.location.reload();
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Deletion error:', error);
+        triggerSystemAlert('❌ Deletion failed: ' + (error as Error).message);
+    } finally {
+        setIsDeleting(false);
+    }
+};
 
 
     
@@ -1872,10 +1884,11 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                         </label>
                                         <button
                                             onClick={handleDeleteAllData}
-                                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm flex items-center gap-2 shadow-md shadow-red-100 transition-all active:scale-95"
+                                            disabled={isDeleting}
+                                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm flex items-center gap-2 shadow-md shadow-red-100 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <TrashIcon className="w-4 h-4" />
-                                            DELETE ALL BOOKINGS (Cannot Undo)
+                                            {isDeleting ? 'DELETING FROM FIREBASE...' : 'DELETE ALL BOOKINGS (Cannot Undo)'}
                                         </button>
                                         <p className="text-xs text-red-500 mt-2 font-bold">
                                             ⚠️ WARNING: This will permanently delete ALL booking data (active, archived, rejected, and blocked slots). 
