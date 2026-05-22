@@ -191,67 +191,62 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
     return `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${endOfWeek.getFullYear()}`;
   };
 
-  const renderMonthView = () => {
+    const renderMonthView = () => {
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
     const startDay = startOfMonth.getDay();
     const daysInMonth = endOfMonth.getDate();
 
-    // Weekday headers only (Mon-Fri)
-    const weekdayHeaders = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-
-    // Helper to get actual date for a cell
-    const getCellDate = (row: number, col: number): Date | null => {
-      // Adjust for Monday start (col 0 = Monday)
-      let dayOffset = (row * 5) + col;
-      // Calculate from start of month, accounting for Monday as first day
-      const firstMonday = new Date(startOfMonth);
-      // Adjust to the previous Monday if startOfMonth is not Monday
-      const startDayIndex = startOfMonth.getDay();
-      const daysToMonday = startDayIndex === 0 ? 6 : startDayIndex - 1; // Days to previous Monday
-      firstMonday.setDate(startOfMonth.getDate() - daysToMonday);
-      
-      const cellDate = new Date(firstMonday);
-      cellDate.setDate(firstMonday.getDate() + dayOffset);
-      
-      // Only return dates within the current month
-      if (cellDate.getMonth() === currentDate.getMonth()) {
-        return cellDate;
-      }
-      return null;
+    // Helper to check if a date is a weekend
+    const isWeekendDate = (date: Date) => {
+      const day = date.getDay();
+      return day === 0 || day === 6;
     };
 
-    // Calculate number of rows needed (5 weeks is enough for weekdays only)
-    const rows = 5;
+    // Create array of all days in month (including padding for start and end)
+    const daysArray: (Date | null)[] = [];
+    
+    // Add padding days for start of month (Sunday to Saturday)
+    for (let i = 0; i < startDay; i++) {
+      daysArray.push(null);
+    }
+    
+    // Add actual days of month
+    for (let i = 1; i <= daysInMonth; i++) {
+      daysArray.push(new Date(currentDate.getFullYear(), currentDate.getMonth(), i));
+    }
+    
+    // Add padding days for end of month to complete grid
+    const remainingCells = (7 - (daysArray.length % 7)) % 7;
+    for (let i = 0; i < remainingCells; i++) {
+      daysArray.push(null);
+    }
 
     return (
-      <div className="grid grid-cols-5 gap-px border-l border-t border-gray-200 bg-gray-200">
-        {/* Weekday headers (Mon-Fri) */}
-        {weekdayHeaders.map(day => (
+      <div className="grid grid-cols-7 gap-px border-l border-t border-gray-200 bg-gray-200">
+        {/* Day headers: Sun, Mon, Tue, Wed, Thu, Fri, Sat */}
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
           <div key={day} className="py-2 text-center text-xs font-semibold text-gray-600 bg-gray-50">{day}</div>
         ))}
         
-        {/* Calendar cells - only weekdays */}
-        {Array.from({ length: rows * 5 }).map((_, i) => {
-          const row = Math.floor(i / 5);
-          const col = i % 5;
-          const fullDate = getCellDate(row, col);
-          
+        {/* Calendar cells */}
+        {daysArray.map((fullDate, idx) => {
           if (!fullDate) {
-            return <div key={`empty-${i}`} className="bg-gray-50 min-h-28"></div>;
+            return <div key={`empty-${idx}`} className="bg-gray-50 min-h-28"></div>;
           }
           
           const dateStr = getDateKey(fullDate);
           const dayItems = mixedItemsByDate.get(dateStr) || [];
           const isToday = getDateKey(new Date()) === dateStr;
           const dayNum = fullDate.getDate();
-          const availability = getDayAvailability(fullDate);
+          const isWeekendDay = isWeekendDate(fullDate);
+          const availability = isWeekendDay ? null : getDayAvailability(fullDate); // No availability on weekends
 
           return (
-            <div key={dateStr} className="bg-white p-1.5 min-h-28 relative group">
+            <div key={dateStr} className={`bg-white p-1.5 min-h-28 relative group ${isWeekendDay ? 'bg-gray-50' : ''}`}>
               <div className="flex justify-between items-start">
-                  <span className={`text-xs font-bold ${isToday ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-full' : 'text-gray-700'}`}>{dayNum}</span>
-                  {availability && (
+                  <span className={`text-xs font-bold ${isToday ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-full' : isWeekendDay ? 'text-gray-400' : 'text-gray-700'}`}>{dayNum}</span>
+                  {!isWeekendDay && availability && (
                       <div className="relative group/avail flex flex-col items-end">
                           <div className={`text-[9px] font-black uppercase px-1 rounded cursor-help ${availability.free > 0 ? 'text-green-600 bg-green-50' : 'text-gray-400 bg-gray-50'}`}>
                               {availability.free} Free
@@ -275,14 +270,19 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                           </div>
                       </div>
                   )}
+                  {isWeekendDay && (
+                    <div className="text-[9px] font-black uppercase px-1 rounded text-gray-300 bg-gray-100">
+                      Weekend
+                    </div>
+                  )}
               </div>
-              {setAppointments && (
+              {setAppointments && !isWeekendDay && (
                 <button onClick={() => openAddModal(fullDate)} className="absolute top-6 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-indigo-500 text-white rounded-full p-1 hover:bg-indigo-600 z-10">
                   <PlusIcon className="w-4 h-4" />
                 </button>
               )}
               <div className="mt-1 space-y-1 overflow-y-auto max-h-24">
-                {dayItems.slice(0, 3).map((item, idx) => {
+                {!isWeekendDay && dayItems.slice(0, 3).map((item, idx) => {
                   if (item.type === 'booking') {
                     const booking = item.data;
                     const styleClass = booking.region === 'NSW' ? 'bg-green-50 text-green-900 border-green-200' : booking.region === 'VIC' ? 'bg-blue-50 text-blue-900 border-blue-200' : 'bg-purple-50 text-purple-900 border-purple-200';
@@ -317,8 +317,13 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                     );
                   }
                 })}
-                {dayItems.length > 3 && (
+                {!isWeekendDay && dayItems.length > 3 && (
                   <div className="text-[8px] text-center text-gray-400 pt-0.5">+{dayItems.length - 3} more</div>
+                )}
+                {isWeekendDay && (
+                  <div className="flex items-center justify-center h-20 text-[10px] text-gray-300 italic">
+                    No appointments
+                  </div>
                 )}
               </div>
             </div>
