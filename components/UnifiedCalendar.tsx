@@ -191,7 +191,7 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
     return `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${endOfWeek.getFullYear()}`;
   };
 
-    const renderMonthView = () => {
+      const renderMonthView = () => {
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
     const startDay = startOfMonth.getDay();
@@ -240,10 +240,10 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
           const isToday = getDateKey(new Date()) === dateStr;
           const dayNum = fullDate.getDate();
           const isWeekendDay = isWeekendDate(fullDate);
-          const availability = isWeekendDay ? null : getDayAvailability(fullDate); // No availability on weekends
+          const availability = isWeekendDay ? null : getDayAvailability(fullDate);
 
           return (
-            <div key={dateStr} className={`bg-white p-1.5 min-h-28 relative group ${isWeekendDay ? 'bg-gray-50' : ''}`}>
+            <div key={dateStr} className={`bg-white p-1.5 min-h-32 relative group ${isWeekendDay ? 'bg-gray-50' : ''}`}>
               <div className="flex justify-between items-start">
                   <span className={`text-xs font-bold ${isToday ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-full' : isWeekendDay ? 'text-gray-400' : 'text-gray-700'}`}>{dayNum}</span>
                   {!isWeekendDay && availability && (
@@ -252,7 +252,7 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                               {availability.free} Free
                           </div>
                           <div className="mt-1 flex flex-wrap gap-1 justify-end max-w-[75px]">
-                              {availability.slotBreakdown.filter(s => s.free > 0).slice(0, 2).map(slot => (
+                              {availability.slotBreakdown.filter(s => s.free > 0).map(slot => (
                                   <span key={slot.time} className="text-[9px] font-bold text-green-800 bg-green-100 px-1 rounded leading-none py-1 flex items-center gap-1 border border-green-200 shadow-sm">
                                       {slot.time.replace(':00', '').replace(' ', '')}
                                       <span className="bg-green-700 text-white rounded-full w-3 h-3 flex items-center justify-center text-[8px]">{slot.free}</span>
@@ -281,46 +281,47 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                   <PlusIcon className="w-4 h-4" />
                 </button>
               )}
-              <div className="mt-1 space-y-1 overflow-y-auto max-h-24">
-                {!isWeekendDay && dayItems.slice(0, 3).map((item, idx) => {
-                  if (item.type === 'booking') {
-                    const booking = item.data;
-                    const styleClass = booking.region === 'NSW' ? 'bg-green-50 text-green-900 border-green-200' : booking.region === 'VIC' ? 'bg-blue-50 text-blue-900 border-blue-200' : 'bg-purple-50 text-purple-900 border-purple-200';
-                    return (
-                      <div 
-                        key={`bk-${booking.id}-${idx}`} 
-                        className={`w-full text-left text-[10px] p-1 rounded border ${styleClass} select-none shadow-sm`}
-                        title={`${booking.clientName} (${booking.businessName}) - ${booking.region} [${booking.status.toUpperCase()}]`}
-                      >
-                        <div className="flex items-center gap-1 overflow-hidden">
-                          <UserGroupIcon className="w-2.5 h-2.5 opacity-50 flex-shrink-0" />
-                          <span className="font-mono font-bold flex-shrink-0">{booking.time.split(' ')[0]}</span>
-                          <a 
-                            href={getFullUrl(booking.clientWebsite)} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="truncate font-medium flex-grow hover:underline text-blue-600"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {normalizeWebsite(booking.clientWebsite) || booking.clientName}
-                          </a>
-                          <span className="text-[8px] uppercase font-bold opacity-60 flex-shrink-0">{booking.status === 'rescheduled_bdm' ? 'RESCHED' : booking.status}</span>
+              {/* SHOW ALL SLOTS - removed the .slice(0,3) limit */}
+              <div className="mt-1 space-y-1 overflow-y-auto max-h-28">
+                {!isWeekendDay && dayItems.length > 0 ? (
+                  dayItems.map((item, idx) => {
+                    if (item.type === 'booking') {
+                      const booking = item.data;
+                      const styleClass = booking.region === 'NSW' ? 'bg-green-50 text-green-900 border-green-200' : booking.region === 'VIC' ? 'bg-blue-50 text-blue-900 border-blue-200' : 'bg-purple-50 text-purple-900 border-purple-200';
+                      return (
+                        <div 
+                          key={`bk-${booking.id}-${idx}`} 
+                          className={`w-full text-left text-[10px] p-1 rounded border ${styleClass} select-none shadow-sm`}
+                          title={`${booking.clientName} (${booking.businessName}) - ${booking.region} [${booking.status.toUpperCase()}]`}
+                        >
+                          <div className="flex items-center gap-1 overflow-hidden">
+                            <UserGroupIcon className="w-2.5 h-2.5 opacity-50 flex-shrink-0" />
+                            <span className="font-mono font-bold flex-shrink-0">{booking.time.split(' ')[0]}</span>
+                            <a 
+                              href={getFullUrl(booking.clientWebsite)} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="truncate font-medium flex-grow hover:underline text-blue-600"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {normalizeWebsite(booking.clientWebsite) || booking.clientName}
+                            </a>
+                            <span className="text-[8px] uppercase font-bold opacity-60 flex-shrink-0">{booking.status === 'rescheduled_bdm' ? 'RESCHED' : booking.status}</span>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  } else {
-                    const app = item.data;
-                    return (
-                      <div key={`app-${app.id}`} onClick={() => openEditModal(app)} className="w-full text-left text-[10px] p-1 bg-indigo-100 text-indigo-800 rounded border border-indigo-200 hover:bg-indigo-200 cursor-pointer truncate select-none shadow-sm">
-                        {new Date(app.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} {app.title}
-                      </div>
-                    );
-                  }
-                })}
-                {!isWeekendDay && dayItems.length > 3 && (
-                  <div className="text-[8px] text-center text-gray-400 pt-0.5">+{dayItems.length - 3} more</div>
-                )}
-                {isWeekendDay && (
+                      );
+                    } else {
+                      const app = item.data;
+                      return (
+                        <div key={`app-${app.id}`} onClick={() => openEditModal(app)} className="w-full text-left text-[10px] p-1 bg-indigo-100 text-indigo-800 rounded border border-indigo-200 hover:bg-indigo-200 cursor-pointer truncate select-none shadow-sm">
+                          {new Date(app.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} {app.title}
+                        </div>
+                      );
+                    }
+                  })
+                ) : !isWeekendDay ? (
+                  <div className="text-[10px] text-center text-gray-400 py-2">No appointments</div>
+                ) : (
                   <div className="flex items-center justify-center h-20 text-[10px] text-gray-300 italic">
                     No appointments
                   </div>
