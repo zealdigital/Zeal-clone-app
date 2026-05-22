@@ -505,19 +505,26 @@ const Dashboard: React.FC<DashboardProps> = ({
 
                 {activeTab === 'performance' && (
                   <div className="animate-fadeIn mt-6 space-y-8">
-                    {/* Header Section - Simplified for Callers */}
                     <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-                      <h3 className="text-lg font-bold text-gray-800 mb-2">My Performance Analytics</h3>
-                      <p className="text-sm text-gray-500">View your performance metrics broken down by caller name</p>
+                      <h3 className="text-lg font-bold text-gray-800 mb-4">Team Performance Analytics</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:items-center items-stretch">
+                        <div className="flex-1">
+                          <DateRangePicker startDate={analyticsDateRange.startDate} endDate={analyticsDateRange.endDate} onDateChange={setAnalyticsDateRange} />
+                        </div>
+                        <div className="flex flex-col">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Trend Grouping</label>
+                          <div className="flex flex-wrap rounded-md shadow-sm">
+                            {['daily', 'weekly', 'monthly', 'yearly'].map(p => <button key={p} onClick={() => setAnalyticsTimePeriod(p as any)} className={`flex-1 min-w-[70px] py-2 text-sm border capitalize transition-all ${analyticsTimePeriod === p ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>{p}</button>)}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    
-                    {/* Caller Performance Only - No Status or Region Analytics */}
-                    <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+                    <TrendAnalytics bookings={analyticsBookings} period={analyticsTimePeriod} />
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      <StatusAnalytics bookings={analyticsBookings} title="Team Booking Status Breakdown" role="vendor" />
                       <CallerPerformanceAnalytics bookings={analyticsBookings} />
                     </div>
-                    
-                    {/* Lead Log - Still useful for callers to see details */}
-                    <PerformanceLeadLog bookings={analyticsBookings} role="vendor" title="My Lead Activity Log" />
+                    <PerformanceLeadLog bookings={analyticsBookings} role="vendor" title="Team Performance Lead Log" />
                   </div>
               )}
               {activeTab === 'settings' && (
