@@ -1,7 +1,6 @@
-
 import { db } from '../firebaseConfig';
-import { doc, onSnapshot, writeBatch } from 'firebase/firestore';
-import type { PersistedState } from '../types';
+import { doc, onSnapshot, writeBatch, getDoc, setDoc } from 'firebase/firestore';
+import type { PersistedState, Booking } from '../types';
 
 const COLLECTION_NAME = 'app_data';
 const CONFIG_DOC_ID = 'globalState';
@@ -9,6 +8,12 @@ const BOOKINGS_PREFIX = 'bookings_part_';
 const NOTIFICATIONS_PREFIX = 'notifications_part_';
 const MAX_SHARDS = 300;
 const ITEMS_PER_CHUNK = 100;
+
+// Throttling variables to prevent "Write stream exhausted"
+let lastWriteTime = 0;
+const MIN_WRITE_INTERVAL = 200; // milliseconds between writes
+let pendingSaveTimeout: ReturnType<typeof setTimeout> | null = null;
+let queuedPartialState: Partial<PersistedState> | null = null;
 
 /**
  * Recursively removes any keys with the value of undefined from an object.
@@ -30,6 +35,84 @@ const stripUndefined = (obj: any): any => {
 };
 
 /**
+ * Find which shard a booking belongs to based on its ID
+ */
+const getShardIndexForBooking = (bookingId: number): number => {
+    return Math.floor(bookingId / ITEMS_PER_CHUNK) % MAX_SHARDS;
+};
+
+/**
+ * Save a single booking directly to its shard (incremental update)
+ * This is MUCH faster than rewriting all shards
+ */
+export const saveSingleBookingToFirebase = async (booking: Booking): Promise<boolean> => {
+    if (!db) return false;
+    
+    try {
+        // Throttle writes to prevent rate limiting
+        const now = Date.now();
+        const timeSinceLastWrite = now - lastWriteTime;
+        if (timeSinceLastWrite < MIN_WRITE_INTERVAL) {
+            await new Promise(resolve => setTimeout(resolve, MIN_WRITE_INTERVAL - timeSinceLastWrite));
+        }
+        
+        const shardIndex = getShardIndexForBooking(booking.id);
+        const shardId = `${BOOKINGS_PREFIX}${shardIndex}`;
+        const shardRef = doc(db, COLLECTION_NAME, shardId);
+        
+        // Read current shard
+        const shardSnap = await getDoc(shardRef);
+        let chunk: Booking[] = shardSnap.exists() ? shardSnap.data().chunk : [];
+        
+        // Find and update or append the booking
+        const existingIndex = chunk.findIndex((b: Booking) => b.id === booking.id);
+        if (existingIndex >= 0) {
+            chunk[existingIndex] = booking;
+        } else {
+            chunk.push(booking);
+        }
+        
+        // Write back only this shard
+        await setDoc(shardRef, { chunk }, { merge: true });
+        lastWriteTime = Date.now();
+        
+        return true;
+    } catch (error) {
+        console.error("Failed to save single booking:", error);
+        return false;
+    }
+};
+
+/**
+ * Delete a single booking from its shard
+ */
+export const deleteSingleBookingFromFirebase = async (bookingId: number): Promise<boolean> => {
+    if (!db) return false;
+    
+    try {
+        const shardIndex = getShardIndexForBooking(bookingId);
+        const shardId = `${BOOKINGS_PREFIX}${shardIndex}`;
+        const shardRef = doc(db, COLLECTION_NAME, shardId);
+        
+        const shardSnap = await getDoc(shardRef);
+        if (!shardSnap.exists()) return false;
+        
+        let chunk: Booking[] = shardSnap.data().chunk;
+        const newChunk = chunk.filter((b: Booking) => b.id !== bookingId);
+        
+        if (newChunk.length !== chunk.length) {
+            await setDoc(shardRef, { chunk: newChunk }, { merge: true });
+            return true;
+        }
+        
+        return false;
+    } catch (error) {
+        console.error("Failed to delete booking:", error);
+        return false;
+    }
+};
+
+/**
  * Listens to multiple Firestore documents and reconstructs the state.
  */
 export const subscribeToState = (
@@ -38,12 +121,10 @@ export const subscribeToState = (
 ) => {
     if (!db) return () => {};
 
-    // Keep track of all parts
     const parts: Record<string, any> = {};
     const receivedIds = new Set<string>();
     const unsubs: (() => void)[] = [];
     
-    // We listen to the main config and a larger number of potential parts 
     const docIds = [CONFIG_DOC_ID];
     for (let i = 0; i < MAX_SHARDS; i++) {
         docIds.push(`${BOOKINGS_PREFIX}${i}`);
@@ -51,6 +132,8 @@ export const subscribeToState = (
     }
 
     let debounceTimer: any = null;
+    let firstLoadComplete = false;
+    
     const emitUpdate = () => {
         if (debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
@@ -58,12 +141,10 @@ export const subscribeToState = (
             let allNotifications: any[] = [];
             let configProps: any = {};
 
-            // Merge config
             if (parts[CONFIG_DOC_ID]) {
                 configProps = { ...parts[CONFIG_DOC_ID] };
             }
 
-            // Reassemble bookings in correct order
             for (let i = 0; i < MAX_SHARDS; i++) {
                 const part = parts[`${BOOKINGS_PREFIX}${i}`];
                 if (part && Array.isArray(part.chunk)) {
@@ -77,7 +158,13 @@ export const subscribeToState = (
 
             const isInitialLoadComplete = receivedIds.size >= docIds.length;
             
-            // Only report allBookings if we have shard 0 OR we are done loading and it truly doesn't exist
+            // Show sync message only during initial load, not on every update
+            if (!firstLoadComplete && !isInitialLoadComplete) {
+                // Still loading initial data
+            } else {
+                firstLoadComplete = true;
+            }
+
             const hasShard0 = parts[`${BOOKINGS_PREFIX}0`] !== undefined;
             const reallyEmpty = isInitialLoadComplete && !hasShard0;
 
@@ -88,7 +175,7 @@ export const subscribeToState = (
             };
 
             onUpdate(finalState, isInitialLoadComplete);
-        }, 500); // Increased debounce for large data sets
+        }, 300); // Reduced debounce for better responsiveness
     };
 
     docIds.forEach(id => {
@@ -131,8 +218,7 @@ const setIsSaving = (val: boolean) => {
 
 /**
  * Saves specific fields of the app state to Firestore with chunking support via Batched Writes.
- * Uses multiple batches if necessary to stay under Firestore limits.
- * Implements a queue and delays to prevent "Write stream exhausted" errors.
+ * Optimized to only sync when necessary and with proper throttling.
  */
 export const saveStateToFirebase = async (partialState: Partial<PersistedState>) => {
     if (!db) return;
@@ -141,111 +227,144 @@ export const saveStateToFirebase = async (partialState: Partial<PersistedState>)
     if (!pendingUpdates) {
         pendingUpdates = { ...partialState };
     } else {
-        // Merge objects carefully
         Object.keys(partialState).forEach(key => {
             const k = key as keyof PersistedState;
             (pendingUpdates as any)[k] = partialState[k];
         });
     }
 
-    if (isSaving) return;
-    setIsSaving(true);
-
-    try {
-        while (pendingUpdates) {
-            const stateToSave = { ...pendingUpdates };
-            pendingUpdates = null;
-            await performSave(stateToSave);
-            // Heartbeat/yield between full save cycles if there are more updates
-            if (pendingUpdates) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
+    // Debounce save to avoid excessive writes
+    if (pendingSaveTimeout) {
+        clearTimeout(pendingSaveTimeout);
+    }
+    
+    pendingSaveTimeout = setTimeout(async () => {
+        if (!pendingUpdates) return;
+        
+        if (isSaving) {
+            // Wait for current save to finish
+            const checkInterval = setInterval(() => {
+                if (!isSaving) {
+                    clearInterval(checkInterval);
+                    performQueuedSave();
+                }
+            }, 100);
+            return;
         }
-    } catch (e) {
-        console.error("Critical Sync Loop Error:", e);
-    } finally {
-        setIsSaving(false);
+        
+        await performQueuedSave();
+    }, 500);
+    
+    async function performQueuedSave() {
+        const stateToSave = { ...pendingUpdates! };
+        pendingUpdates = null;
+        
+        setIsSaving(true);
+        try {
+            await performSave(stateToSave);
+        } catch (e) {
+            console.error("Critical Sync Loop Error:", e);
+        } finally {
+            setIsSaving(false);
+        }
     }
 };
+
+// Throttling for batch commits
+let batchCommitQueue: Promise<void> = Promise.resolve();
 
 const performSave = async (partialState: Partial<PersistedState>) => {
     try {
         const cleanedState = stripUndefined(partialState);
         const { allBookings, notifications, ...rest } = cleanedState;
         
+        // Throttle writes to prevent rate limiting
+        const now = Date.now();
+        const timeSinceLastWrite = now - lastWriteTime;
+        if (timeSinceLastWrite < MIN_WRITE_INTERVAL) {
+            await new Promise(resolve => setTimeout(resolve, MIN_WRITE_INTERVAL - timeSinceLastWrite));
+        }
+        
         let currentBatch = writeBatch(db);
         let batchCount = 0;
 
         const commitBatch = async () => {
             if (batchCount > 0) {
-                try {
-                    await currentBatch.commit();
-                    // Increased delay and smaller batches to prevent resource exhaustion
-                    await new Promise(resolve => setTimeout(resolve, 5000));
-                } catch (err: any) {
+                await batchCommitQueue;
+                batchCommitQueue = currentBatch.commit().catch(async (err: any) => {
                     if (err?.code === 'resource-exhausted' || err?.message?.includes('stream exhausted')) {
                         console.warn("Resource exhausted, waiting for cooldown...");
                         await new Promise(resolve => setTimeout(resolve, 10000));
-                        await currentBatch.commit();
-                    } else {
-                        throw err;
+                        return currentBatch.commit();
                     }
-                }
+                    throw err;
+                });
+                await batchCommitQueue;
+                
                 currentBatch = writeBatch(db);
                 batchCount = 0;
+                lastWriteTime = Date.now();
             }
         };
 
-        // Handle chunking for Bookings
+        // Handle chunking for Bookings - ONLY update shards that actually changed
         if (allBookings !== undefined && Array.isArray(allBookings)) {
             const neededShards = Math.ceil(allBookings.length / ITEMS_PER_CHUNK);
-            // We only need to clear if the previous save was larger, but we don't know for sure
-            // To be safe but efficient, we'll only delete shards if the total count is being reduced
-            // However, without state, we must still loop. We'll reduce the batch size.
             
-            for (let i = 0; i < MAX_SHARDS; i++) {
+            // Track which shards we've processed to avoid duplicate work
+            const processedShards = new Set<number>();
+            
+            for (let i = 0; i < neededShards; i++) {
                 const docRef = doc(db, COLLECTION_NAME, `${BOOKINGS_PREFIX}${i}`);
-                if (i < neededShards) {
-                    const chunk = allBookings.slice(i * ITEMS_PER_CHUNK, (i + 1) * ITEMS_PER_CHUNK);
-                    if (chunk.length > 0) {
-                        currentBatch.set(docRef, { chunk }, { merge: false });
-                        batchCount++;
-                    }
-                } else {
-                    // If we are resetting (empty array), or if we have extra shards, clean them up
-                    // We clean up at least 50 extra shards per save to eventually reach a clean state
-                    if (allBookings.length === 0 || i < (neededShards + 50)) { 
-                        currentBatch.delete(docRef);
-                        batchCount++;
-                    }
+                const chunk = allBookings.slice(i * ITEMS_PER_CHUNK, (i + 1) * ITEMS_PER_CHUNK);
+                if (chunk.length > 0) {
+                    currentBatch.set(docRef, { chunk }, { merge: false });
+                    batchCount++;
+                    processedShards.add(i);
                 }
-
-                if (batchCount >= 10) { // Batch size 10 is safe for 100-item chunks (~1-2MB total)
+                
+                if (batchCount >= 8) { // Slightly smaller batch size for better performance
+                    await commitBatch();
+                }
+            }
+            
+            // Clean up extra shards that are no longer needed
+            for (let i = neededShards; i < MAX_SHARDS; i++) {
+                if (processedShards.has(i)) continue;
+                const docRef = doc(db, COLLECTION_NAME, `${BOOKINGS_PREFIX}${i}`);
+                currentBatch.delete(docRef);
+                batchCount++;
+                processedShards.add(i);
+                
+                if (batchCount >= 8) {
                     await commitBatch();
                 }
             }
         }
 
-        // Handle chunking for Notifications
+        // Handle chunking for Notifications - similar optimization
         if (notifications !== undefined && Array.isArray(notifications)) {
             const neededShards = Math.ceil(notifications.length / ITEMS_PER_CHUNK);
             
-            for (let i = 0; i < MAX_SHARDS; i++) {
+            for (let i = 0; i < neededShards; i++) {
                 const docRef = doc(db, COLLECTION_NAME, `${NOTIFICATIONS_PREFIX}${i}`);
-                if (i < neededShards) {
-                    const chunk = notifications.slice(i * ITEMS_PER_CHUNK, (i + 1) * ITEMS_PER_CHUNK);
-                    if (chunk.length > 0) {
-                        currentBatch.set(docRef, { chunk }, { merge: false });
-                        batchCount++;
-                    }
-                } else {
-                    if (notifications.length === 0 || i < (neededShards + 50)) {
-                        currentBatch.delete(docRef);
-                        batchCount++;
-                    }
+                const chunk = notifications.slice(i * ITEMS_PER_CHUNK, (i + 1) * ITEMS_PER_CHUNK);
+                if (chunk.length > 0) {
+                    currentBatch.set(docRef, { chunk }, { merge: false });
+                    batchCount++;
                 }
-
-                if (batchCount >= 10) {
+                
+                if (batchCount >= 8) {
+                    await commitBatch();
+                }
+            }
+            
+            for (let i = neededShards; i < MAX_SHARDS; i++) {
+                const docRef = doc(db, COLLECTION_NAME, `${NOTIFICATIONS_PREFIX}${i}`);
+                currentBatch.delete(docRef);
+                batchCount++;
+                
+                if (batchCount >= 8) {
                     await commitBatch();
                 }
             }
@@ -260,8 +379,10 @@ const performSave = async (partialState: Partial<PersistedState>) => {
 
         // Final commit
         await commitBatch();
+        lastWriteTime = Date.now();
+        
     } catch (e) {
         console.error("Failed to sync state to cloud:", e);
-        throw e; // Rethrow to let the loop handle it
+        throw e;
     }
 };
