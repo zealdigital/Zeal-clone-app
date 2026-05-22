@@ -25,6 +25,9 @@ import NotificationSettings from './NotificationSettings';
 import BdmBookingRequestModal from './BdmBookingRequestModal';
 import BdmOutcomePerformance from './BdmOutcomePerformance';
 import { sendEmailNotification } from '../utils/emailService';
+import { saveSingleBookingToFirebase } from '../services/firebaseService';
+
+
 import { DEFAULT_NOTIFICATION_PREFERENCES, MANAGERS, VENDORS, BDMS, PUBLIC_HOLIDAYS, APPOINTMENT_TIMES, DEFAULT_BRANDING, DEFAULT_REGION_COLORS } from '../constants';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -768,63 +771,69 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
          setRequestToReview(null);
     };
 
-    const handleManualBookingEntry = (bookingDetails: Omit<Booking, 'id' | 'status'>, slotsToBlock: string[]) => {
-        const mainBookingId = Date.now();
-        
-        const normalizedWebsite = normalizeWebsite(bookingDetails.clientWebsite);
+    const handleManualBookingEntry = async (bookingDetails: Omit<Booking, 'id' | 'status'>, slotsToBlock: string[]) => {
+    const mainBookingId = Date.now();
+    
+    const normalizedWebsite = normalizeWebsite(bookingDetails.clientWebsite);
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
-        const oneYearAgo = new Date();
-        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const existingMatch = allBookings.find(b => {
+        if (b.isBlocker || b.status === 'rejected') return false;
+        const bDate = new Date(b.date);
+        if (bDate < oneYearAgo) return false;
+        return normalizedWebsite && normalizeWebsite(b.clientWebsite) === normalizedWebsite;
+    });
 
-        const existingMatch = allBookings.find(b => {
-            if (b.isBlocker || b.status === 'rejected') return false;
-            const bDate = new Date(b.date);
-            if (bDate < oneYearAgo) return false;
-            return normalizedWebsite && normalizeWebsite(b.clientWebsite) === normalizedWebsite;
-        });
-
-        const newBooking: Booking = { 
-            ...bookingDetails, 
-            id: mainBookingId, 
-            status: 'active',
-            date: bookingDetails.date.trim(),
-            time: bookingDetails.time.trim(),
-            isDuplicate: !!existingMatch,
-            duplicateOfBookingId: existingMatch?.id
-        };
-
-        const targetRegion = bookingDetails.region;
-        const targetDate = bookingDetails.date.trim();
-
-        const blockers: Booking[] = slotsToBlock.map((slotTime, index) => ({
-            id: mainBookingId + (index + 1),
-            clientName: 'Slot Blocked',
-            businessName: 'Manual Block',
-            clientWebsite: '',
-            clientPhone: '',
-            address: '',
-            callerName: 'Manager Adjustment',
-            date: targetDate,
-            time: slotTime.trim(),
-            vendor: newBooking.vendor,
-            region: targetRegion,
-            isBlocker: true,
-            parentBookingId: mainBookingId,
-            status: 'active'
-        }));
-
-        sendEmailNotification(
-          "pia@zealdigital.com.au", 
-          `New Lead Booked (Admin): ${bookingDetails.businessName}`, 
-          newBooking, 
-          `Hello, Admin ${currentUser.name} has manually entered a new lead for ${bookingDetails.clientName} at ${bookingDetails.businessName}.`,
-          "ADMIN MANUAL BOOKING"
-        );
-        
-        setAllBookings(prev => [...prev, newBooking, ...blockers]);
-        setIsManualBookingOpen(false);
-        triggerSystemAlert(existingMatch ? `Lead booked (Duplicate Detected).` : `Lead booked directly.`);
+    const newBooking: Booking = { 
+        ...bookingDetails, 
+        id: mainBookingId, 
+        createdAt: new Date().toISOString().split('T')[0], // Add createdAt
+        status: 'active',
+        date: bookingDetails.date.trim(),
+        time: bookingDetails.time.trim(),
+        isDuplicate: !!existingMatch,
+        duplicateOfBookingId: existingMatch?.id
     };
+
+    const targetRegion = bookingDetails.region;
+    const targetDate = bookingDetails.date.trim();
+
+    const blockers: Booking[] = slotsToBlock.map((slotTime, index) => ({
+        id: mainBookingId + (index + 1),
+        clientName: 'Slot Blocked',
+        businessName: 'Manual Block',
+        clientWebsite: '',
+        clientPhone: '',
+        address: '',
+        callerName: 'Manager Adjustment',
+        date: targetDate,
+        time: slotTime.trim(),
+        vendor: newBooking.vendor,
+        region: targetRegion,
+        isBlocker: true,
+        parentBookingId: mainBookingId,
+        status: 'active'
+    }));
+
+    sendEmailNotification(
+        "pia@zealdigital.com.au", 
+        `New Lead Booked (Admin): ${bookingDetails.businessName}`, 
+        newBooking, 
+        `Hello, Admin ${currentUser.name} has manually entered a new lead for ${bookingDetails.clientName} at ${bookingDetails.businessName}.`,
+        "ADMIN MANUAL BOOKING"
+    );
+    
+    // OPTIMISTIC UI UPDATE
+    setAllBookings(prev => [...prev, newBooking, ...blockers]);
+    setIsManualBookingOpen(false);
+    triggerSystemAlert(existingMatch ? `Lead booked (Duplicate Detected).` : `Lead booked directly.`);
+    
+    // BACKGROUND SYNC
+    saveSingleBookingToFirebase(newBooking).catch(error => {
+        console.error("Background sync failed for manual booking:", newBooking.id, error);
+    });
+};
 
     const handleSaveUser = (updatedUser: Vendor | BDM | Manager) => {
         if (editingUser?.type === 'vendor') setVendors(prev => prev.map(v => v.id === updatedUser.id ? (updatedUser as Vendor) : v)); 
