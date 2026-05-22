@@ -22,7 +22,7 @@ import { sendEmailNotification } from '../utils/emailService';
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../constants';
 import { formatDDMMYY } from '../utils/dateUtils';
 import { maskSoldText } from '../utils/statusUtils';
-
+import { saveSingleBookingToFirebase } from '../services/firebaseService';
 const normalizeWebsite = (url: string): string => {
     if (!url) return '';
     let cleaned = url.toLowerCase().trim();
@@ -117,16 +117,28 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleOpenSlotManager = (date: Date, time: string, isCustom: boolean, region: Region) => setSlotToManage({ date, time, isCustom, region });
   const handleEditFromList = (booking: Booking) => setBookingToEdit(booking);
-  const handleDeleteBooking = (bookingId: number) => { if (window.confirm('Delete booking?')) setAllBookings(prev => prev.filter(b => b.id !== bookingId && b.parentBookingId !== bookingId)); };
+  const handleDeleteBooking = (bookingId: number) => { 
+    if (window.confirm('Delete booking?')) {
+        const bookingToDelete = allBookings.find(b => b.id === bookingId);
+        setAllBookings(prev => prev.filter(b => b.id !== bookingId && b.parentBookingId !== bookingId));
+        
+        // BACKGROUND SYNC: Delete from Firebase
+        if (bookingToDelete && !bookingToDelete.isBlocker) {
+            deleteSingleBookingFromFirebase(bookingId).catch(error => {
+                console.error("Background sync failed for deletion:", bookingId, error);
+            });
+        }
+        triggerSystemAlert("Booking deleted.");
+    }
+};
   const handleEditFromModal = (booking: Booking) => { setSlotToManage(null); setBookingToEdit(booking); };
   const closeModal = () => { setSlotToManage(null); setBookingToEdit(null); };
 
-  const handleConfirmBooking = (bookingDetails: Omit<Booking, 'id' | 'vendor' | 'status'>, slotsToRemove: string[]) => {
+  const handleConfirmBooking = async (bookingDetails: Omit<Booking, 'id' | 'vendor' | 'status'>, slotsToRemove: string[]) => {
     const mainBookingId = Date.now();
     
     // Duplicate Check
     const normalizedWebsite = normalizeWebsite(bookingDetails.clientWebsite);
-
     const oneYearAgo = new Date();
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
@@ -140,15 +152,31 @@ const Dashboard: React.FC<DashboardProps> = ({
     const newBooking: Booking = { 
         ...bookingDetails, 
         id: mainBookingId, 
+        createdAt: new Date().toISOString().split('T')[0], // Add createdAt
         vendor: currentUser, 
         status: 'active',
         isDuplicate: !!existingMatch,
         duplicateOfBookingId: existingMatch?.id
     };
 
-    const newBlockers: Booking[] = slotsToRemove.map((time, index) => ({ id: Date.now() + index + 1, clientName: `Slot Blocked`, businessName: `Conflict`, clientWebsite: '', clientPhone: '', address: '', callerName: 'System', date: bookingDetails.date, time: time, vendor: currentUser, region: bookingDetails.region, isBlocker: true, parentBookingId: mainBookingId, status: 'active' }));
+    const newBlockers: Booking[] = slotsToRemove.map((time, index) => ({ 
+        id: Date.now() + index + 1, 
+        clientName: `Slot Blocked`, 
+        businessName: `Conflict`, 
+        clientWebsite: '', 
+        clientPhone: '', 
+        address: '', 
+        callerName: 'System', 
+        date: bookingDetails.date, 
+        time: time, 
+        vendor: currentUser, 
+        region: bookingDetails.region, 
+        isBlocker: true, 
+        parentBookingId: mainBookingId, 
+        status: 'active' 
+    }));
     
-    // NOTIFY MANAGERS VIA EMAIL
+    // NOTIFY MANAGERS VIA EMAIL (don't await - fire and forget)
     managers.forEach(m => {
         if (m.notificationPreferences?.newBooking && m.email) {
             sendEmailNotification(
@@ -161,11 +189,18 @@ const Dashboard: React.FC<DashboardProps> = ({
         }
     });
 
+    // OPTIMISTIC UI UPDATE: Update local state immediately
     setNotifications(prev => [...prev, { id: Date.now(), vendorId: 0, bookingId: mainBookingId, message: `New Booking: ${bookingDetails.clientName} by ${currentUser.name}${existingMatch ? ' (Duplicate)' : ''}`, read: false, timestamp: new Date().toISOString() }]);
     setAllBookings(prev => [...prev, newBooking, ...newBlockers]);
     closeModal();
     triggerSystemAlert(existingMatch ? "Booking confirmed (Duplicate detected)." : "Booking confirmed. Admins notified.");
-  };
+    
+    // BACKGROUND SYNC: Save to Firebase without blocking UI
+    saveSingleBookingToFirebase(newBooking).catch(error => {
+        console.error("Background sync failed for booking:", newBooking.id, error);
+        // Don't show error to user - will sync on next full sync
+    });
+};
   
   const handleUpdateBooking = (updatedDetails: any, slotsToRemove: string[]) => {
     if (!bookingToEdit) return;
@@ -196,32 +231,32 @@ const Dashboard: React.FC<DashboardProps> = ({
     closeModal();
   };
 
-  const handleRequestManualBooking = (bookingDetails: Omit<Booking, 'id' | 'status'>) => {
-      const requestId = Date.now();
-      
-      // Duplicate Check
-      const normalizedWebsite = normalizeWebsite(bookingDetails.clientWebsite);
+  const handleRequestManualBooking = async (bookingDetails: Omit<Booking, 'id' | 'status'>) => {
+    const requestId = Date.now();
+    
+    // Duplicate Check
+    const normalizedWebsite = normalizeWebsite(bookingDetails.clientWebsite);
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
-      const oneYearAgo = new Date();
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const existingMatch = allBookings.find(b => {
+        if (b.isBlocker || b.status === 'rejected') return false;
+        const bDate = new Date(b.date);
+        if (bDate < oneYearAgo) return false;
+        return normalizedWebsite && normalizeWebsite(b.clientWebsite) === normalizedWebsite;
+    });
 
-      const existingMatch = allBookings.find(b => {
-          if (b.isBlocker || b.status === 'rejected') return false;
-          const bDate = new Date(b.date);
-          if (bDate < oneYearAgo) return false;
-          return normalizedWebsite && normalizeWebsite(b.clientWebsite) === normalizedWebsite;
-      });
-
-      const newBooking: Booking = { 
-          ...bookingDetails, 
-          id: requestId, 
-          status: 'pending_approval',
-          isDuplicate: !!existingMatch,
-          duplicateOfBookingId: existingMatch?.id
-      };
-      
-      // NOTIFY MANAGERS VIA EMAIL
-      managers.forEach(m => { 
+    const newBooking: Booking = { 
+        ...bookingDetails, 
+        id: requestId, 
+        createdAt: new Date().toISOString().split('T')[0], // Add createdAt
+        status: 'pending_approval',
+        isDuplicate: !!existingMatch,
+        duplicateOfBookingId: existingMatch?.id
+    };
+    
+    // NOTIFY MANAGERS VIA EMAIL (fire and forget - don't await)
+    managers.forEach(m => { 
         if (m.notificationPreferences?.bookingRequest && m.email) {
             sendEmailNotification(
                 m.email,
@@ -231,13 +266,19 @@ const Dashboard: React.FC<DashboardProps> = ({
                 "MANUAL DATE REQUEST"
             );
         }
-      });
+    });
 
-      setNotifications(prev => [...prev, { id: Date.now(), vendorId: 0, bookingId: requestId, message: `Manual Request from ${currentUser.name}: ${bookingDetails.clientName}${existingMatch ? ' (Duplicate)' : ''}`, read: false, timestamp: new Date().toISOString() }]);
-      setAllBookings(prev => [...prev, newBooking]);
-      setIsRequestModalOpen(false); 
-      triggerSystemAlert("Manual request sent to Admin.");
-  };
+    // OPTIMISTIC UI UPDATE: Update local state immediately
+    setNotifications(prev => [...prev, { id: Date.now(), vendorId: 0, bookingId: requestId, message: `Manual Request from ${currentUser.name}: ${bookingDetails.clientName}${existingMatch ? ' (Duplicate)' : ''}`, read: false, timestamp: new Date().toISOString() }]);
+    setAllBookings(prev => [...prev, newBooking]);
+    setIsRequestModalOpen(false); 
+    triggerSystemAlert(existingMatch ? "Manual request sent (Duplicate detected)." : "Manual request sent to Admin.");
+    
+    // BACKGROUND SYNC: Save to Firebase without blocking UI
+    saveSingleBookingToFirebase(newBooking).catch(error => {
+        console.error("Background sync failed for manual request:", newBooking.id, error);
+    });
+};
 
   const handleRequestSms = (bookingId: number, type: string, message: string) => {
       const booking = allBookings.find(b => b.id === bookingId);
