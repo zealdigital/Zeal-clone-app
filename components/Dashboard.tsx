@@ -23,6 +23,8 @@ import { DEFAULT_NOTIFICATION_PREFERENCES } from '../constants';
 import { formatDDMMYY } from '../utils/dateUtils';
 import { maskSoldText } from '../utils/statusUtils';
 import { saveSingleBookingToFirebase } from '../services/firebaseService';
+import { saveSingleBookingToFirebase, deleteSingleBookingFromFirebase } from '../services/firebaseService';
+
 const normalizeWebsite = (url: string): string => {
     if (!url) return '';
     let cleaned = url.toLowerCase().trim();
