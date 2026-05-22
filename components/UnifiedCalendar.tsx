@@ -251,20 +251,20 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                           <div className={`text-[9px] font-black uppercase px-1 rounded cursor-help ${availability.free > 0 ? 'text-green-600 bg-green-50' : 'text-gray-400 bg-gray-50'}`}>
                               {availability.free} Free
                           </div>
-                          <div className="mt-1 flex flex-wrap gap-1 justify-end max-w-[75px]">
-                              {availability.slotBreakdown.filter(s => s.free > 0).map(slot => (
-                                  <span key={slot.time} className="text-[9px] font-bold text-green-800 bg-green-100 px-1 rounded leading-none py-1 flex items-center gap-1 border border-green-200 shadow-sm">
-                                      {slot.time.replace(':00', '').replace(' ', '')}
-                                      <span className="bg-green-700 text-white rounded-full w-3 h-3 flex items-center justify-center text-[8px]">{slot.free}</span>
+                          {/* SHOW ALL SLOTS - Horizontal scroll if needed */}
+                          <div className="mt-1 flex flex-wrap gap-1 justify-end max-w-[100px]">
+                              {availability.slotBreakdown.map(slot => (
+                                  <span key={slot.time} className="text-[9px] font-bold text-green-800 bg-green-100 px-1.5 py-0.5 rounded leading-none border border-green-200 shadow-sm whitespace-nowrap">
+                                      {slot.time}
                                   </span>
                               ))}
                           </div>
-                          <div className="absolute top-full right-0 mt-1 w-24 bg-white border border-gray-200 rounded shadow-lg z-50 p-2 opacity-0 group-hover/avail:opacity-100 pointer-events-none transition-opacity">
-                              <p className="text-[8px] font-black text-gray-400 uppercase mb-1 border-b pb-1">Slot Availability</p>
+                          <div className="absolute top-full right-0 mt-1 w-32 bg-white border border-gray-200 rounded shadow-lg z-50 p-2 opacity-0 group-hover/avail:opacity-100 pointer-events-none transition-opacity">
+                              <p className="text-[8px] font-black text-gray-400 uppercase mb-1 border-b pb-1">All Slots</p>
                               {availability.slotBreakdown.map(slot => (
                                   <div key={slot.time} className="flex justify-between items-center text-[8px] py-0.5">
                                       <span className="text-gray-500">{slot.time}</span>
-                                      <span className={`font-bold ${slot.free > 0 ? 'text-green-600' : 'text-red-400'}`}>{slot.free}</span>
+                                      <span className={`font-bold ${slot.free > 0 ? 'text-green-600' : 'text-red-400'}`}>{slot.free} free</span>
                                   </div>
                               ))}
                           </div>
@@ -281,8 +281,8 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                   <PlusIcon className="w-4 h-4" />
                 </button>
               )}
-              {/* SHOW ALL SLOTS - removed the .slice(0,3) limit */}
-              <div className="mt-1 space-y-1 overflow-y-auto max-h-28">
+              {/* SHOW ALL BOOKINGS - removed limit */}
+              <div className="mt-1 space-y-1 overflow-y-auto max-h-32">
                 {!isWeekendDay && dayItems.length > 0 ? (
                   dayItems.map((item, idx) => {
                     if (item.type === 'booking') {
@@ -320,10 +320,10 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                     }
                   })
                 ) : !isWeekendDay ? (
-                  <div className="text-[10px] text-center text-gray-400 py-2">No appointments</div>
+                  <div className="text-[10px] text-center text-gray-400 py-2">No bookings</div>
                 ) : (
                   <div className="flex items-center justify-center h-20 text-[10px] text-gray-300 italic">
-                    No appointments
+                    No bookings
                   </div>
                 )}
               </div>
