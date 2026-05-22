@@ -9,35 +9,42 @@ interface CallerPerformanceAnalyticsProps {
 const CallerPerformanceAnalytics: React.FC<CallerPerformanceAnalyticsProps> = ({ bookings }) => {
     const [showAll, setShowAll] = useState(false);
 
-    const analytics = useMemo(() => {
+        const analytics = useMemo(() => {
         // Track both count and the latest activity timestamp for each caller
+        // Use case-insensitive grouping (store by lowercase key, but keep original case for display)
         const callersMap = bookings.reduce((acc, booking) => {
             if (!booking.callerName) return acc;
-            const name = booking.callerName.trim();
-            if (!acc[name]) {
-                acc[name] = { count: 0, lastActive: 0 };
+            const rawName = booking.callerName.trim();
+            const normalizedKey = rawName.toLowerCase(); // ← Normalize to lowercase for grouping
+            
+            if (!acc[normalizedKey]) {
+                // Store the original case (first occurrence's casing) for display
+                acc[normalizedKey] = { 
+                    count: 0, 
+                    lastActive: 0,
+                    displayName: rawName  // Keep original case for display
+                };
             }
-            acc[name].count += 1;
+            acc[normalizedKey].count += 1;
             // Use booking.id as it's a timestamp of when the lead was created
-            acc[name].lastActive = Math.max(acc[name].lastActive, booking.id);
+            acc[normalizedKey].lastActive = Math.max(acc[normalizedKey].lastActive, booking.id);
             return acc;
-        }, {} as Record<string, { count: number, lastActive: number }>);
-
+        }, {} as Record<string, { count: number, lastActive: number, displayName: string }>);
+    
         // Sort by lastActive (most recent activity at the top)
-        // FIX: Explicitly cast Object.entries to resolve TypeScript errors where 'a', 'b', and 'data' are inferred as 'unknown'.
-        const sortedCallers = (Object.entries(callersMap) as [string, { count: number, lastActive: number }][])
+        const sortedCallers = Object.entries(callersMap)
             .sort(([, a], [, b]) => b.lastActive - a.lastActive)
-            .map(([name, data]) => ({ 
-                name, 
+            .map(([key, data]) => ({ 
+                name: data.displayName, // ← Use original case for display
                 count: data.count,
                 lastActive: data.lastActive 
             }));
-
+    
         // For the bar width, we still need the highest count in the list
         const maxCallerBookings = sortedCallers.length > 0 
             ? Math.max(...sortedCallers.map(c => c.count)) 
             : 0;
-
+    
         return {
             sortedCallers,
             maxCallerBookings
