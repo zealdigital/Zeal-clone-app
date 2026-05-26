@@ -23,51 +23,16 @@ const ManagerBookingReviewModal: React.FC<ManagerBookingReviewModalProps> = ({
   const standardSlotsForDay = useMemo(() => {
       const dateObj = new Date(booking.date + 'T00:00:00Z');
       const slots = getAppointmentSlotsForDay(dateObj, booking.region, appointmentTimes);
-      console.log(`Available slots for ${booking.date} (${booking.region}):`, slots); // Debug log
       return slots;
   }, [booking, appointmentTimes]);
-
-  // Group slots by AM/PM for better organization
-  const groupedSlots = useMemo(() => {
-      const morning: string[] = [];
-      const afternoon: string[] = [];
-      
-      standardSlotsForDay.forEach(slot => {
-          if (slot.includes('AM')) {
-              morning.push(slot);
-          } else {
-              afternoon.push(slot);
-          }
-      });
-      
-      return { morning, afternoon };
-  }, [standardSlotsForDay]);
 
   const handleSlotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { value, checked } = e.target;
     setSlotsToRemove(prev => checked ? [...prev, value] : prev.filter(s => s !== value));
   };
 
-  const handleSelectAllMorning = () => {
-    const allMorningSlots = groupedSlots.morning;
-    setSlotsToRemove(prev => {
-      const newSlots = [...prev];
-      allMorningSlots.forEach(slot => {
-        if (!newSlots.includes(slot)) newSlots.push(slot);
-      });
-      return newSlots;
-    });
-  };
-
-  const handleSelectAllAfternoon = () => {
-    const allAfternoonSlots = groupedSlots.afternoon;
-    setSlotsToRemove(prev => {
-      const newSlots = [...prev];
-      allAfternoonSlots.forEach(slot => {
-        if (!newSlots.includes(slot)) newSlots.push(slot);
-      });
-      return newSlots;
-    });
+  const handleSelectAll = () => {
+    setSlotsToRemove([...standardSlotsForDay]);
   };
 
   const handleClearAll = () => {
@@ -149,14 +114,26 @@ const ManagerBookingReviewModal: React.FC<ManagerBookingReviewModalProps> = ({
                         <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">
                             Select slots to block ({slotsToRemove.length} selected):
                         </label>
-                        {slotsToRemove.length > 0 && (
-                            <button 
-                                onClick={handleClearAll}
-                                className="text-[10px] font-bold text-red-500 hover:text-red-700"
-                            >
-                                Clear All
-                            </button>
-                        )}
+                        <div className="flex gap-2">
+                            {standardSlotsForDay.length > 0 && (
+                                <>
+                                    <button 
+                                        onClick={handleSelectAll}
+                                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800"
+                                    >
+                                        Select All
+                                    </button>
+                                    {slotsToRemove.length > 0 && (
+                                        <button 
+                                            onClick={handleClearAll}
+                                            className="text-[10px] font-bold text-red-500 hover:text-red-700"
+                                        >
+                                            Clear All
+                                        </button>
+                                    )}
+                                </>
+                            )}
+                        </div>
                     </div>
                     
                     {standardSlotsForDay.length === 0 ? (
@@ -165,68 +142,21 @@ const ManagerBookingReviewModal: React.FC<ManagerBookingReviewModalProps> = ({
                             <p className="text-xs text-amber-500 mt-1">The appointment will still be approved without blocking any slots.</p>
                         </div>
                     ) : (
-                        <div className="space-y-4">
-                            {/* Quick select buttons */}
-                            <div className="flex gap-2">
-                                {groupedSlots.morning.length > 0 && (
-                                    <button 
-                                        onClick={handleSelectAllMorning}
-                                        className="flex-1 py-1.5 text-[10px] font-bold bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100"
-                                    >
-                                        Select All AM
-                                    </button>
-                                )}
-                                {groupedSlots.afternoon.length > 0 && (
-                                    <button 
-                                        onClick={handleSelectAllAfternoon}
-                                        className="flex-1 py-1.5 text-[10px] font-bold bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100"
-                                    >
-                                        Select All PM
-                                    </button>
-                                )}
+                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                            <div className="grid grid-cols-2 gap-2">
+                                {standardSlotsForDay.map(slot => (
+                                    <label key={slot} className="flex items-center gap-3 cursor-pointer group p-2 rounded hover:bg-white transition-colors">
+                                        <input 
+                                            type="checkbox" 
+                                            value={slot} 
+                                            checked={slotsToRemove.includes(slot)} 
+                                            onChange={handleSlotChange}
+                                            className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer" 
+                                        />
+                                        <span className="text-sm font-medium text-gray-700 group-hover:text-indigo-600">{slot}</span>
+                                    </label>
+                                ))}
                             </div>
-                            
-                            {/* Morning Slots */}
-                            {groupedSlots.morning.length > 0 && (
-                                <div>
-                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Morning Slots</h4>
-                                    <div className="grid grid-cols-2 gap-2 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                                        {groupedSlots.morning.map(slot => (
-                                            <label key={slot} className="flex items-center gap-3 cursor-pointer group p-1 rounded hover:bg-white transition-colors">
-                                                <input 
-                                                    type="checkbox" 
-                                                    value={slot} 
-                                                    checked={slotsToRemove.includes(slot)} 
-                                                    onChange={handleSlotChange}
-                                                    className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer" 
-                                                />
-                                                <span className="text-sm font-medium text-gray-700 group-hover:text-indigo-600">{slot}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                            
-                            {/* Afternoon Slots */}
-                            {groupedSlots.afternoon.length > 0 && (
-                                <div>
-                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Afternoon Slots</h4>
-                                    <div className="grid grid-cols-2 gap-2 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                                        {groupedSlots.afternoon.map(slot => (
-                                            <label key={slot} className="flex items-center gap-3 cursor-pointer group p-1 rounded hover:bg-white transition-colors">
-                                                <input 
-                                                    type="checkbox" 
-                                                    value={slot} 
-                                                    checked={slotsToRemove.includes(slot)} 
-                                                    onChange={handleSlotChange}
-                                                    className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer" 
-                                                />
-                                                <span className="text-sm font-medium text-gray-700 group-hover:text-indigo-600">{slot}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     )}
                     
@@ -238,7 +168,7 @@ const ManagerBookingReviewModal: React.FC<ManagerBookingReviewModalProps> = ({
                         onClick={() => onApprove(booking.id, slotsToRemove)}
                         className="w-full py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-black uppercase tracking-widest text-xs shadow-lg shadow-green-100 transition-all active:scale-95"
                     >
-                        Confirm Approval ({slotsToRemove.length} slot{slotsToRemove.length !== 1 ? 's' : ''} will be blocked)
+                        Confirm Approval {slotsToRemove.length > 0 ? `(${slotsToRemove.length} slot${slotsToRemove.length !== 1 ? 's' : ''} will be blocked)` : ''}
                     </button>
                 </div>
             )}
