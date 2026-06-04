@@ -587,7 +587,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                     </div>
                     
                     {/* Personal Lead Log - Only this caller's leads */}
-                    <PerformanceLeadLog bookings={analyticsBookings} role="vendor" title="My Lead Activity Log" />
+                    <PerformanceLeadLog bookings={mappedMyBookings.filter(b => {
+                        // Only filter by vendor and caller name, NO date range
+                        if (b.isBlocker) return false;
+                        if (b.vendor.id !== currentUser.id) return false;
+                        if (!b.callerName || b.callerName.toLowerCase() !== currentUser.name.toLowerCase()) return false;
+                        return true;
+                    })} role="vendor" title="My Lead Activity Log" hideFilters={true} />
                   </div>
                 )}
               {activeTab === 'settings' && (
