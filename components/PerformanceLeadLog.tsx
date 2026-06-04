@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState, useEffect } from 'react';
 import type { Booking, BDM } from '../types';
 import { getStatusPill, getVendorStatusPill, maskSoldText } from '../utils/statusUtils';
@@ -30,7 +29,9 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
 
   const isVendorRole = role === 'vendor';
+  const isBdmRole = role === 'bdm';
 
+  // Mask sold text for vendors
   const mappedBookings = useMemo(() => {
     if (!isVendorRole) return bookings;
     return bookings.map(b => {
@@ -48,21 +49,38 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
     setCurrentPage(1);
   }, [statusFilter, callerFilter, bdmFilter, searchTerm]);
 
+  // Get unique callers - for vendors, this shows the callers they worked with
   const uniqueCallers = useMemo(() => {
     const callers = new Set<string>();
     mappedBookings.forEach(b => {
-      const name = isVendorRole ? b.callerName : b.vendor?.name;
-      if (name) callers.add(name);
+      if (isVendorRole) {
+        // For vendors, show the caller names from their leads
+        const name = b.callerName;
+        if (name) callers.add(name);
+      } else {
+        // For managers/BDMs, show vendor names
+        const name = b.vendor?.name;
+        if (name) callers.add(name);
+      }
     });
     return Array.from(callers).sort((a, b) => a.localeCompare(b));
   }, [mappedBookings, isVendorRole]);
 
+  // All filtered leads
   const allFilteredLeads = useMemo(() => {
     return mappedBookings.filter(b => {
       const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
-      const nameToMatch = isVendorRole ? b.callerName : b.vendor?.name;
-      const matchesCaller = callerFilter === 'all' || (nameToMatch === callerFilter);
-      const matchesBdm = isVendorRole || bdmFilter === 'all' || (b.bdmId?.toString() === bdmFilter);
+      
+      // For vendors: filter by caller name (case-insensitive)
+      let matchesCaller = true;
+      if (isVendorRole && callerFilter !== 'all') {
+        matchesCaller = (b.callerName || '').toLowerCase() === callerFilter.toLowerCase();
+      } else if (!isVendorRole && callerFilter !== 'all') {
+        matchesCaller = (b.vendor?.name || '') === callerFilter;
+      }
+      
+      const matchesBdm = isVendorRole || isBdmRole || bdmFilter === 'all' || (b.bdmId?.toString() === bdmFilter);
+      
       const lowerSearch = searchTerm.toLowerCase();
       const matchesSearch = !searchTerm || (
         b.businessName.toLowerCase().includes(lowerSearch) || 
@@ -84,7 +102,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
         if (dateDiff !== 0) return dateDiff;
         return b.id - a.id;
     });
-  }, [mappedBookings, statusFilter, callerFilter, bdmFilter, searchTerm, isVendorRole]);
+  }, [mappedBookings, statusFilter, callerFilter, bdmFilter, searchTerm, isVendorRole, isBdmRole]);
 
   const totalPages = Math.max(1, Math.ceil(allFilteredLeads.length / ITEMS_PER_PAGE));
   const paginatedLeads = useMemo(() => {
@@ -113,7 +131,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
       if (isVendorRole) {
           return (
               <div className="flex flex-col">
-                  <span className="text-sm font-bold text-gray-700">{lead.callerName}</span>
+                  <span className="text-sm font-bold text-gray-700">{lead.callerName || 'Unknown'}</span>
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">INDIVIDUAL CALLER</span>
               </div>
           );
@@ -136,7 +154,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
         <div>
           <h3 className="text-2xl font-black text-gray-900 tracking-tight">{title}</h3>
           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
-            Detailed breakdown of your filtered leads & history
+            {isVendorRole ? 'Detailed breakdown of leads you have booked' : 'Detailed breakdown of your filtered leads & history'}
           </p>
         </div>
         
@@ -153,18 +171,22 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
               />
             </div>
 
-            <select 
-              value={callerFilter}
-              onChange={(e) => setCallerFilter(e.target.value)}
-              className="border border-gray-200 rounded-xl py-2.5 px-4 text-sm font-bold bg-white text-gray-700 outline-none focus:ring-2 focus:ring-black transition-all cursor-pointer"
-            >
-              <option value="all">{isVendorRole ? 'All Individual Callers' : 'All Calling Teams'}</option>
-              {uniqueCallers.map(name => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
+            {/* Caller Filter - Hide for vendors since they only see their own data */}
+            {!isVendorRole && uniqueCallers.length > 0 && (
+              <select 
+                value={callerFilter}
+                onChange={(e) => setCallerFilter(e.target.value)}
+                className="border border-gray-200 rounded-xl py-2.5 px-4 text-sm font-bold bg-white text-gray-700 outline-none focus:ring-2 focus:ring-black transition-all cursor-pointer"
+              >
+                <option value="all">{isVendorRole ? 'My Caller Records' : 'All Calling Teams'}</option>
+                {uniqueCallers.map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            )}
 
-            {!isVendorRole && (
+            {/* BDM Filter - Hide for vendors and BDMs (BDMs only see their own assigned leads) */}
+            {!isVendorRole && !isBdmRole && (
               <select 
                 value={bdmFilter}
                 onChange={(e) => setBdmFilter(e.target.value)}
@@ -203,6 +225,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
         )}
       </div>
 
+      {/* Desktop Table View */}
       <div className="hidden md:block overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50/50">
@@ -211,7 +234,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
               <th scope="col" className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Business, Client & URL</th>
               <th scope="col" className="px-6 py-5 text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">Lead History & Source</th>
               <th scope="col" className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">{isVendorRole ? 'Individual Caller' : 'Calling Team / Source'}</th>
-              {!isVendorRole && <th scope="col" className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Assigned BDM</th>}
+              {!isVendorRole && !isBdmRole && <th scope="col" className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Assigned BDM</th>}
               <th scope="col" className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Region</th>
               <th scope="col" className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
             </tr>
@@ -223,7 +246,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
                 <tr key={lead.id} className="hover:bg-gray-50 transition-colors group">
                   <td className="px-6 py-6 whitespace-nowrap text-sm font-medium text-gray-500">
                     {formatToDDMMYY(lead.date)}
-                  </td>
+                   </td>
                   <td className="px-6 py-6 whitespace-normal">
                     <div className="text-base font-bold text-gray-900 leading-tight">{lead.businessName}</div>
                     <div className="text-xs font-medium text-gray-500">{lead.clientName}</div>
@@ -252,38 +275,38 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
                         </div>
                       )}
                     </div>
-                  </td>
+                   </td>
                   <td className="px-6 py-6 whitespace-nowrap text-center">
                     {getHistoryBadge(lead)}
-                  </td>
+                   </td>
                   <td className="px-6 py-6 whitespace-nowrap">
                     {getSourceDisplay(lead)}
-                  </td>
-                  {!isVendorRole && (
+                   </td>
+                  {!isVendorRole && !isBdmRole && (
                     <td className="px-6 py-6 whitespace-nowrap">
                       {bdm ? (
                           <span className="text-sm font-bold text-gray-700">{bdm.name}</span>
                       ) : (
                           <span className="text-sm font-medium text-gray-300 italic">Unassigned</span>
                       )}
-                    </td>
+                     </td>
                   )}
                   <td className="px-6 py-6 whitespace-nowrap">
                     <span className="text-[10px] font-black text-gray-400 uppercase">{lead.region}</span>
-                  </td>
+                   </td>
                   <td className="px-6 py-6 whitespace-nowrap">
                     {isVendorRole ? getVendorStatusPill(lead.status) : getStatusPill(lead.status)}
-                  </td>
-                </tr>
+                   </td>
+                 </tr>
               );
             }) : (
               <tr>
-                <td colSpan={isVendorRole ? 6 : 7} className="px-6 py-24 text-center">
+                <td colSpan={isVendorRole ? 6 : (isBdmRole ? 6 : 7)} className="px-6 py-24 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <MagnifyingGlassIcon className="w-12 h-12 text-gray-100" />
                     <p className="text-gray-400 font-bold italic">No records found matching your search criteria.</p>
                   </div>
-                </td>
+                 </td>
               </tr>
             )}
           </tbody>
@@ -321,7 +344,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
                   <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Source</p>
                   {getSourceDisplay(lead)}
                 </div>
-                {!isVendorRole && (
+                {!isVendorRole && !isBdmRole && (
                   <div className="space-y-1">
                     <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Assigned BDM</p>
                     <p className="font-bold text-gray-700">{bdm ? bdm.name : 'Unassigned'}</p>
@@ -367,9 +390,10 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
         )}
       </div>
       
+      {/* Pagination */}
       <div className="p-6 bg-gray-50/50 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest order-2 sm:order-1">
-          Showing {Math.min(allFilteredLeads.length, (currentPage - 1) * ITEMS_PER_PAGE + 1)} to {Math.min(allFilteredLeads.length, currentPage * ITEMS_PER_PAGE)} of {allFilteredLeads.length} total leads
+          Showing {allFilteredLeads.length > 0 ? Math.min(allFilteredLeads.length, (currentPage - 1) * ITEMS_PER_PAGE + 1) : 0} to {Math.min(allFilteredLeads.length, currentPage * ITEMS_PER_PAGE)} of {allFilteredLeads.length} total leads
         </span>
         <div className="flex items-center gap-2 order-1 sm:order-2">
             <button 
@@ -387,11 +411,20 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
                 Prev
             </button>
             <div className="flex gap-1">
-                {Array.from({ length: totalPages }).map((_, i) => {
-                    const p = i + 1;
-                    if (totalPages > 5 && Math.abs(p - currentPage) > 2 && p !== 1 && p !== totalPages) {
-                        if (Math.abs(p - currentPage) === 3) return <span key={p} className="px-1 text-gray-400">...</span>;
-                        return null;
+                {Array.from({ length: Math.min(totalPages, 5) }).map((_, i) => {
+                    let p: number;
+                    if (totalPages <= 5) {
+                        p = i + 1;
+                    } else if (currentPage <= 3) {
+                        p = i + 1;
+                        if (i === 4) return <span key="end-ellipsis" className="px-1 text-gray-400">...</span>;
+                    } else if (currentPage >= totalPages - 2) {
+                        p = totalPages - 4 + i;
+                        if (i === 0) return <span key="start-ellipsis" className="px-1 text-gray-400">...</span>;
+                    } else {
+                        if (i === 0) return <span key="start-ellipsis" className="px-1 text-gray-400">...</span>;
+                        if (i === 4) return <span key="end-ellipsis" className="px-1 text-gray-400">...</span>;
+                        p = currentPage - 2 + i;
                     }
                     return (
                         <button 
