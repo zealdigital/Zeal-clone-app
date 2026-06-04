@@ -1047,9 +1047,22 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             <main className="p-4 sm:p-6 lg:p-8">
                 <div className="max-w-7xl mx-auto">
                     <div className="border-b border-gray-300">
-                        <nav className="-mb-px flex space-x-8">
-                            {[{ id: 'bookings', label: 'Bookings', icon: DocumentTextIcon }, { id: 'analytics', label: 'Analytics & Reports', icon: PresentationChartLineIcon }, { id: 'users', label: 'User Management', icon: UserGroupIcon }, { id: 'calendar', label: 'My Calendar', icon: CalendarDaysIcon }, { id: 'settings', label: 'Settings', icon: Cog6ToothIcon }].map(item => (
-                                <button key={item.id} onClick={() => setActiveTab(item.id as any)} className={`whitespace-nowrap py-4 px-1 border-b-2 font-bold text-sm flex items-center gap-2 ${activeTab === item.id ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><item.icon className="w-5 h-5" /> {item.label}</button>
+                        <nav className="flex flex-wrap gap-x-6 gap-y-2 -mb-px">
+                            {[
+                                { id: 'bookings', label: 'Bookings', icon: DocumentTextIcon },
+                                { id: 'analytics', label: 'Analytics & Reports', icon: PresentationChartLineIcon },
+                                { id: 'users', label: 'User Management', icon: UserGroupIcon },
+                                { id: 'calendar', label: 'My Calendar', icon: CalendarDaysIcon },
+                                { id: 'settings', label: 'Settings', icon: Cog6ToothIcon }
+                            ].map(item => (
+                                <button 
+                                    key={item.id} 
+                                    onClick={() => setActiveTab(item.id as any)} 
+                                    className={`py-4 px-1 border-b-2 font-bold text-sm flex items-center gap-2 transition-all ${activeTab === item.id ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                                >
+                                    <item.icon className="w-5 h-5" /> 
+                                    <span>{item.label}</span>
+                                </button>
                             ))}
                         </nav>
                     </div>
