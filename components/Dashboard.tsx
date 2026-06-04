@@ -362,12 +362,13 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [mappedMyBookings]);
 
   const analyticsBookings = useMemo(() => {
-    // For callers, only show THEIR OWN bookings
+    // For callers, only show THEIR OWN bookings (where they are the caller)
     return mappedMyBookings.filter(b => {
       if (b.isBlocker) return false;
       
       // CRITICAL: Only show bookings where this caller is the one who made the call
-      if (b.callerName !== currentUser.name) return false;
+      // Compare case-insensitively to handle different capitalizations
+      if (b.callerName && b.callerName.toLowerCase() !== currentUser.name.toLowerCase()) return false;
       
       if (allowedRegions.length > 0 && !allowedRegions.includes(b.region)) return false;
       const bDate = new Date(b.date);
