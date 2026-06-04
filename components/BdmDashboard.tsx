@@ -429,12 +429,36 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
         <Header currentUser={currentUser} onLogout={onLogout} branding={branding} notifications={(notifications || []).filter(n => n.vendorId === currentUser.id)} setNotifications={setNotifications} />
         <main className="p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
-            <div className="mb-6 border-b border-gray-300/50 overflow-x-auto">
-                <nav className="-mb-px flex space-x-8">
-                    <button onClick={() => setActiveTab('dashboard')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'dashboard' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><DocumentTextIcon className="w-5 h-5" /> Appointments List</button>
-                    <button onClick={() => setActiveTab('calendar')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'calendar' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><CalendarDaysIcon className="w-5 h-5" /> My Calendar</button>
-                    <button onClick={() => setActiveTab('performance')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'performance' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><PresentationChartLineIcon className="w-5 h-5" /> My Performance</button>
-                    <button onClick={() => setActiveTab('settings')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'settings' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><Cog6ToothIcon className="w-5 h-5" /> Settings</button>
+            <div className="mb-6 border-b border-gray-300/50">
+                <nav className="flex flex-wrap gap-x-6 gap-y-2 -mb-px">
+                    <button 
+                        onClick={() => setActiveTab('dashboard')} 
+                        className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-all ${activeTab === 'dashboard' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                    >
+                        <DocumentTextIcon className="w-5 h-5" /> 
+                        <span>Appointments List</span>
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('calendar')} 
+                        className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-all ${activeTab === 'calendar' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                    >
+                        <CalendarDaysIcon className="w-5 h-5" /> 
+                        <span>My Calendar</span>
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('performance')} 
+                        className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-all ${activeTab === 'performance' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                    >
+                        <PresentationChartLineIcon className="w-5 h-5" /> 
+                        <span>My Performance</span>
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('settings')} 
+                        className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-all ${activeTab === 'settings' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                    >
+                        <Cog6ToothIcon className="w-5 h-5" /> 
+                        <span>Settings</span>
+                    </button>
                 </nav>
             </div>
 
