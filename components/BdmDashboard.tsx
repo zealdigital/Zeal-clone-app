@@ -21,6 +21,7 @@ import ArchivedBookingsList from './ArchivedBookingsList';
 import { sendEmailNotification } from '../utils/emailService';
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../constants';
 import { formatDDMMYY } from '../utils/dateUtils';
+import { saveSingleBookingToFirebase } from '../services/firebaseService';
 
 const normalizeWebsite = (url: string): string => {
     if (!url) return '';
@@ -127,12 +128,10 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
     return (allBookings || []).filter(b => b.bdmId === currentUser.id && !b.isBlocker);
   }, [allBookings, currentUser.id]);
 
-  // FIX: rescheduled_bdm is now treated as an ACTIVE status so it stays in the worklist until final outcome.
   const activeAssignedBookings = useMemo(() => 
     myUniqueBookings.filter(b => ['active', 'rescheduled_bdm'].includes(b.status)), 
   [myUniqueBookings]);
 
-  // FIX: rescheduled_bdm is excluded from Archive so it doesn't move to history prematurely.
   const archivedAssignedBookings = useMemo(() => 
     myUniqueBookings.filter(b => !['active', 'rejected', 'pending_approval', 'rescheduled_bdm'].includes(b.status)), 
   [myUniqueBookings]);
@@ -167,7 +166,6 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
       );
   };
 
-  // Logic for the ACTIVE list
   const filteredActiveBookings = useMemo(() => {
     const today = new Date(); today.setHours(0,0,0,0);
     const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
@@ -223,7 +221,6 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
     });
   }, [searchTerm, activeAssignedBookings, dateRange]);
 
-  // Logic for the ARCHIVED list
   const filteredArchivedBookings = useMemo(() => {
       const search = searchTerm.trim().toLowerCase();
       return archivedAssignedBookings.filter(booking => {
@@ -279,10 +276,25 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
 
   const sortedDateKeysActive = useMemo(() => Object.keys(groupedActiveBookings).sort((a, b) => new Date(b).getTime() - new Date(a).getTime()), [groupedActiveBookings]);
 
-  const handleUpdateBookingStatus = (bookingId: number, newStatus: Booking['status'], note: string) => {
+  // FIXED: Optimistic status update with background sync
+  const handleUpdateBookingStatus = async (bookingId: number, newStatus: Booking['status'], note: string) => {
     let updatedBooking: Booking | undefined;
-    setAllBookings(prev => { const newBookings = prev.map(b => { if (b.id === bookingId) { updatedBooking = { ...b, status: newStatus, bdmNote: note }; return updatedBooking; } return b; }); return newBookings; });
     
+    // Optimistic UI update - update local state immediately
+    setAllBookings(prev => { 
+      const newBookings = prev.map(b => { 
+        if (b.id === bookingId) { 
+          updatedBooking = { ...b, status: newStatus, bdmNote: note }; 
+          return updatedBooking; 
+        } 
+        return b; 
+      }); 
+      return newBookings; 
+    });
+    
+    triggerSystemAlert(`Updating status to ${newStatus.toUpperCase()}...`);
+    
+    // Send email notifications in background (don't await)
     if (updatedBooking) {
         if (updatedBooking.vendor.notificationPreferences?.statusChange && updatedBooking.vendor.email) {
             sendEmailNotification(
@@ -304,16 +316,48 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                 );
             }
         });
+        
+        // Create notification
+        const notificationStatus = newStatus === 'sold' ? 'seen' : newStatus;
+        const newNotification: Notification = { 
+            id: Date.now(), 
+            vendorId: updatedBooking.vendor.id, 
+            bookingId: updatedBooking.id, 
+            message: `Your appointment for ${updatedBooking.clientName} has been updated to "${notificationStatus.charAt(0).toUpperCase() + notificationStatus.slice(1)}".`, 
+            read: false, 
+            timestamp: new Date().toISOString() 
+        };
+        setNotifications(prev => [...prev, newNotification]);
+        
+        // BACKGROUND SYNC: Save to Firebase without blocking UI
+        saveSingleBookingToFirebase(updatedBooking).catch(error => {
+            console.error("Background sync failed for status update:", updatedBooking.id, error);
+        });
     }
-
-    if (updatedBooking) { const notificationStatus = newStatus === 'sold' ? 'seen' : newStatus; const newNotification: Notification = { id: Date.now(), vendorId: updatedBooking.vendor.id, bookingId: updatedBooking.id, message: `Your appointment for ${updatedBooking.clientName} has been updated to "${notificationStatus.charAt(0).toUpperCase() + notificationStatus.slice(1)}".`, read: false, timestamp: new Date().toISOString() }; setNotifications(prev => [...prev, newNotification]); }
+    
     setBookingToUpdate(null); 
-    triggerSystemAlert("Lead status updated and team notified.");
+    triggerSystemAlert(`Lead status updated to ${newStatus.toUpperCase()}. Syncing in background.`);
   };
   
   const handleSaveNoteAndReminder = (bookingId: number, note: string, reminder: string | null) => { 
-    setAllBookings(prev => prev.map(b => b.id === bookingId ? { ...b, bdmPrivateNote: note || undefined, bdmReminder: reminder || undefined } : b)); 
+    let updatedBooking: Booking | undefined;
+    setAllBookings(prev => prev.map(b => {
+      if (b.id === bookingId) {
+        updatedBooking = { ...b, bdmPrivateNote: note || undefined, bdmReminder: reminder || undefined };
+        return updatedBooking;
+      }
+      return b;
+    }));
+    
+    // Background sync for note updates
+    if (updatedBooking) {
+      saveSingleBookingToFirebase(updatedBooking).catch(error => {
+        console.error("Background sync failed for note update:", bookingId, error);
+      });
+    }
+    
     setBookingToManageNotes(null); 
+    triggerSystemAlert("Notes and reminder saved.");
   };
 
   const handleOpenRequestModal = (prefill: Booking | null = null) => { setRequestModalPrefill(prefill); setIsRequestModalOpen(true); };
@@ -336,11 +380,13 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
       const newBooking: Booking = { 
           ...bookingDetails, 
           id: requestId, 
+          createdAt: new Date().toISOString().split('T')[0],
           status: 'pending_approval',
           isDuplicate: !!existingMatch,
           duplicateOfBookingId: existingMatch?.id
       };
 
+      // Fire and forget emails
       managers.forEach(m => { 
         if (m.notificationPreferences?.bookingRequest && m.email) {
             sendEmailNotification(
@@ -352,20 +398,30 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
             );
         }
       });
-      const managerNotif: Notification = { id: Date.now(), vendorId: 0, bookingId: requestId, message: `${originalId ? 'Reschedule' : 'New'} Request from BDM ${currentUser.name}: ${bookingDetails.clientName}${existingMatch ? ' (Duplicate)' : ''}`, read: false, timestamp: new Date().toISOString() };
-      setNotifications(prev => [...prev, managerNotif]);
       
+      const managerNotif: Notification = { id: Date.now(), vendorId: 0, bookingId: requestId, message: `${originalId ? 'Reschedule' : 'New'} Request from BDM ${currentUser.name}: ${bookingDetails.clientName}${existingMatch ? ' (Duplicate)' : ''}`, read: false, timestamp: new Date().toISOString() };
+      
+      // Optimistic UI update
       if (originalId) {
           setAllBookings(prev => prev.map(b => b.id === originalId ? newBooking : b));
       } else {
           setAllBookings(prev => [...prev, newBooking]);
       }
+      setNotifications(prev => [...prev, managerNotif]);
+      
+      // Background sync
+      saveSingleBookingToFirebase(newBooking).catch(error => {
+        console.error("Background sync failed for request:", requestId, error);
+      });
       
       setIsRequestModalOpen(false); 
       triggerSystemAlert(originalId ? "Reschedule request sent to Managers." : (existingMatch ? "Request sent (Duplicate detected)." : "Booking request sent to Managers."));
   };
   
   const bgColor = getRegionBackgroundColor(currentUser.region, regionColors);
+
+  // Helper to check if there are any active bookings to show
+  const hasActiveBookings = filteredActiveBookings.length > 0;
 
   return (
     <div className="min-h-screen transition-colors duration-300" style={{ backgroundColor: bgColor }}>
@@ -443,12 +499,21 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                     </div>
 
                     <div className="space-y-12 pb-12">
-                        {/* ACTIVE SECTION */}
+                        {/* ACTIVE SECTION - ALWAYS SHOW MOBILE VIEW */}
                         <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
-                            {/* Desktop Table View */}
+                            {/* Desktop Table View - Hidden on mobile */}
                             <div className="hidden md:block overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50"><tr><th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Client & Business</th><th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Calling Team</th><th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Time</th><th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th><th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Notes</th><th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-widest">Actions</th></tr></thead>
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Client & Business</th>
+                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Calling Team</th>
+                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Time</th>
+                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
+                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Notes</th>
+                                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-widest">Actions</th>
+                                        </tr>
+                                    </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
                                         {sortedDateKeysActive.length === 0 ? (
                                             <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-500 italic">No active appointments matching your criteria.</td></tr>
@@ -496,7 +561,12 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                                                                         </div>
                                                                     )}
                                                                 </div>
-                                                            </td><td className="px-6 py-5 align-top whitespace-nowrap text-sm text-gray-600 font-medium pt-7">{booking.vendor.name}</td><td className="px-6 py-5 align-top whitespace-nowrap pt-7"><div className="text-sm font-black text-gray-900">{booking.time}</div></td><td className="px-6 py-5 align-top pt-6">{getStatusPill(booking.status)}</td><td className="px-6 py-5 align-top text-sm text-gray-500 max-w-xs pt-7"><ExpandableNote text={booking.bdmNote || booking.notes} /></td><td className="px-6 py-5 align-top whitespace-nowrap text-sm font-medium pt-6">
+                                                            </td>
+                                                            <td className="px-6 py-5 align-top whitespace-nowrap text-sm text-gray-600 font-medium pt-7">{booking.vendor.name}</td>
+                                                            <td className="px-6 py-5 align-top whitespace-nowrap pt-7"><div className="text-sm font-black text-gray-900">{booking.time}</div></td>
+                                                            <td className="px-6 py-5 align-top pt-6">{getStatusPill(booking.status)}</td>
+                                                            <td className="px-6 py-5 align-top text-sm text-gray-500 max-w-xs pt-7"><ExpandableNote text={booking.bdmNote || booking.notes} /></td>
+                                                            <td className="px-6 py-5 align-top whitespace-nowrap text-sm font-medium pt-6">
                                                                 <div className="flex justify-end gap-2">
                                                                     {booking.status === 'rescheduled_bdm' && (
                                                                     <button 
@@ -514,7 +584,8 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                                                                     <BellIcon className="w-4 h-4" />
                                                                     </button>
                                                                 </div>
-                                                            </td></tr>
+                                                            </td>
+                                                        </tr>
                                                     ))}
                                                 </React.Fragment>
                                             ))
@@ -523,7 +594,7 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                                 </table>
                             </div>
 
-                            {/* Mobile Card View */}
+                            {/* Mobile Card View - Always visible on mobile, conditionally visible on desktop when no data? Let's simplify: always show on all screens, but with responsive classes */}
                             <div className="md:hidden divide-y divide-gray-200">
                                 {sortedDateKeysActive.length === 0 ? (
                                     <div className="px-6 py-12 text-center text-gray-500 italic">No active appointments matching your criteria.</div>
