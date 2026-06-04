@@ -362,12 +362,16 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [mappedMyBookings]);
 
   const analyticsBookings = useMemo(() => {
-    // For callers/vendors, show ONLY their own bookings (by vendor ID)
+    // For individual callers, show ONLY their OWN bookings (by vendor ID AND caller name)
     return mappedMyBookings.filter(b => {
       if (b.isBlocker) return false;
       
-      // CRITICAL: Filter by vendor ID - this is the correct way to identify the caller team
+      // 1. Must belong to this vendor/calling team
       if (b.vendor.id !== currentUser.id) return false;
+      
+      // 2. Must be booked by THIS SPECIFIC individual caller (case-insensitive)
+      //    This ensures "Caller 1" only sees their own leads, not "Caller 2" or "Caller 3"
+      if (!b.callerName || b.callerName.toLowerCase() !== currentUser.name.toLowerCase()) return false;
       
       if (allowedRegions.length > 0 && !allowedRegions.includes(b.region)) return false;
       const bDate = new Date(b.date);
@@ -375,7 +379,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       if (analyticsDateRange.endDate && bDate > new Date(analyticsDateRange.endDate)) return false;
       return true;
     });
-  }, [mappedMyBookings, analyticsDateRange, allowedRegions, currentUser.id]);
+  }, [mappedMyBookings, analyticsDateRange, allowedRegions, currentUser.id, currentUser.name]);
 
   const archivedBookings = useMemo(() => {
     const allArchived = mappedMyBookings.filter(b => ['seen', 'rescheduled', 'cancelled', 'dq', 'rescheduled_bdm'].includes(b.status));
