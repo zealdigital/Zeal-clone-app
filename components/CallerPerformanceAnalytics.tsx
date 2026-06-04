@@ -19,11 +19,12 @@ const CallerPerformanceAnalytics: React.FC<CallerPerformanceAnalyticsProps> = ({
 
     const analytics = useMemo(() => {
         // Track both count and the latest activity timestamp for each caller
+        // Use case-insensitive grouping (store by lowercase key, but keep original case for display)
         const callersMap = bookings.reduce((acc, booking) => {
             if (!booking.callerName) return acc;
             
             const rawName = booking.callerName.trim();
-            const normalizedKey = rawName.toLowerCase();
+            const normalizedKey = rawName.toLowerCase(); // Normalize to lowercase for grouping
             
             // Skip invalid caller names (empty, regions, statuses, etc.)
             if (!rawName || rawName.length === 0) return acc;
@@ -34,7 +35,7 @@ const CallerPerformanceAnalytics: React.FC<CallerPerformanceAnalyticsProps> = ({
                 acc[normalizedKey] = { 
                     count: 0, 
                     lastActive: 0,
-                    displayName: rawName
+                    displayName: rawName  // Keep original case for display
                 };
             }
             acc[normalizedKey].count += 1;
@@ -47,7 +48,7 @@ const CallerPerformanceAnalytics: React.FC<CallerPerformanceAnalyticsProps> = ({
             .sort(([, a], [, b]) => {
                 // Sort by count descending first
                 if (a.count !== b.count) return b.count - a.count;
-                // Then alphabetically by name
+                // Then alphabetically by name (case-insensitive)
                 return a.displayName.localeCompare(b.displayName);
             })
             .map(([, data]) => ({ 
@@ -80,6 +81,15 @@ const CallerPerformanceAnalytics: React.FC<CallerPerformanceAnalyticsProps> = ({
 
     const totalCallers = analytics.sortedCallers.length;
 
+    if (analytics.sortedCallers.length === 0) {
+        return (
+            <div className="bg-white p-6 rounded-lg shadow h-fit">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance by Caller</h3>
+                <p className="text-center text-sm text-gray-500">No caller performance data available.</p>
+            </div>
+        );
+    }
+
     return (
         <div className="bg-white p-6 rounded-lg shadow h-fit">
             <div className="flex justify-between items-center mb-4">
@@ -89,79 +99,72 @@ const CallerPerformanceAnalytics: React.FC<CallerPerformanceAnalyticsProps> = ({
                 </span>
             </div>
             
-            {analytics.sortedCallers.length === 0 ? (
-                <p className="mt-4 text-center text-sm text-gray-500">No caller performance data available.</p>
-            ) : (
-                <>
-                    <div className="space-y-4">
-                        {paginatedCallers.map(caller => {
-                            const widthPercentage = analytics.maxCallerBookings > 0 
-                                ? (caller.count / analytics.maxCallerBookings) * 100 
-                                : 0;
-                            
-                            return (
-                                <div key={caller.name} className="flex items-center group">
-                                    <div className="w-1/3 text-sm font-medium text-gray-700 truncate pr-2" title={caller.name}>
-                                        {caller.name}
-                                    </div>
-                                    <div className="w-2/3 flex items-center">
-                                        <div className="w-full bg-gray-100 rounded-full h-5 overflow-hidden">
-                                            <div 
-                                                className="bg-green-500 h-5 rounded-full text-white text-xs flex items-center justify-end pr-2 transition-all duration-700 ease-out"
-                                                style={{ width: `${widthPercentage}%` }}
-                                            >
-                                                {caller.count > 0 && (
-                                                    <span className="font-bold drop-shadow-sm">{caller.count}</span>
-                                                )}
-                                            </div>
-                                        </div>
+            <div className="space-y-4">
+                {paginatedCallers.map(caller => {
+                    const widthPercentage = analytics.maxCallerBookings > 0 
+                        ? (caller.count / analytics.maxCallerBookings) * 100 
+                        : 0;
+                    
+                    return (
+                        <div key={caller.name.toLowerCase()} className="flex items-center group">
+                            <div className="w-1/3 text-sm font-medium text-gray-700 truncate pr-2" title={caller.name}>
+                                {caller.name}
+                            </div>
+                            <div className="w-2/3 flex items-center">
+                                <div className="w-full bg-gray-100 rounded-full h-5 overflow-hidden">
+                                    <div 
+                                        className="bg-green-500 h-5 rounded-full text-white text-xs flex items-center justify-end pr-2 transition-all duration-700 ease-out"
+                                        style={{ width: `${widthPercentage}%` }}
+                                    >
+                                        {caller.count > 0 && (
+                                            <span className="font-bold drop-shadow-sm">{caller.count}</span>
+                                        )}
                                     </div>
                                 </div>
-                            );
-                        })}
-                    </div>
-
-                    {/* Pagination Controls */}
-                    {totalPages > 1 && (
-                        <div className="mt-6 pt-4 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
-                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                Page {currentPage} of {totalPages}
-                            </span>
-                            <div className="flex items-center gap-2">
-                                <button 
-                                    onClick={() => setCurrentPage(1)} 
-                                    disabled={currentPage === 1} 
-                                    className="px-3 py-1 text-[10px] font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white uppercase"
-                                >
-                                    First
-                                </button>
-                                <button 
-                                    onClick={() => setCurrentPage(curr => Math.max(1, curr - 1))} 
-                                    disabled={currentPage === 1} 
-                                    className="px-3 py-1 text-[10px] font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white uppercase"
-                                >
-                                    Prev
-                                </button>
-                                <span className="text-[10px] font-bold text-gray-600 uppercase">Page {currentPage} of {totalPages}</span>
-                                <button 
-                                    onClick={() => setCurrentPage(curr => Math.min(totalPages, curr + 1))} 
-                                    disabled={currentPage === totalPages} 
-                                    className="px-3 py-1 text-[10px] font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white uppercase"
-                                >
-                                    Next
-                                </button>
-                                <button 
-                                    onClick={() => setCurrentPage(totalPages)} 
-                                    disabled={currentPage === totalPages} 
-                                    className="px-3 py-1 text-[10px] font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white uppercase"
-                                >
-                                    Last
-                                </button>
                             </div>
                         </div>
-                    )}
-                </>
-            )}
+                    );
+                })}
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="mt-6 pt-4 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                            Page {currentPage} of {totalPages}
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <button 
+                                onClick={() => setCurrentPage(1)} 
+                                disabled={currentPage === 1} 
+                                className="px-3 py-1 text-[10px] font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white uppercase"
+                            >
+                                First
+                            </button>
+                            <button 
+                                onClick={() => setCurrentPage(curr => Math.max(1, curr - 1))} 
+                                disabled={currentPage === 1} 
+                                className="px-3 py-1 text-[10px] font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white uppercase"
+                            >
+                                Prev
+                            </button>
+                            <button 
+                                onClick={() => setCurrentPage(curr => Math.min(totalPages, curr + 1))} 
+                                disabled={currentPage === totalPages} 
+                                className="px-3 py-1 text-[10px] font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white uppercase"
+                            >
+                                Next
+                            </button>
+                            <button 
+                                onClick={() => setCurrentPage(totalPages)} 
+                                disabled={currentPage === totalPages} 
+                                className="px-3 py-1 text-[10px] font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white uppercase"
+                            >
+                                Last
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
