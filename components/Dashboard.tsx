@@ -576,24 +576,45 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
                       <h3 className="text-lg font-bold text-gray-800 mb-2">My Performance Analytics</h3>
                       <p className="text-sm text-gray-500">View your personal performance metrics by caller name</p>
-                      <div className="mt-4">
-                        <DateRangePicker startDate={analyticsDateRange.startDate} endDate={analyticsDateRange.endDate} onDateChange={setAnalyticsDateRange} />
+                      <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                        <DateRangePicker 
+                          startDate={analyticsDateRange.startDate} 
+                          endDate={analyticsDateRange.endDate} 
+                          onDateChange={setAnalyticsDateRange} 
+                        />
+                        {(analyticsDateRange.startDate || analyticsDateRange.endDate) && (
+                          <button 
+                            onClick={() => setAnalyticsDateRange({ startDate: null, endDate: null })}
+                            className="px-3 py-2 text-xs font-bold bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                          >
+                            Clear Date Filter
+                          </button>
+                        )}
                       </div>
                     </div>
                     
-                    {/* Caller Performance Only - Individual Caller View */}
+                    {/* Caller Performance - Individual Caller View */}
                     <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-                      <CallerPerformanceAnalytics bookings={analyticsBookings} />
-                    </div>
-                    
-                    {/* Personal Lead Log - Only this caller's leads */}
-                    <PerformanceLeadLog bookings={mappedMyBookings.filter(b => {
-                        // Only filter by vendor and caller name, NO date range
+                      <CallerPerformanceAnalytics bookings={mappedMyBookings.filter(b => {
                         if (b.isBlocker) return false;
                         if (b.vendor.id !== currentUser.id) return false;
                         if (!b.callerName || b.callerName.toLowerCase() !== currentUser.name.toLowerCase()) return false;
                         return true;
-                    })} role="vendor" title="My Lead Activity Log" hideFilters={true} />
+                      })} />
+                    </div>
+                    
+                    {/* Personal Lead Log - All leads for this caller (NO date filter) */}
+                    <PerformanceLeadLog 
+                      bookings={mappedMyBookings.filter(b => {
+                        if (b.isBlocker) return false;
+                        if (b.vendor.id !== currentUser.id) return false;
+                        if (!b.callerName || b.callerName.toLowerCase() !== currentUser.name.toLowerCase()) return false;
+                        return true;
+                      })} 
+                      role="vendor" 
+                      title="My Lead Activity Log" 
+                      hideFilters={true}
+                    />
                   </div>
                 )}
               {activeTab === 'settings' && (
