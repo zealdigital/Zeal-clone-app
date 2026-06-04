@@ -362,16 +362,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [mappedMyBookings]);
 
   const analyticsBookings = useMemo(() => {
-    // For individual callers, show ONLY their OWN bookings (by vendor ID AND caller name)
     return mappedMyBookings.filter(b => {
       if (b.isBlocker) return false;
-      
-      // 1. Must belong to this vendor/calling team
-      if (b.vendor.id !== currentUser.id) return false;
-      
-      // 2. Must be booked by THIS SPECIFIC individual caller (case-insensitive)
-      //    This ensures "Caller 1" only sees their own leads, not "Caller 2" or "Caller 3"
-      if (!b.callerName || b.callerName.toLowerCase() !== currentUser.name.toLowerCase()) return false;
       
       if (allowedRegions.length > 0 && !allowedRegions.includes(b.region)) return false;
       const bDate = new Date(b.date);
@@ -379,7 +371,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       if (analyticsDateRange.endDate && bDate > new Date(analyticsDateRange.endDate)) return false;
       return true;
     });
-  }, [mappedMyBookings, analyticsDateRange, allowedRegions, currentUser.id, currentUser.name]);
+  }, [mappedMyBookings, analyticsDateRange, allowedRegions]);
 
   const archivedBookings = useMemo(() => {
     const allArchived = mappedMyBookings.filter(b => ['seen', 'rescheduled', 'cancelled', 'dq', 'rescheduled_bdm'].includes(b.status));
@@ -572,51 +564,28 @@ const Dashboard: React.FC<DashboardProps> = ({
 
                 {activeTab === 'performance' && (
                   <div className="animate-fadeIn mt-6 space-y-8">
-                    {/* My Performance Header */}
                     <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-                      <h3 className="text-lg font-bold text-gray-800 mb-2">My Performance Analytics</h3>
-                      <p className="text-sm text-gray-500">View your personal performance metrics by caller name</p>
-                      <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                        <DateRangePicker 
-                          startDate={analyticsDateRange.startDate} 
-                          endDate={analyticsDateRange.endDate} 
-                          onDateChange={setAnalyticsDateRange} 
-                        />
-                        {(analyticsDateRange.startDate || analyticsDateRange.endDate) && (
-                          <button 
-                            onClick={() => setAnalyticsDateRange({ startDate: null, endDate: null })}
-                            className="px-3 py-2 text-xs font-bold bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                          >
-                            Clear Date Filter
-                          </button>
-                        )}
+                      <h3 className="text-lg font-bold text-gray-800 mb-4">Team Performance Analytics</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:items-center items-stretch">
+                        <div className="flex-1">
+                          <DateRangePicker startDate={analyticsDateRange.startDate} endDate={analyticsDateRange.endDate} onDateChange={setAnalyticsDateRange} />
+                        </div>
+                        <div className="flex flex-col">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Trend Grouping</label>
+                          <div className="flex flex-wrap rounded-md shadow-sm">
+                            {['daily', 'weekly', 'monthly', 'yearly'].map(p => <button key={p} onClick={() => setAnalyticsTimePeriod(p as any)} className={`flex-1 min-w-[70px] py-2 text-sm border capitalize transition-all ${analyticsTimePeriod === p ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>{p}</button>)}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    
-                    {/* Caller Performance - Individual Caller View */}
-                    <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-                      <CallerPerformanceAnalytics bookings={mappedMyBookings.filter(b => {
-                        if (b.isBlocker) return false;
-                        if (b.vendor.id !== currentUser.id) return false;
-                        if (!b.callerName || b.callerName.toLowerCase() !== currentUser.name.toLowerCase()) return false;
-                        return true;
-                      })} />
+                    <TrendAnalytics bookings={analyticsBookings} period={analyticsTimePeriod} />
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      <StatusAnalytics bookings={analyticsBookings} title="Team Booking Status Breakdown" role="vendor" />
+                      <CallerPerformanceAnalytics bookings={analyticsBookings} />
                     </div>
-                    
-                    {/* Personal Lead Log - All leads for this caller (NO date filter) */}
-                    <PerformanceLeadLog 
-                      bookings={mappedMyBookings.filter(b => {
-                        if (b.isBlocker) return false;
-                        if (b.vendor.id !== currentUser.id) return false;
-                        if (!b.callerName || b.callerName.toLowerCase() !== currentUser.name.toLowerCase()) return false;
-                        return true;
-                      })} 
-                      role="vendor" 
-                      title="My Lead Activity Log" 
-                      hideFilters={true}
-                    />
+                    <PerformanceLeadLog bookings={analyticsBookings} role="vendor" title="Team Performance Lead Log" />
                   </div>
-                )}
+              )}
               {activeTab === 'settings' && (
                   <div className="animate-fadeIn mt-6 max-w-2xl mx-auto">
                       <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
