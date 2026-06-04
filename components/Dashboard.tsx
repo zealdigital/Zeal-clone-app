@@ -76,7 +76,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [slotToManage, setSlotToManage] = useState<SlotManagementInfo | null>(null);
   const [bookingToEdit, setBookingToEdit] = useState<Booking | null>(null);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
-
+  
   const allowedRegions = useMemo(() => {
       if (currentUser.allowedRegions && currentUser.allowedRegions.length > 0) {
           return (regions || []).filter(r => currentUser.allowedRegions!.includes(r));
@@ -123,7 +123,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     if (window.confirm('Delete booking?')) {
         const bookingToDelete = allBookings.find(b => b.id === bookingId);
         setAllBookings(prev => prev.filter(b => b.id !== bookingId && b.parentBookingId !== bookingId));
-
+        
         // BACKGROUND SYNC: Delete from Firebase
         if (bookingToDelete && !bookingToDelete.isBlocker) {
             deleteSingleBookingFromFirebase(bookingId).catch(error => {
@@ -138,7 +138,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleConfirmBooking = async (bookingDetails: Omit<Booking, 'id' | 'vendor' | 'status'>, slotsToRemove: string[]) => {
     const mainBookingId = Date.now();
-
+    
     // Duplicate Check
     const normalizedWebsite = normalizeWebsite(bookingDetails.clientWebsite);
     const oneYearAgo = new Date();
@@ -177,7 +177,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         parentBookingId: mainBookingId, 
         status: 'active' 
     }));
-
+    
     // NOTIFY MANAGERS VIA EMAIL (don't await - fire and forget)
     managers.forEach(m => {
         if (m.notificationPreferences?.newBooking && m.email) {
@@ -196,14 +196,14 @@ const Dashboard: React.FC<DashboardProps> = ({
     setAllBookings(prev => [...prev, newBooking, ...newBlockers]);
     closeModal();
     triggerSystemAlert(existingMatch ? "Booking confirmed (Duplicate detected)." : "Booking confirmed. Admins notified.");
-
+    
     // BACKGROUND SYNC: Save to Firebase without blocking UI
     saveSingleBookingToFirebase(newBooking).catch(error => {
         console.error("Background sync failed for booking:", newBooking.id, error);
         // Don't show error to user - will sync on next full sync
     });
 };
-
+  
   const handleUpdateBooking = (updatedDetails: any, slotsToRemove: string[]) => {
     if (!bookingToEdit) return;
 
@@ -235,7 +235,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleRequestManualBooking = async (bookingDetails: Omit<Booking, 'id' | 'status'>) => {
     const requestId = Date.now();
-
+    
     // Duplicate Check
     const normalizedWebsite = normalizeWebsite(bookingDetails.clientWebsite);
     const oneYearAgo = new Date();
@@ -256,7 +256,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         isDuplicate: !!existingMatch,
         duplicateOfBookingId: existingMatch?.id
     };
-
+    
     // NOTIFY MANAGERS VIA EMAIL (fire and forget - don't await)
     managers.forEach(m => { 
         if (m.notificationPreferences?.bookingRequest && m.email) {
@@ -275,7 +275,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     setAllBookings(prev => [...prev, newBooking]);
     setIsRequestModalOpen(false); 
     triggerSystemAlert(existingMatch ? "Manual request sent (Duplicate detected)." : "Manual request sent to Admin.");
-
+    
     // BACKGROUND SYNC: Save to Firebase without blocking UI
     saveSingleBookingToFirebase(newBooking).catch(error => {
         console.error("Background sync failed for manual request:", newBooking.id, error);
@@ -285,7 +285,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleRequestSms = (bookingId: number, type: string, message: string) => {
       const booking = allBookings.find(b => b.id === bookingId);
       setAllBookings(prev => prev.map(b => b.id === bookingId ? { ...b, smsRequest: { type: type as any, message, status: 'pending', requestedAt: new Date().toISOString() } } : b));
-
+      
       // EMAIL MANAGERS
       managers.forEach(m => { 
         if (m.notificationPreferences?.smsRequest && m.email) {
@@ -331,7 +331,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     ), 
     [allBookings, currentUser.id]
   );
-
+  
   const mappedMyBookings = useMemo(() => myBookings.map(booking => {
     const mapped = booking.status === 'sold' ? { ...booking, status: 'seen' as const } : booking;
     return {
@@ -341,16 +341,16 @@ const Dashboard: React.FC<DashboardProps> = ({
       rejectionReason: maskSoldText(mapped.rejectionReason)
     };
   }), [myBookings]);
-
+  
   // EXHAUSTIVE SEARCH FOR VENDORS
   const filteredVendorBookings = useMemo(() => {
     return mappedMyBookings.filter(booking => {
       if (booking.status === 'rejected' || booking.status === 'pending_approval') return false; 
-
+      
       const bookingDate = new Date(booking.date);
       if (dateRange.startDate && bookingDate < new Date(dateRange.startDate)) return false;
       if (dateRange.endDate && bookingDate > new Date(dateRange.endDate)) return false;
-
+      
       return matchesGlobalSearch(booking, searchTerm);
     });
   }, [searchTerm, mappedMyBookings, dateRange]);
@@ -362,12 +362,16 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [mappedMyBookings]);
 
   const analyticsBookings = useMemo(() => {
-    // For callers, only show THEIR OWN bookings
+    // For individual callers, show ONLY their OWN bookings (by vendor ID AND caller name)
     return mappedMyBookings.filter(b => {
       if (b.isBlocker) return false;
-
-      // CRITICAL: Only show bookings where this caller is the one who made the call
-      if (b.callerName !== currentUser.name) return false;
+      
+      // 1. Must belong to this vendor/calling team
+      if (b.vendor.id !== currentUser.id) return false;
+      
+      // 2. Must be booked by THIS SPECIFIC individual caller (case-insensitive)
+      //    This ensures "Caller 1" only sees their own leads, not "Caller 2" or "Caller 3"
+      if (!b.callerName || b.callerName.toLowerCase() !== currentUser.name.toLowerCase()) return false;
       
       if (allowedRegions.length > 0 && !allowedRegions.includes(b.region)) return false;
       const bDate = new Date(b.date);
@@ -375,8 +379,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       if (analyticsDateRange.endDate && bDate > new Date(analyticsDateRange.endDate)) return false;
       return true;
     });
-  }, [mappedMyBookings, analyticsDateRange, allowedRegions]);
-  }, [mappedMyBookings, analyticsDateRange, allowedRegions, currentUser.name]);
+  }, [mappedMyBookings, analyticsDateRange, allowedRegions, currentUser.id, currentUser.name]);
 
   const archivedBookings = useMemo(() => {
     const allArchived = mappedMyBookings.filter(b => ['seen', 'rescheduled', 'cancelled', 'dq', 'rescheduled_bdm'].includes(b.status));
@@ -388,7 +391,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [mappedMyBookings, searchTerm]);
 
   const activeBookings = useMemo(() => filteredVendorBookings.filter(b => b.status === 'active'), [filteredVendorBookings]);
-
+  
   const rejectedBookings = useMemo(() => {
       const list = mappedMyBookings.filter(b => b.status === 'rejected' && !b.isBlocker);
       return list.filter(b => matchesGlobalSearch(b, searchTerm));
@@ -408,7 +411,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <Header currentUser={currentUser} onLogout={onLogout} notifications={myNotifications} setNotifications={setNotifications} branding={branding} />
           <main className="p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
-
+              
               <div className="mb-6 border-b border-gray-300/50">
                 <nav className="flex flex-wrap gap-x-6 gap-y-2 -mb-px">
                     <button 
@@ -525,7 +528,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                             <button onClick={() => exportBookingsToCSV(filteredVendorBookings, 'bookings')} className="px-4 py-2 bg-white border rounded-md text-sm font-bold hover:bg-gray-50">Export</button>
                         </div>
                     </div>
-
+                    
                     {searchTerm.trim() !== '' ? (
                         <div className="mt-8 mb-8 animate-fadeIn">
                             <MyBookingsList bookings={filteredVendorBookings} onEditBooking={handleEditFromList} onDeleteBooking={handleDeleteBooking} searchTerm={searchTerm} onRequestSms={handleRequestSms} />
@@ -571,37 +574,48 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <div className="animate-fadeIn mt-6 space-y-8">
                     {/* My Performance Header */}
                     <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-                      <h3 className="text-lg font-bold text-gray-800 mb-4">Team Performance Analytics</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:items-center items-stretch">
-                        <div className="flex-1">
-                          <DateRangePicker startDate={analyticsDateRange.startDate} endDate={analyticsDateRange.endDate} onDateChange={setAnalyticsDateRange} />
-                        </div>
-                        <div className="flex flex-col">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Trend Grouping</label>
-                          <div className="flex flex-wrap rounded-md shadow-sm">
-                            {['daily', 'weekly', 'monthly', 'yearly'].map(p => <button key={p} onClick={() => setAnalyticsTimePeriod(p as any)} className={`flex-1 min-w-[70px] py-2 text-sm border capitalize transition-all ${analyticsTimePeriod === p ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>{p}</button>)}
-                          </div>
-                        </div>
                       <h3 className="text-lg font-bold text-gray-800 mb-2">My Performance Analytics</h3>
                       <p className="text-sm text-gray-500">View your personal performance metrics by caller name</p>
-                      <div className="mt-4">
-                        <DateRangePicker startDate={analyticsDateRange.startDate} endDate={analyticsDateRange.endDate} onDateChange={setAnalyticsDateRange} />
+                      <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                        <DateRangePicker 
+                          startDate={analyticsDateRange.startDate} 
+                          endDate={analyticsDateRange.endDate} 
+                          onDateChange={setAnalyticsDateRange} 
+                        />
+                        {(analyticsDateRange.startDate || analyticsDateRange.endDate) && (
+                          <button 
+                            onClick={() => setAnalyticsDateRange({ startDate: null, endDate: null })}
+                            className="px-3 py-2 text-xs font-bold bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                          >
+                            Clear Date Filter
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <TrendAnalytics bookings={analyticsBookings} period={analyticsTimePeriod} />
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                      <StatusAnalytics bookings={analyticsBookings} title="Team Booking Status Breakdown" role="vendor" />
                     
-                    {/* Caller Performance Only - Individual Caller View */}
+                    {/* Caller Performance - Individual Caller View */}
                     <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-                      <CallerPerformanceAnalytics bookings={analyticsBookings} />
+                      <CallerPerformanceAnalytics bookings={mappedMyBookings.filter(b => {
+                        if (b.isBlocker) return false;
+                        if (b.vendor.id !== currentUser.id) return false;
+                        if (!b.callerName || b.callerName.toLowerCase() !== currentUser.name.toLowerCase()) return false;
+                        return true;
+                      })} />
                     </div>
-                    <PerformanceLeadLog bookings={analyticsBookings} role="vendor" title="Team Performance Lead Log" />
                     
-                    {/* Personal Lead Log - Only this caller's leads */}
-                    <PerformanceLeadLog bookings={analyticsBookings} role="vendor" title="My Lead Activity Log" />
+                    {/* Personal Lead Log - All leads for this caller (NO date filter) */}
+                    <PerformanceLeadLog 
+                      bookings={mappedMyBookings.filter(b => {
+                        if (b.isBlocker) return false;
+                        if (b.vendor.id !== currentUser.id) return false;
+                        if (!b.callerName || b.callerName.toLowerCase() !== currentUser.name.toLowerCase()) return false;
+                        return true;
+                      })} 
+                      role="vendor" 
+                      title="My Lead Activity Log" 
+                      hideFilters={true}
+                    />
                   </div>
-              )}
                 )}
               {activeTab === 'settings' && (
                   <div className="animate-fadeIn mt-6 max-w-2xl mx-auto">
