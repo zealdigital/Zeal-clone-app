@@ -98,7 +98,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
 
       return matchesStatus && matchesCaller && matchesBdm && matchesSearch;
     }).sort((a, b) => {
-    // Sort by creation date (when the booking was created/imported)
+    // Sort by createdAt (when the booking was created/imported)
     const timeA = a.createdAt ? new Date(a.createdAt).getTime() : a.id;
     const timeB = b.createdAt ? new Date(b.createdAt).getTime() : b.id;
     const dateDiff = timeB - timeA;
