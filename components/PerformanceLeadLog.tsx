@@ -15,7 +15,7 @@ interface PerformanceLeadLogProps {
 
 type SortField = 'date' | 'callingTeam' | 'assignedBDM' | 'status';
 type SortDirection = 'asc' | 'desc';
-
+ 
 const ITEMS_PER_PAGE = 10;
 
 const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({ 
