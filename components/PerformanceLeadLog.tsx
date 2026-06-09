@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import type { Booking, BDM } from '../types';
 import { getStatusPill, getVendorStatusPill, maskSoldText } from '../utils/statusUtils';
 import { formatToDDMMYY } from '../utils/dateUtils';
-import { ArrowDownTrayIcon, MagnifyingGlassIcon, MapPinIcon } from './Icons';
+import { ArrowDownTrayIcon, MagnifyingGlassIcon, MapPinIcon, ArrowUpIcon, ArrowDownIcon } from './Icons';
 import { exportBookingsToCSV } from '../utils/exportUtils';
 
 interface PerformanceLeadLogProps {
@@ -12,6 +12,9 @@ interface PerformanceLeadLogProps {
   hideFilters?: boolean;
   role?: 'manager' | 'vendor' | 'bdm';
 }
+
+type SortField = 'date' | 'callingTeam' | 'assignedBDM' | 'status';
+type SortDirection = 'asc' | 'desc';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -27,6 +30,10 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
   const [bdmFilter, setBdmFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   const isVendorRole = role === 'vendor';
   const isBdmRole = role === 'bdm';
@@ -47,18 +54,16 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, callerFilter, bdmFilter, searchTerm]);
+  }, [statusFilter, callerFilter, bdmFilter, searchTerm, sortField, sortDirection]);
 
-  // Get unique callers - for vendors, this shows the callers they worked with
+  // Get unique callers
   const uniqueCallers = useMemo(() => {
     const callers = new Set<string>();
     mappedBookings.forEach(b => {
       if (isVendorRole) {
-        // For vendors, show the caller names from their leads
         const name = b.callerName;
         if (name) callers.add(name);
       } else {
-        // For managers/BDMs, show vendor names
         const name = b.vendor?.name;
         if (name) callers.add(name);
       }
@@ -66,12 +71,33 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
     return Array.from(callers).sort((a, b) => a.localeCompare(b));
   }, [mappedBookings, isVendorRole]);
 
-  // All filtered leads
+  // Handle sort click
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New field, default to descending
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
+  // Get sort icon
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) {
+      return <ArrowUpIcon className="w-3 h-3 opacity-30 group-hover:opacity-100 transition-opacity" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUpIcon className="w-3 h-3 text-indigo-600" />
+      : <ArrowDownIcon className="w-3 h-3 text-indigo-600" />;
+  };
+
+  // All filtered leads with sorting
   const allFilteredLeads = useMemo(() => {
-    return mappedBookings.filter(b => {
+    const filtered = mappedBookings.filter(b => {
       const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
       
-      // For vendors: filter by caller name (case-insensitive)
       let matchesCaller = true;
       if (isVendorRole && callerFilter !== 'all') {
         matchesCaller = (b.callerName || '').toLowerCase() === callerFilter.toLowerCase();
@@ -97,12 +123,37 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
       );
 
       return matchesStatus && matchesCaller && matchesBdm && matchesSearch;
-    }).sort((a, b) => {
-    const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
-    if (dateDiff !== 0) return dateDiff;
-    return b.id - a.id;
-  });
-  }, [mappedBookings, statusFilter, callerFilter, bdmFilter, searchTerm, isVendorRole, isBdmRole]);
+    });
+
+    // Apply sorting
+    return filtered.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortField) {
+        case 'date':
+          // Sort by creation date
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : a.id;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : b.id;
+          comparison = timeA - timeB;
+          break;
+        case 'callingTeam':
+          const teamA = (isVendorRole ? a.callerName : a.vendor?.name) || '';
+          const teamB = (isVendorRole ? b.callerName : b.vendor?.name) || '';
+          comparison = teamA.localeCompare(teamB);
+          break;
+        case 'assignedBDM':
+          const bdmA = bdms.find(bdm => bdm.id === a.bdmId)?.name || '';
+          const bdmB = bdms.find(bdm => bdm.id === b.bdmId)?.name || '';
+          comparison = bdmA.localeCompare(bdmB);
+          break;
+        case 'status':
+          comparison = a.status.localeCompare(b.status);
+          break;
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [mappedBookings, statusFilter, callerFilter, bdmFilter, searchTerm, isVendorRole, isBdmRole, sortField, sortDirection, bdms]);
 
   const totalPages = Math.max(1, Math.ceil(allFilteredLeads.length / ITEMS_PER_PAGE));
   const paginatedLeads = useMemo(() => {
@@ -171,21 +222,21 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
               />
             </div>
 
-            {/* Caller Filter - Hide for vendors since they only see their own data */}
+            {/* Caller Filter - Hide for vendors */}
             {!isVendorRole && uniqueCallers.length > 0 && (
               <select 
                 value={callerFilter}
                 onChange={(e) => setCallerFilter(e.target.value)}
                 className="border border-gray-200 rounded-xl py-2.5 px-4 text-sm font-bold bg-white text-gray-700 outline-none focus:ring-2 focus:ring-black transition-all cursor-pointer"
               >
-                <option value="all">{isVendorRole ? 'My Caller Records' : 'All Calling Teams'}</option>
+                <option value="all">All Calling Teams</option>
                 {uniqueCallers.map(name => (
                   <option key={name} value={name}>{name}</option>
                 ))}
               </select>
             )}
 
-            {/* BDM Filter - Hide for vendors and BDMs (BDMs only see their own assigned leads) */}
+            {/* BDM Filter - Hide for vendors and BDMs */}
             {!isVendorRole && !isBdmRole && (
               <select 
                 value={bdmFilter}
@@ -225,18 +276,60 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
         )}
       </div>
 
-      {/* Desktop Table View */}
+      {/* Desktop Table View with Sortable Headers */}
       <div className="hidden md:block overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50/50">
             <tr>
-              <th scope="col" className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+              {/* Date Column - Sortable */}
+              <th 
+                scope="col" 
+                className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest cursor-pointer group hover:text-gray-600 transition-colors"
+                onClick={() => handleSort('date')}
+              >
+                <div className="flex items-center gap-1">
+                  Date
+                  <SortIcon field="date" />
+                </div>
+              </th>
               <th scope="col" className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Business, Client & URL</th>
               <th scope="col" className="px-6 py-5 text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">Lead History & Source</th>
-              <th scope="col" className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">{isVendorRole ? 'Individual Caller' : 'Calling Team / Source'}</th>
-              {!isVendorRole && !isBdmRole && <th scope="col" className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Assigned BDM</th>}
+              {/* Calling Team Column - Sortable */}
+              <th 
+                scope="col" 
+                className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest cursor-pointer group hover:text-gray-600 transition-colors"
+                onClick={() => handleSort('callingTeam')}
+              >
+                <div className="flex items-center gap-1">
+                  {isVendorRole ? 'Individual Caller' : 'Calling Team / Source'}
+                  <SortIcon field="callingTeam" />
+                </div>
+              </th>
+              {/* Assigned BDM Column - Sortable (only for managers) */}
+              {!isVendorRole && !isBdmRole && (
+                <th 
+                  scope="col" 
+                  className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest cursor-pointer group hover:text-gray-600 transition-colors"
+                  onClick={() => handleSort('assignedBDM')}
+                >
+                  <div className="flex items-center gap-1">
+                    Assigned BDM
+                    <SortIcon field="assignedBDM" />
+                  </div>
+                </th>
+              )}
               <th scope="col" className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Region</th>
-              <th scope="col" className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+              {/* Status Column - Sortable */}
+              <th 
+                scope="col" 
+                className="px-6 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest cursor-pointer group hover:text-gray-600 transition-colors"
+                onClick={() => handleSort('status')}
+              >
+                <div className="flex items-center gap-1">
+                  Status
+                  <SortIcon field="status" />
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
@@ -246,6 +339,11 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
                 <tr key={lead.id} className="hover:bg-gray-50 transition-colors group">
                   <td className="px-6 py-6 whitespace-nowrap text-sm font-medium text-gray-500">
                     {formatToDDMMYY(lead.date)}
+                    {lead.createdAt && (
+                      <div className="text-[9px] text-gray-300 mt-0.5">
+                        Created: {formatToDDMMYY(lead.createdAt)}
+                      </div>
+                    )}
                    </td>
                   <td className="px-6 py-6 whitespace-normal">
                     <div className="text-base font-bold text-gray-900 leading-tight">{lead.businessName}</div>
@@ -297,7 +395,7 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
                   <td className="px-6 py-6 whitespace-nowrap">
                     {isVendorRole ? getVendorStatusPill(lead.status) : getStatusPill(lead.status)}
                    </td>
-                 </tr>
+                </tr>
               );
             }) : (
               <tr>
