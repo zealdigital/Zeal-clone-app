@@ -98,13 +98,10 @@ const PerformanceLeadLog: React.FC<PerformanceLeadLogProps> = ({
 
       return matchesStatus && matchesCaller && matchesBdm && matchesSearch;
     }).sort((a, b) => {
-    // Sort by createdAt (when the booking was created/imported)
-    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : a.id;
-    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : b.id;
-    const dateDiff = timeB - timeA;
+    const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
     if (dateDiff !== 0) return dateDiff;
     return b.id - a.id;
-    });
+  });
   }, [mappedBookings, statusFilter, callerFilter, bdmFilter, searchTerm, isVendorRole, isBdmRole]);
 
   const totalPages = Math.max(1, Math.ceil(allFilteredLeads.length / ITEMS_PER_PAGE));
