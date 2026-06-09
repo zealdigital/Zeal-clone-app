@@ -21,8 +21,16 @@ const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, r
     setCurrentPage(1);
   }, [searchTerm]);
 
+  // Sort by creation date (newest first) using createdAt field
+  // If createdAt doesn't exist, fall back to id (which is timestamp-based)
   const sortedBookings = useMemo(() => {
-    return [...bookings].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return [...bookings].sort((a, b) => {
+      // Get creation timestamp
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : a.id;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : b.id;
+      // Sort descending (newest first)
+      return timeB - timeA;
+    });
   }, [bookings]);
 
   const totalPages = Math.max(1, Math.ceil(sortedBookings.length / ITEMS_PER_PAGE));
@@ -31,6 +39,7 @@ const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, r
     return sortedBookings.slice(start, start + ITEMS_PER_PAGE);
   }, [sortedBookings, currentPage]);
 
+  // Group by appointment date for display (not sorting)
   const groupedBookings = useMemo(() => {
     const groups: Record<string, Booking[]> = {};
     paginatedBookings.forEach(b => {
@@ -40,9 +49,12 @@ const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, r
     return groups;
   }, [paginatedBookings]);
 
+  // Keep appointment date keys sorted descending for display
   const sortedDateKeys = useMemo(() => {
     return Object.keys(groupedBookings).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
   }, [groupedBookings]);
+
+  // ... rest of the component remains the same
 
   if (bookings.length === 0) {
     return (
