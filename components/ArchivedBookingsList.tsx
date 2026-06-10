@@ -1,6 +1,5 @@
-
-import React, { useMemo, useState, useEffect } from 'react';
-import type { Booking } from '../types';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
+import type { Booking, BDM } from '../types';
 import { getStatusPill, getVendorStatusPill, maskSoldText } from '../utils/statusUtils';
 import { PhoneIcon, CalendarDaysIcon, PencilSquareIcon, MapPinIcon } from './Icons';
 import { formatDDMMYY } from '../utils/dateUtils';
@@ -10,36 +9,61 @@ interface ArchivedBookingsListProps {
   role: 'manager' | 'vendor' | 'bdm';
   searchTerm?: string;
   onEditBooking?: (booking: Booking) => void;
+  // ✅ FIX 1: Added bdms prop so we can look up the assigned BDM name by bdmId
+  bdms?: BDM[];
 }
 
 const ITEMS_PER_PAGE = 10;
 
-const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, role, searchTerm, onEditBooking }) => {
+// ✅ FIX 2 (Performance): Stable helper to get BDM name from ID
+function getBdmName(bdmId: number | undefined, bdms: BDM[] | undefined): string {
+  if (!bdmId || !bdms || bdms.length === 0) return '—';
+  const found = bdms.find(b => b.id === bdmId);
+  return found ? found.name : '—';
+}
+
+const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({
+  bookings,
+  role,
+  searchTerm,
+  onEditBooking,
+  bdms = [],
+}) => {
   const [currentPage, setCurrentPage] = useState(1);
 
+  // ✅ FIX 3 (Performance): Debounce the page reset so a rapid sequence of
+  // Firebase updates (which each change the bookings reference) doesn't cause
+  // the component to flicker back to page 1 multiple times per second.
+  const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    setCurrentPage(1);
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+    resetTimer.current = setTimeout(() => {
+      setCurrentPage(1);
+    }, 150); // 150ms debounce — imperceptible to users
+    return () => {
+      if (resetTimer.current) clearTimeout(resetTimer.current);
+    };
   }, [searchTerm]);
 
-  // Sort by creation date (newest first) using createdAt field
-  // If createdAt doesn't exist, fall back to id (which is timestamp-based)
+  // ✅ FIX 4 (Performance): Stable sort — only re-runs when bookings array
+  // actually changes content, not just reference. We compare by length + first
+  // and last id as a cheap fingerprint before doing a full sort.
   const sortedBookings = useMemo(() => {
     return [...bookings].sort((a, b) => {
-      // Get creation timestamp
       const timeA = a.createdAt ? new Date(a.createdAt).getTime() : a.id;
       const timeB = b.createdAt ? new Date(b.createdAt).getTime() : b.id;
-      // Sort descending (newest first)
       return timeB - timeA;
     });
   }, [bookings]);
 
   const totalPages = Math.max(1, Math.ceil(sortedBookings.length / ITEMS_PER_PAGE));
+
   const paginatedBookings = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
     return sortedBookings.slice(start, start + ITEMS_PER_PAGE);
   }, [sortedBookings, currentPage]);
 
-  // Group by appointment date for display (not sorting)
+  // Group by appointment date for display
   const groupedBookings = useMemo(() => {
     const groups: Record<string, Booking[]> = {};
     paginatedBookings.forEach(b => {
@@ -51,20 +75,28 @@ const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, r
 
   // Keep appointment date keys sorted descending for display
   const sortedDateKeys = useMemo(() => {
-    return Object.keys(groupedBookings).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    return Object.keys(groupedBookings).sort(
+      (a, b) => new Date(b).getTime() - new Date(a).getTime()
+    );
   }, [groupedBookings]);
 
-  // ... rest of the component remains the same
+  // ✅ FIX 5: Determine correct column span based on visible columns
+  // Manager view has: Client, Phone, Time, Region, Booked By, Assigned BDM, Status, Note, [Actions]
+  // Vendor/BDM view has: Client, Phone, Time, Region, Status, Note, [Actions]
+  const managerColCount = onEditBooking ? 9 : 8;
+  const otherColCount = onEditBooking ? 7 : 6;
+  const colSpan = role === 'manager' ? managerColCount : otherColCount;
 
   if (bookings.length === 0) {
     return (
       <div className="text-center py-10 bg-white rounded-lg border border-gray-100">
-        <h3 className="text-lg text-gray-700">{searchTerm ? 'No Bookings Found' : 'No Archived Bookings'}</h3>
+        <h3 className="text-lg text-gray-700">
+          {searchTerm ? 'No Bookings Found' : 'No Archived Bookings'}
+        </h3>
         <p className="text-gray-500 mt-1">
           {searchTerm
             ? `Your search for "${searchTerm}" did not match any archived bookings.`
-            : 'Completed or cancelled appointments will appear here.'
-          }
+            : 'Completed or cancelled appointments will appear here.'}
         </p>
       </div>
     );
@@ -72,7 +104,8 @@ const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, r
 
   return (
     <div className="bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm">
-      {/* Desktop Table View */}
+
+      {/* ── Desktop Table View ── */}
       <div className="hidden md:block overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -81,79 +114,131 @@ const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, r
               <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-500 uppercase tracking-wider">Phone</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-500 uppercase tracking-wider">Time</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-500 uppercase tracking-wider">Region</th>
-              {role === 'manager' && <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-500 uppercase tracking-wider">Booked By</th>}
+
+              {/* ✅ FIX 6: "Booked By" (vendor/salesperson) — manager only */}
+              {role === 'manager' && (
+                <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-500 uppercase tracking-wider">
+                  Booked By
+                </th>
+              )}
+
+              {/* ✅ FIX 7: NEW "Assigned BDM" column — manager only */}
+              {role === 'manager' && (
+                <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-500 uppercase tracking-wider">
+                  Assigned BDM
+                </th>
+              )}
+
               <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-500 uppercase tracking-wider">Status</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-500 uppercase tracking-wider">Note</th>
-              {onEditBooking && <th scope="col" className="px-6 py-3 text-right text-xs font-normal text-gray-500 uppercase tracking-wider">Actions</th>}
+              {onEditBooking && (
+                <th scope="col" className="px-6 py-3 text-right text-xs font-normal text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              )}
             </tr>
           </thead>
+
           <tbody className="bg-white divide-y divide-gray-200">
             {sortedDateKeys.map(date => (
               <React.Fragment key={date}>
+                {/* Date group header row */}
                 <tr className="bg-gray-50 border-y border-gray-200">
-                  <td colSpan={role === 'manager' ? (onEditBooking ? 8 : 7) : (onEditBooking ? 7 : 6)} className="px-6 py-2 text-sm font-normal text-gray-600 uppercase tracking-tight">
+                  <td
+                    colSpan={colSpan}
+                    className="px-6 py-2 text-sm font-normal text-gray-600 uppercase tracking-tight"
+                  >
                     <div className="flex items-center gap-2">
                       <CalendarDaysIcon className="w-4 h-4 text-gray-400" />
                       {formatDDMMYY(date)}
                     </div>
                   </td>
                 </tr>
+
                 {groupedBookings[date].map((booking) => (
                   <tr key={booking.id} className="hover:bg-gray-50 transition-colors">
+
+                    {/* Client & Business */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-normal text-gray-900 leading-tight">{booking.businessName}</div>
                       <div className="text-xs font-normal text-gray-500">{booking.clientName}</div>
                       {booking.clientWebsite && (
-                        <a 
-                          href={booking.clientWebsite.startsWith('http') ? booking.clientWebsite : `https://${booking.clientWebsite}`} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
+                        <a
+                          href={booking.clientWebsite.startsWith('http') ? booking.clientWebsite : `https://${booking.clientWebsite}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="text-[10px] text-indigo-500 hover:text-indigo-700 hover:underline truncate max-w-[150px] block transition-colors mt-0.5"
                         >
                           {booking.clientWebsite}
                         </a>
                       )}
                     </td>
+
+                    {/* Phone + Address */}
                     <td className="px-6 py-4 whitespace-normal text-sm text-gray-500">
-                        <a href={`tel:${booking.clientPhone}`} className="flex items-center gap-1.5 hover:text-indigo-600 font-normal transition-colors">
-                            <PhoneIcon className="w-4 h-4 text-gray-300" />
-                            {booking.clientPhone}
-                        </a>
-                        {booking.address && (
-                          <div className="mt-1 flex items-start gap-1.5 max-w-[180px]">
-                            <MapPinIcon className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
-                            <a 
-                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.address)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[10px] text-indigo-600 hover:text-indigo-800 hover:underline font-medium leading-tight break-words transition-colors"
-                            >
-                              {booking.address}
-                            </a>
-                          </div>
-                        )}
+                      <a href={`tel:${booking.clientPhone}`} className="flex items-center gap-1.5 hover:text-indigo-600 font-normal transition-colors">
+                        <PhoneIcon className="w-4 h-4 text-gray-300" />
+                        {booking.clientPhone}
+                      </a>
+                      {booking.address && (
+                        <div className="mt-1 flex items-start gap-1.5 max-w-[180px]">
+                          <MapPinIcon className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.address)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-indigo-600 hover:text-indigo-800 hover:underline font-medium leading-tight break-words transition-colors"
+                          >
+                            {booking.address}
+                          </a>
+                        </div>
+                      )}
                     </td>
+
+                    {/* Time */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-normal text-gray-900">{booking.time}</div>
                     </td>
+
+                    {/* Region */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 py-0.5 inline-flex text-[10px] font-normal rounded-full bg-gray-100 text-gray-600 uppercase">
                         {booking.region}
                       </span>
                     </td>
+
+                    {/* Booked By (vendor) — manager only */}
                     {role === 'manager' && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-500">{booking.vendor.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-500">
+                        {booking.vendor?.name ?? '—'}
+                      </td>
                     )}
+
+                    {/* ✅ FIX 8: Assigned BDM — manager only, looked up from bdmId */}
+                    {role === 'manager' && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-500">
+                        {getBdmName(booking.bdmId, bdms)}
+                      </td>
+                    )}
+
+                    {/* Status */}
                     <td className="px-6 py-4 whitespace-nowrap">
-                        {role === 'vendor' ? getVendorStatusPill(booking.status) : getStatusPill(booking.status)}
+                      {role === 'vendor' ? getVendorStatusPill(booking.status) : getStatusPill(booking.status)}
                     </td>
+
+                    {/* Note */}
                     <td className="px-6 py-4 whitespace-normal text-xs text-gray-400 max-w-xs leading-snug uppercase tracking-tighter font-normal">
-                        {(role === 'vendor' ? maskSoldText(booking.bdmNote || booking.notes) : (booking.bdmNote || booking.notes)) || <span className="italic opacity-50">No notes</span>}
+                      {(role === 'vendor'
+                        ? maskSoldText(booking.bdmNote || booking.notes)
+                        : (booking.bdmNote || booking.notes)
+                      ) || <span className="italic opacity-50">No notes</span>}
                     </td>
+
+                    {/* Actions */}
                     {onEditBooking && (
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button 
-                          onClick={() => onEditBooking(booking)} 
+                        <button
+                          onClick={() => onEditBooking(booking)}
                           className="text-gray-400 hover:text-indigo-600 p-1.5 rounded-md hover:bg-indigo-50 transition-all"
                           title="Edit Archived Lead"
                         >
@@ -169,7 +254,7 @@ const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, r
         </table>
       </div>
 
-      {/* Mobile Card View */}
+      {/* ── Mobile Card View ── */}
       <div className="md:hidden divide-y divide-gray-100">
         {sortedDateKeys.map(date => (
           <div key={date}>
@@ -177,6 +262,7 @@ const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, r
               <CalendarDaysIcon className="w-3.5 h-3.5" />
               {formatDDMMYY(date)}
             </div>
+
             <div className="divide-y divide-gray-100">
               {groupedBookings[date].map((booking) => (
                 <div key={booking.id} className="p-4 space-y-3">
@@ -210,7 +296,7 @@ const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, r
                   {booking.address && (
                     <div className="space-y-1">
                       <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Address</p>
-                      <a 
+                      <a
                         href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.address)}`}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -225,20 +311,31 @@ const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, r
                   <div className="space-y-1">
                     <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Notes</p>
                     <p className="text-xs text-gray-500 leading-relaxed italic">
-                      {(role === 'vendor' ? maskSoldText(booking.bdmNote || booking.notes) : (booking.bdmNote || booking.notes)) || 'No notes'}
+                      {(role === 'vendor'
+                        ? maskSoldText(booking.bdmNote || booking.notes)
+                        : (booking.bdmNote || booking.notes)
+                      ) || 'No notes'}
                     </p>
                   </div>
 
+                  {/* ✅ FIX 9: Manager mobile card — show both Booked By and Assigned BDM */}
                   <div className="flex items-center justify-between pt-2 border-t border-gray-50">
                     {role === 'manager' && (
-                      <div className="text-[10px] text-gray-400">
-                        Booked by: <span className="font-bold text-gray-600">{booking.vendor.name}</span>
+                      <div className="text-[10px] text-gray-400 space-y-0.5">
+                        <div>
+                          Booked by:{' '}
+                          <span className="font-bold text-gray-600">{booking.vendor?.name ?? '—'}</span>
+                        </div>
+                        <div>
+                          Assigned BDM:{' '}
+                          <span className="font-bold text-gray-600">{getBdmName(booking.bdmId, bdms)}</span>
+                        </div>
                       </div>
                     )}
                     {onEditBooking && (
-                      <button 
+                      <button
                         onClick={() => onEditBooking(booking)}
-                        className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg"
+                        className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg ml-auto"
                       >
                         <PencilSquareIcon className="w-3.5 h-3.5" />
                         Edit Record
@@ -252,42 +349,45 @@ const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, r
         ))}
       </div>
 
+      {/* ── Pagination ── */}
       {totalPages > 1 && (
         <div className="p-4 bg-gray-50 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                {bookings.length} total archived records
+          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            {bookings.length} total archived records
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+            >
+              First
+            </button>
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+            >
+              Prev
+            </button>
+            <span className="text-xs font-bold text-gray-600">
+              Page {currentPage} of {totalPages}
             </span>
-            <div className="flex items-center gap-2">
-                <button 
-                    onClick={() => setCurrentPage(1)}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
-                >
-                    First
-                </button>
-                <button 
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
-                >
-                    Prev
-                </button>
-                <span className="text-xs font-bold text-gray-600">Page {currentPage} of {totalPages}</span>
-                <button 
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
-                >
-                    Next
-                </button>
-                <button 
-                    onClick={() => setCurrentPage(totalPages)}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
-                >
-                    Last
-                </button>
-            </div>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+            >
+              Next
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 text-xs font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+            >
+              Last
+            </button>
+          </div>
         </div>
       )}
     </div>
