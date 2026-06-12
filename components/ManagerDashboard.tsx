@@ -1232,7 +1232,13 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                     <div>
                                         <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-4 flex items-center gap-2"><CheckBadgeIcon className="w-5 h-5 text-emerald-600" /> Archived Leads (History)</h2>
                                         <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-                                            <ArchivedBookingsList bookings={archivedLeads} role="manager" searchTerm={searchTerm} onEditBooking={setBookingToEdit} />
+                                            <ArchivedBookingsList
+    bookings={archivedLeads}
+    role="manager"
+    searchTerm={searchTerm}
+    onEditBooking={(b) => setBookingToEdit(b)}
+    bdms={bdms}
+/>
                                         </div>
                                     </div>
                                 </div>
