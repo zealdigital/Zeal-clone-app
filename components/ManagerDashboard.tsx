@@ -8,7 +8,7 @@ import ArchivedBookingsList from './ArchivedBookingsList';
 import VendorPerformanceAnalytics from './VendorPerformanceAnalytics';
 import PerformanceLeadLog from './PerformanceLeadLog';
 import { getStatusPill } from '../utils/statusUtils';
-import { formatToDDMMYY } from '../utils/dateUtils';
+import { formatDDMMYY } from '../utils/dateUtils';
 import ManagerCalendar from './ManagerCalendar';
 import StatusAnalytics from './StatusAnalytics';
 import DateRangePicker from './DateRangePicker';
@@ -461,24 +461,25 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         return (allBookings || []).filter(b => !b.isBlocker);
     }, [allBookings]);
 
-    const matchesGlobalSearch = (b: Booking, term: string) => {
-        if (!term) return true;
-        const s = term.trim().toLowerCase();
-        return (
-            b.clientName.toLowerCase().includes(s) ||
-            b.businessName.toLowerCase().includes(s) ||
-            b.clientPhone.toLowerCase().includes(s) ||
-            b.clientWebsite.toLowerCase().includes(s) ||
-            b.address.toLowerCase().includes(s) ||
-            b.callerName.toLowerCase().includes(s) ||
-            b.vendor.name.toLowerCase().includes(s) ||
-            (b.notes?.toLowerCase().includes(s)) ||
-            (b.bdmNote?.toLowerCase().includes(s)) ||
-            b.date.includes(s) ||
-            b.time.toLowerCase().includes(s) ||
-            b.region.toLowerCase().includes(s) ||
-            b.status.toLowerCase().includes(s)
-        );
+    // Place this ABOVE: const ManagerDashboard: React.FC<...> = (...) => {
+    const matchesGlobalSearch = (b: Booking, term: string): boolean => {
+      if (!term) return true;
+      const s = term.trim().toLowerCase();
+      return (
+        b.clientName.toLowerCase().includes(s) ||
+        b.businessName.toLowerCase().includes(s) ||
+        b.clientPhone.toLowerCase().includes(s) ||
+        b.clientWebsite.toLowerCase().includes(s) ||
+        b.address.toLowerCase().includes(s) ||
+        b.callerName.toLowerCase().includes(s) ||
+        b.vendor.name.toLowerCase().includes(s) ||
+        !!(b.notes?.toLowerCase().includes(s)) ||
+        !!(b.bdmNote?.toLowerCase().includes(s)) ||
+        b.date.includes(s) ||
+        b.time.toLowerCase().includes(s) ||
+        b.region.toLowerCase().includes(s) ||
+        b.status.toLowerCase().includes(s)
+      );
     };
 
     const activeLeads = useMemo(() => {
