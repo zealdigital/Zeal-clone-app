@@ -1,8 +1,5 @@
 import { db } from '../firebaseConfig';
-import {
-  doc, onSnapshot, writeBatch, getDoc, setDoc,
-  collection, getDocs, query, where
-} from 'firebase/firestore';
+import { doc, onSnapshot, writeBatch, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 import type { PersistedState, Booking } from '../types';
 
 const COLLECTION_NAME = 'app_data';
@@ -10,13 +7,15 @@ const CONFIG_DOC_ID = 'globalState';
 const BOOKINGS_PREFIX = 'bookings_part_';
 const NOTIFICATIONS_PREFIX = 'notifications_part_';
 
-// ✅ FIX 1: Reduced from 300 to a realistic max.
-// Most apps never exceed 50 shards (= 5000 bookings at 100/shard).
-// Raise this if you ever exceed 5000 bookings.
+// ✅ FIX: Reduced from 300 to 50.
+// Booking IDs are Date.now() timestamps (~1718000000000).
+// getShardIndexForBooking = Math.floor(id / 100) % MAX_SHARDS
+// So with MAX_SHARDS=50, shard spread is 0..49 — all reachable.
+// With MAX_SHARDS=300, shard 0 is almost NEVER written (only if id < 100),
+// which caused the hasShard0 guard to block all bookings from rendering.
 const MAX_SHARDS = 50;
 const ITEMS_PER_CHUNK = 100;
 
-// Throttle variables
 let lastWriteTime = 0;
 const MIN_WRITE_INTERVAL = 300;
 let pendingSaveTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -39,7 +38,6 @@ const getShardIndexForBooking = (bookingId: number): number => {
   return Math.floor(bookingId / ITEMS_PER_CHUNK) % MAX_SHARDS;
 };
 
-// ✅ FIX 2: saveSingleBookingToFirebase — unchanged, already correct
 export const saveSingleBookingToFirebase = async (booking: Booking): Promise<boolean> => {
   if (!db) return false;
   try {
@@ -90,16 +88,22 @@ export const deleteSingleBookingFromFirebase = async (bookingId: number): Promis
 };
 
 /**
- * ✅ FIX 3: Smart subscribeToState
+ * ✅ KEY FIX for "active leads not showing":
  *
- * OLD behaviour: open 601 onSnapshot listeners immediately on ALL shards.
- * NEW behaviour:
- *   1. One-time getDocs on the collection to discover which shard docs actually exist.
- *   2. Only open onSnapshot listeners on docs that exist + the config doc.
- *   3. Debounce increased from 300ms → 800ms so the initial load causes at most
- *      a handful of React renders instead of hundreds.
- *   4. isComplete fires as soon as all KNOWN docs have responded — not after
- *      waiting for all 601 empty docs to time out.
+ * ROOT CAUSE: The old code used `hasShard0` as a guard:
+ *   allBookings: (hasShard0 || reallyEmpty) ? allBookings : undefined
+ *
+ * Booking IDs are Date.now() timestamps (~1718000000000).
+ * getShardIndexForBooking(1718000000000) = Math.floor(17180000000) % 300 = 200
+ * So ALL real bookings land on shards 0..49 when MAX_SHARDS=50,
+ * but with MAX_SHARDS=300 they land on shards like 187, 200, 233 — never shard 0.
+ * hasShard0 was therefore always false, and allBookings was always undefined.
+ *
+ * FIX: Remove the hasShard0 guard entirely. Instead:
+ * - Use getDocs() once to discover which shard docs actually exist.
+ * - Only subscribe to those docs + the config doc.
+ * - Mark isComplete once all subscribed docs have responded.
+ * - Always pass allBookings (even if empty array) once complete.
  */
 export const subscribeToState = (
   onUpdate: (data: Partial<PersistedState>, isComplete: boolean) => void,
@@ -111,14 +115,10 @@ export const subscribeToState = (
   const receivedIds = new Set<string>();
   const unsubs: (() => void)[] = [];
   let debounceTimer: any = null;
-  let expectedIds: string[] = [];
-  let firstLoadComplete = false;
+  let subscribedDocIds: string[] = [];
 
   const emitUpdate = () => {
     if (debounceTimer) clearTimeout(debounceTimer);
-    // ✅ FIX 4: Increased debounce from 300ms to 800ms
-    // During initial load this prevents React from re-rendering on every arriving shard.
-    // For live updates (1-2 docs changing) the 800ms delay is imperceptible.
     debounceTimer = setTimeout(() => {
       let allBookings: any[] = [];
       let allNotifications: any[] = [];
@@ -128,7 +128,7 @@ export const subscribeToState = (
         configProps = { ...parts[CONFIG_DOC_ID] };
       }
 
-      // Reconstruct from shards that actually have data
+      // Collect from all known shard docs
       Object.keys(parts).forEach(key => {
         if (key.startsWith(BOOKINGS_PREFIX) && Array.isArray(parts[key]?.chunk)) {
           allBookings = allBookings.concat(parts[key].chunk);
@@ -138,24 +138,23 @@ export const subscribeToState = (
         }
       });
 
-      const isInitialLoadComplete = receivedIds.size >= expectedIds.length;
-
-      if (!firstLoadComplete && isInitialLoadComplete) {
-        firstLoadComplete = true;
-      }
+      // ✅ isComplete = all subscribed docs have reported back at least once
+      const isComplete = subscribedDocIds.length > 0 &&
+        receivedIds.size >= subscribedDocIds.length;
 
       const finalState: Partial<PersistedState> = {
         ...configProps,
-        allBookings: allBookings.length > 0 ? allBookings : (isInitialLoadComplete ? [] : undefined),
-        notifications: allNotifications.length > 0 ? allNotifications : (isInitialLoadComplete ? [] : undefined),
+        // ✅ Always pass arrays once complete — no more hasShard0 guard
+        allBookings: isComplete ? allBookings : undefined,
+        notifications: isComplete ? allNotifications : undefined,
       };
 
-      onUpdate(finalState, isInitialLoadComplete);
+      onUpdate(finalState, isComplete);
     }, 800);
   };
 
   const openListeners = (docIds: string[]) => {
-    expectedIds = docIds;
+    subscribedDocIds = docIds;
     docIds.forEach(id => {
       const docRef = doc(db, COLLECTION_NAME, id);
       const unsub = onSnapshot(docRef, (snap) => {
@@ -178,41 +177,28 @@ export const subscribeToState = (
     });
   };
 
-  // ✅ FIX 5: Discover which shards actually exist before opening any listeners.
-  // This replaces opening 601 listeners blindly.
+  // Discover which shard documents actually exist, then only subscribe to those.
+  // This replaces opening 300+ listeners blindly.
   (async () => {
     try {
       const colRef = collection(db, COLLECTION_NAME);
       const snap = await getDocs(colRef);
-      const existingDocIds: string[] = [];
-
-      // Always listen to the config doc
-      existingDocIds.push(CONFIG_DOC_ID);
+      const existingDocIds: Set<string> = new Set([CONFIG_DOC_ID]);
 
       snap.forEach(d => {
         const id = d.id;
-        // Only include shard docs within our known range
         if (
-          id === CONFIG_DOC_ID ||
-          (id.startsWith(BOOKINGS_PREFIX) && parseInt(id.replace(BOOKINGS_PREFIX, '')) < MAX_SHARDS) ||
-          (id.startsWith(NOTIFICATIONS_PREFIX) && parseInt(id.replace(NOTIFICATIONS_PREFIX, '')) < MAX_SHARDS)
+          (id.startsWith(BOOKINGS_PREFIX) || id.startsWith(NOTIFICATIONS_PREFIX)) &&
+          id !== CONFIG_DOC_ID
         ) {
-          if (!existingDocIds.includes(id)) {
-            existingDocIds.push(id);
-          }
+          existingDocIds.add(id);
         }
       });
 
-      // If no shard docs exist yet (fresh install), still mark as complete
-      if (existingDocIds.length === 1) {
-        // Only config doc — likely a fresh install, no bookings yet
-        openListeners(existingDocIds);
-      } else {
-        openListeners(existingDocIds);
-      }
+      openListeners(Array.from(existingDocIds));
     } catch (err) {
-      console.error("Failed to discover shards, falling back to config-only:", err);
-      // Graceful fallback: at minimum listen to the config doc
+      console.warn("Could not pre-scan shards, subscribing to config only:", err);
+      // Safe fallback: at minimum get the config and mark complete
       openListeners([CONFIG_DOC_ID]);
     }
   })();
@@ -235,11 +221,6 @@ const setIsSaving = (val: boolean) => {
   if (onSyncStatusChange) onSyncStatusChange(val);
 };
 
-/**
- * ✅ FIX 6: saveStateToFirebase — debounce increased from 500ms → 1000ms
- * so that rapid sequential updates (e.g. BDM clicking through statuses) are
- * batched into one write instead of firing a Firestore batch per click.
- */
 export const saveStateToFirebase = async (partialState: Partial<PersistedState>) => {
   if (!db) return;
 
@@ -266,7 +247,7 @@ export const saveStateToFirebase = async (partialState: Partial<PersistedState>)
       return;
     }
     await performQueuedSave();
-  }, 1000); // ✅ increased from 500ms
+  }, 1000);
 
   async function performQueuedSave() {
     const stateToSave = { ...pendingUpdates! };
@@ -316,12 +297,11 @@ const performSave = async (partialState: Partial<PersistedState>) => {
       }
     };
 
-    // ✅ FIX 7: Only write shards that are NEEDED, don't delete up to MAX_SHARDS.
-    // The old code would delete shards 0..299 every save — even empty ones.
-    // Now we only write shards with data and delete shards beyond neededShards
-    // (capped at MAX_SHARDS, not 300).
     if (allBookings !== undefined && Array.isArray(allBookings)) {
-      const neededShards = Math.ceil(allBookings.length / ITEMS_PER_CHUNK);
+      const neededShards = Math.min(
+        Math.ceil(allBookings.length / ITEMS_PER_CHUNK),
+        MAX_SHARDS
+      );
       const processedShards = new Set<number>();
 
       for (let i = 0; i < neededShards; i++) {
@@ -335,7 +315,6 @@ const performSave = async (partialState: Partial<PersistedState>) => {
         if (batchCount >= 8) await commitBatch();
       }
 
-      // Only clean up shards up to MAX_SHARDS, not 300
       for (let i = neededShards; i < MAX_SHARDS; i++) {
         if (processedShards.has(i)) continue;
         const docRef = doc(db, COLLECTION_NAME, `${BOOKINGS_PREFIX}${i}`);
@@ -347,7 +326,10 @@ const performSave = async (partialState: Partial<PersistedState>) => {
     }
 
     if (notifications !== undefined && Array.isArray(notifications)) {
-      const neededShards = Math.ceil(notifications.length / ITEMS_PER_CHUNK);
+      const neededShards = Math.min(
+        Math.ceil(notifications.length / ITEMS_PER_CHUNK),
+        MAX_SHARDS
+      );
       for (let i = 0; i < neededShards; i++) {
         const docRef = doc(db, COLLECTION_NAME, `${NOTIFICATIONS_PREFIX}${i}`);
         const chunk = notifications.slice(i * ITEMS_PER_CHUNK, (i + 1) * ITEMS_PER_CHUNK);
