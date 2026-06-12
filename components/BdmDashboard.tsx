@@ -225,33 +225,38 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
   }, [searchTerm, activeAssignedBookings, dateRange]);
 
   const filteredArchivedBookings = useMemo(() => {
-      const search = searchTerm.trim().toLowerCase();
-      return archivedAssignedBookings.filter(booking => {
-          const isSearching = search !== '' || dateRange.startDate || dateRange.endDate;
-          const [y, m, d] = booking.date.split('-').map(Number);
-          const bookingDate = new Date(y, m - 1, d); 
-          if (!isSearching && bookingDate < visibilityCutoff) return false;
-          if (dateRange.startDate && booking.date < dateRange.startDate) return false;
-          if (dateRange.endDate && booking.date > dateRange.endDate) return false;
-          
-          if (!search) return true;
-          return (
-              booking.clientName.toLowerCase().includes(search) ||
-              booking.businessName.toLowerCase().includes(search) ||
-              booking.clientPhone.toLowerCase().includes(search) ||
-              booking.clientWebsite.toLowerCase().includes(search) ||
-              booking.address.toLowerCase().includes(search) ||
-              booking.callerName.toLowerCase().includes(search) ||
-              booking.vendor.name.toLowerCase().includes(search) ||
-              (booking.notes?.toLowerCase() || '').includes(search) ||
-              (booking.bdmNote?.toLowerCase() || '').includes(search) ||
-              booking.date.includes(search) ||
-              booking.time.toLowerCase().includes(search) ||
-              booking.region.toLowerCase().includes(search) ||
-              booking.status.toLowerCase().includes(search)
-          );
-      }).sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
-  }, [searchTerm, archivedAssignedBookings, dateRange, visibilityCutoff]);
+    const search = searchTerm.trim().toLowerCase();
+    return archivedAssignedBookings.filter(booking => {
+        const isSearching = search !== '' || dateRange.startDate || dateRange.endDate;
+        const [y, m, d] = booking.date.split('-').map(Number);
+        const bookingDate = new Date(y, m - 1, d); 
+        if (!isSearching && bookingDate < visibilityCutoff) return false;
+        if (dateRange.startDate && booking.date < dateRange.startDate) return false;
+        if (dateRange.endDate && booking.date > dateRange.endDate) return false;
+        
+        if (!search) return true;
+        return (
+            booking.clientName.toLowerCase().includes(search) ||
+            booking.businessName.toLowerCase().includes(search) ||
+            booking.clientPhone.toLowerCase().includes(search) ||
+            booking.clientWebsite.toLowerCase().includes(search) ||
+            booking.address.toLowerCase().includes(search) ||
+            booking.callerName.toLowerCase().includes(search) ||
+            booking.vendor.name.toLowerCase().includes(search) ||
+            (booking.notes?.toLowerCase() || '').includes(search) ||
+            (booking.bdmNote?.toLowerCase() || '').includes(search) ||
+            booking.date.includes(search) ||
+            booking.time.toLowerCase().includes(search) ||
+            booking.region.toLowerCase().includes(search) ||
+            booking.status.toLowerCase().includes(search)
+        );
+    }).sort((a, b) => {
+        // Sort by creation date (newest first) using createdAt
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : a.id;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : b.id;
+        return timeB - timeA;
+    });
+}, [searchTerm, archivedAssignedBookings, dateRange, visibilityCutoff]);
 
   const analyticsBookings = useMemo(() => {
     return myUniqueBookings.filter(b => {
