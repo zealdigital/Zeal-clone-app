@@ -307,7 +307,7 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
                                             <td className="p-3 text-gray-500 whitespace-nowrap">{b.clientPhone || '-'}</td>
                                             <td className="p-3 text-gray-500 whitespace-nowrap">{b.clientEmail || '-'}</td>
                                             <td className="p-3 text-indigo-600 truncate max-w-[120px]" title={b.clientWebsite}>{b.clientWebsite || '-'}</td>
-                                            <td className="p-3 text-gray-600 whitespace-nowrap">{formatToDDMMYY(b.date)}</td>
+                                            <td className="p-3 text-gray-600 whitespace-nowrap">{formatDDMMYY(b.date)}</td>
                                             <td className="p-3">
                                                 <span className="px-1.5 py-0.5 bg-gray-100 rounded font-bold uppercase text-[9px]">{b.region}</span>
                                             </td>
@@ -728,7 +728,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
 
         if (approvedBooking) {
             const targetId = approvedBooking.bdmId || approvedBooking.vendor.id;
-            setNotifications(prev => [...prev, { id: Date.now(), vendorId: targetId, bookingId, message: `Request Approved: ${approvedBooking?.clientName} on ${formatToDDMMYY(approvedBooking?.date || '')}`, read: false, timestamp: new Date().toISOString() }]);
+            setNotifications(prev => [...prev, { id: Date.now(), vendorId: targetId, bookingId, message: `Request Approved: ${approvedBooking?.clientName} on ${formatDDMMYY(approvedBooking?.date || '')}`, read: false, timestamp: new Date().toISOString() }]);
             const targetUser = approvedBooking.bdmId ? bdms.find(b => b.id === approvedBooking?.bdmId) : vendors.find(v => v.id === approvedBooking?.vendor.id);
             if (targetUser && targetUser.notificationPreferences?.requestDecision && targetUser.email) {
                  sendEmailNotification(
