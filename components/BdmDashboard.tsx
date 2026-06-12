@@ -110,12 +110,15 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
     setCurrentPage(1);
   }, [searchTerm, dateRange]);
 
-  const visibilityCutoff = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0); 
-    d.setDate(d.getDate() - 7);
-    return d;
-  }, []);
+  // 7 days ago from when the app loaded — stable reference, never changes mid-session
+    const VISIBILITY_CUTOFF_DAYS = 7;
+    function getVisibilityCutoff(): Date {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - VISIBILITY_CUTOFF_DAYS);
+      return d;
+    }
+    const visibilityCutoff = VISIBILITY_CUTOFF;
 
   const handleSaveSettings = (e: React.FormEvent) => {
       e.preventDefault();
