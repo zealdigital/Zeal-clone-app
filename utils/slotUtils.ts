@@ -24,13 +24,15 @@ const sortTimeSlots = (slots: string[]): string[] => {
 };
 
 /**
- * Determines the correct list of appointment slots for a given day,
- * considering specific date overrides, then day-of-the-week overrides,
- * and finally the base schedule for the region.
+ * Determines the correct list of appointment slots for a given day.
  * 
- * IMPORTANT: Overrides are MERGED with base slots instead of replacing them,
- * ensuring that all standard slots remain available while allowing additional
- * custom slots for specific dates.
+ * Priority order (highest to lowest):
+ * 1. Specific date override (one-off) - REPLACES all other slots
+ * 2. Day-of-the-week override (recurring) - REPLACES base slots for that day
+ * 3. Base schedule (fallback)
+ * 
+ * This ensures that when a manager sets a day-specific override in the UI,
+ * it correctly replaces the standard slots for that day of the week.
  */
 export const getAppointmentSlotsForDay = (
     date: Date,
@@ -42,25 +44,24 @@ export const getAppointmentSlotsForDay = (
         return [];
     }
 
-    // Start with base slots as the foundation
-    let allSlots = [...config.base];
-
-    // 1. Check for a specific date override and merge with base slots
+    // 1. HIGHEST PRIORITY: Check for a specific date override (one-off)
+    // This completely replaces all other slots
     const dateString = formatDateForStorage(date);
     if (config.overrides.date && config.overrides.date[dateString]) {
         const dateOverrideSlots = config.overrides.date[dateString];
-        // Merge date override slots with base slots (remove duplicates)
-        allSlots = [...new Set([...allSlots, ...dateOverrideSlots])];
+        // Return date override slots as-is (no merging with base)
+        return sortTimeSlots([...dateOverrideSlots]);
     }
 
-    // 2. Check for a day-of-the-week override and merge with existing slots
+    // 2. MEDIUM PRIORITY: Check for a day-of-the-week override (recurring)
+    // This replaces the base slots for this specific day of the week
     const dayOfWeek = date.getDay();
     if (config.overrides.dayOfWeek && config.overrides.dayOfWeek[dayOfWeek]) {
         const dayOverrideSlots = config.overrides.dayOfWeek[dayOfWeek]!;
-        // Merge day override slots with existing slots (remove duplicates)
-        allSlots = [...new Set([...allSlots, ...dayOverrideSlots])];
+        // Return day override slots as-is (no merging with base)
+        return sortTimeSlots([...dayOverrideSlots]);
     }
 
-    // Return chronologically sorted slots
-    return sortTimeSlots(allSlots);
+    // 3. LOWEST PRIORITY: Fall back to the base schedule
+    return sortTimeSlots([...config.base]);
 };
