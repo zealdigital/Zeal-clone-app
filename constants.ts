@@ -45,12 +45,9 @@ export const APPOINTMENT_TIMES: Record<Region, AppointmentSlotsConfig> = {
         }
     },
     VIC: {
-        base: ['10:00 AM', '12:00 PM', '02:00 PM', '04:00 PM'],
+        base: ['09:00 AM', '11:00 PM', '01:00 PM', '03:00 PM'],
         overrides: {
-            dayOfWeek: {
-                // 5 = Friday (0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday)
-                5: ['9:00 AM', '11:00 AM', '1:00 PM', '3:00 PM']
-            },
+            dayOfWeek: {},
             date: {}
         }
     },
