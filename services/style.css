@@ -1,6 +1,6 @@
 /* If you don't have this file, create it */
 .max-w-7xl {
-  max-width: 100rem; /* 80rem = 1280px */
+  max-width: 100rem !important; /* 80rem = 1280px */
 }
  
 /* Also add these common Tailwind classes that might be missing */
