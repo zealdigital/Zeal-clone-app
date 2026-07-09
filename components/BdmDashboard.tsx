@@ -436,7 +436,7 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
       <div>
         <Header currentUser={currentUser} onLogout={onLogout} branding={branding} notifications={(notifications || []).filter(n => n.vendorId === currentUser.id)} setNotifications={setNotifications} />
         <main className="p-4 sm:p-6 lg:p-8">
-            <div className="max-w-[100rem] mx-auto">
+            <div className="max-w-8xl mx-auto">
             <div className="mb-6 border-b border-gray-300/50">
                 <nav className="flex flex-wrap gap-x-6 gap-y-2 -mb-px">
                     <button 
