@@ -1046,7 +1046,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         <div className="min-h-screen transition-colors duration-300" style={{ backgroundColor: dashboardBackground }}>
             <Header currentUser={currentUser} onLogout={onLogout} branding={branding} notifications={myNotifications} setNotifications={setNotifications} />
             <main className="p-4 sm:p-6 lg:p-8">
-                <div className="max-w-7xl mx-auto">
+                <div className="max-w-[100rem] mx-auto">
                     <div className="border-b border-gray-300">
                         <nav className="flex flex-wrap gap-x-6 gap-y-2 -mb-px">
                             {[
