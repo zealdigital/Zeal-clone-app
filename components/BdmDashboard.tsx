@@ -110,15 +110,22 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
     setCurrentPage(1);
   }, [searchTerm, dateRange]);
 
-  // 7 days ago from when the app loaded — stable reference, never changes mid-session
-    const VISIBILITY_CUTOFF_DAYS = 7;
-    function getVisibilityCutoff(): Date {
-      const d = new Date();
-      d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() - VISIBILITY_CUTOFF_DAYS);
-      return d;
-    }
-    const visibilityCutoff = VISIBILITY_CUTOFF;
+  // // 7 days ago from when the app loaded — stable reference, never changes mid-session
+  //   const VISIBILITY_CUTOFF_DAYS = 7;
+  //   function getVisibilityCutoff(): Date {
+  //     const d = new Date();
+  //     d.setHours(0, 0, 0, 0);
+  //     d.setDate(d.getDate() - VISIBILITY_CUTOFF_DAYS);
+  //     return d;
+  //   }
+  //   const visibilityCutoff = VISIBILITY_CUTOFF;
+    // 7 days ago from when the app loaded — stable reference, never changes mid-session
+const visibilityCutoff = (() => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - 7);
+  return d;
+})();
 
   const handleSaveSettings = (e: React.FormEvent) => {
       e.preventDefault();
@@ -436,7 +443,7 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
       <div>
         <Header currentUser={currentUser} onLogout={onLogout} branding={branding} notifications={(notifications || []).filter(n => n.vendorId === currentUser.id)} setNotifications={setNotifications} />
         <main className="p-4 sm:p-6 lg:p-8">
-            <div className="max-w-8xl mx-auto">
+            <div className="max-w-[100rem] mx-auto">
             <div className="mb-6 border-b border-gray-300/50">
                 <nav className="flex flex-wrap gap-x-6 gap-y-2 -mb-px">
                     <button 
