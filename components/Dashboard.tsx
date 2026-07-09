@@ -402,7 +402,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div> 
           <Header currentUser={currentUser} onLogout={onLogout} notifications={myNotifications} setNotifications={setNotifications} branding={branding} />
           <main className="p-4 sm:p-6 lg:p-8">
-            <div className="max-w-7xl mx-auto">
+            <div className="max-w-[100rem] mx-auto">
               
               <div className="mb-6 border-b border-gray-300/50">
                 <nav className="flex flex-wrap gap-x-6 gap-y-2 -mb-px">
