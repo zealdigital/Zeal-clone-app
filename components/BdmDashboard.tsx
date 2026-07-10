@@ -21,7 +21,6 @@ import ArchivedBookingsList from './ArchivedBookingsList';
 import { sendEmailNotification } from '../utils/emailService';
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../constants';
 import { formatDDMMYY } from '../utils/dateUtils';
-import { saveSingleBookingToFirebase } from '../services/firebaseService';
 
 const normalizeWebsite = (url: string): string => {
     if (!url) return '';
@@ -110,22 +109,12 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
     setCurrentPage(1);
   }, [searchTerm, dateRange]);
 
-  // // 7 days ago from when the app loaded — stable reference, never changes mid-session
-  //   const VISIBILITY_CUTOFF_DAYS = 7;
-  //   function getVisibilityCutoff(): Date {
-  //     const d = new Date();
-  //     d.setHours(0, 0, 0, 0);
-  //     d.setDate(d.getDate() - VISIBILITY_CUTOFF_DAYS);
-  //     return d;
-  //   }
-  //   const visibilityCutoff = VISIBILITY_CUTOFF;
-    // 7 days ago from when the app loaded — stable reference, never changes mid-session
-const visibilityCutoff = (() => {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - 7);
-  return d;
-})();
+  const visibilityCutoff = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0); 
+    d.setDate(d.getDate() - 7);
+    return d;
+  }, []);
 
   const handleSaveSettings = (e: React.FormEvent) => {
       e.preventDefault();
@@ -138,10 +127,12 @@ const visibilityCutoff = (() => {
     return (allBookings || []).filter(b => b.bdmId === currentUser.id && !b.isBlocker);
   }, [allBookings, currentUser.id]);
 
+  // FIX: rescheduled_bdm is now treated as an ACTIVE status so it stays in the worklist until final outcome.
   const activeAssignedBookings = useMemo(() => 
     myUniqueBookings.filter(b => ['active', 'rescheduled_bdm'].includes(b.status)), 
   [myUniqueBookings]);
 
+  // FIX: rescheduled_bdm is excluded from Archive so it doesn't move to history prematurely.
   const archivedAssignedBookings = useMemo(() => 
     myUniqueBookings.filter(b => !['active', 'rejected', 'pending_approval', 'rescheduled_bdm'].includes(b.status)), 
   [myUniqueBookings]);
@@ -176,6 +167,7 @@ const visibilityCutoff = (() => {
       );
   };
 
+  // Logic for the ACTIVE list
   const filteredActiveBookings = useMemo(() => {
     const today = new Date(); today.setHours(0,0,0,0);
     const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
@@ -231,39 +223,35 @@ const visibilityCutoff = (() => {
     });
   }, [searchTerm, activeAssignedBookings, dateRange]);
 
+  // Logic for the ARCHIVED list
   const filteredArchivedBookings = useMemo(() => {
-    const search = searchTerm.trim().toLowerCase();
-    return archivedAssignedBookings.filter(booking => {
-        const isSearching = search !== '' || dateRange.startDate || dateRange.endDate;
-        const [y, m, d] = booking.date.split('-').map(Number);
-        const bookingDate = new Date(y, m - 1, d); 
-        if (!isSearching && bookingDate < visibilityCutoff) return false;
-        if (dateRange.startDate && booking.date < dateRange.startDate) return false;
-        if (dateRange.endDate && booking.date > dateRange.endDate) return false;
-        
-        if (!search) return true;
-        return (
-            booking.clientName.toLowerCase().includes(search) ||
-            booking.businessName.toLowerCase().includes(search) ||
-            booking.clientPhone.toLowerCase().includes(search) ||
-            booking.clientWebsite.toLowerCase().includes(search) ||
-            booking.address.toLowerCase().includes(search) ||
-            booking.callerName.toLowerCase().includes(search) ||
-            booking.vendor.name.toLowerCase().includes(search) ||
-            (booking.notes?.toLowerCase() || '').includes(search) ||
-            (booking.bdmNote?.toLowerCase() || '').includes(search) ||
-            booking.date.includes(search) ||
-            booking.time.toLowerCase().includes(search) ||
-            booking.region.toLowerCase().includes(search) ||
-            booking.status.toLowerCase().includes(search)
-        );
-    }).sort((a, b) => {
-        // Sort by creation date (newest first) using createdAt
-        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : a.id;
-        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : b.id;
-        return timeB - timeA;
-    });
-}, [searchTerm, archivedAssignedBookings, dateRange, visibilityCutoff]);
+      const search = searchTerm.trim().toLowerCase();
+      return archivedAssignedBookings.filter(booking => {
+          const isSearching = search !== '' || dateRange.startDate || dateRange.endDate;
+          const [y, m, d] = booking.date.split('-').map(Number);
+          const bookingDate = new Date(y, m - 1, d); 
+          if (!isSearching && bookingDate < visibilityCutoff) return false;
+          if (dateRange.startDate && booking.date < dateRange.startDate) return false;
+          if (dateRange.endDate && booking.date > dateRange.endDate) return false;
+          
+          if (!search) return true;
+          return (
+              booking.clientName.toLowerCase().includes(search) ||
+              booking.businessName.toLowerCase().includes(search) ||
+              booking.clientPhone.toLowerCase().includes(search) ||
+              booking.clientWebsite.toLowerCase().includes(search) ||
+              booking.address.toLowerCase().includes(search) ||
+              booking.callerName.toLowerCase().includes(search) ||
+              booking.vendor.name.toLowerCase().includes(search) ||
+              (booking.notes?.toLowerCase() || '').includes(search) ||
+              (booking.bdmNote?.toLowerCase() || '').includes(search) ||
+              booking.date.includes(search) ||
+              booking.time.toLowerCase().includes(search) ||
+              booking.region.toLowerCase().includes(search) ||
+              booking.status.toLowerCase().includes(search)
+          );
+      }).sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+  }, [searchTerm, archivedAssignedBookings, dateRange, visibilityCutoff]);
 
   const analyticsBookings = useMemo(() => {
     return myUniqueBookings.filter(b => {
@@ -291,25 +279,10 @@ const visibilityCutoff = (() => {
 
   const sortedDateKeysActive = useMemo(() => Object.keys(groupedActiveBookings).sort((a, b) => new Date(b).getTime() - new Date(a).getTime()), [groupedActiveBookings]);
 
-  // FIXED: Optimistic status update with background sync
-  const handleUpdateBookingStatus = async (bookingId: number, newStatus: Booking['status'], note: string) => {
+  const handleUpdateBookingStatus = (bookingId: number, newStatus: Booking['status'], note: string) => {
     let updatedBooking: Booking | undefined;
+    setAllBookings(prev => { const newBookings = prev.map(b => { if (b.id === bookingId) { updatedBooking = { ...b, status: newStatus, bdmNote: note }; return updatedBooking; } return b; }); return newBookings; });
     
-    // Optimistic UI update - update local state immediately
-    setAllBookings(prev => { 
-      const newBookings = prev.map(b => { 
-        if (b.id === bookingId) { 
-          updatedBooking = { ...b, status: newStatus, bdmNote: note }; 
-          return updatedBooking; 
-        } 
-        return b; 
-      }); 
-      return newBookings; 
-    });
-    
-    triggerSystemAlert(`Updating status to ${newStatus.toUpperCase()}...`);
-    
-    // Send email notifications in background (don't await)
     if (updatedBooking) {
         if (updatedBooking.vendor.notificationPreferences?.statusChange && updatedBooking.vendor.email) {
             sendEmailNotification(
@@ -331,48 +304,16 @@ const visibilityCutoff = (() => {
                 );
             }
         });
-        
-        // Create notification
-        const notificationStatus = newStatus === 'sold' ? 'seen' : newStatus;
-        const newNotification: Notification = { 
-            id: Date.now(), 
-            vendorId: updatedBooking.vendor.id, 
-            bookingId: updatedBooking.id, 
-            message: `Your appointment for ${updatedBooking.clientName} has been updated to "${notificationStatus.charAt(0).toUpperCase() + notificationStatus.slice(1)}".`, 
-            read: false, 
-            timestamp: new Date().toISOString() 
-        };
-        setNotifications(prev => [...prev, newNotification]);
-        
-        // BACKGROUND SYNC: Save to Firebase without blocking UI
-        saveSingleBookingToFirebase(updatedBooking).catch(error => {
-            console.error("Background sync failed for status update:", updatedBooking.id, error);
-        });
     }
-    
+
+    if (updatedBooking) { const notificationStatus = newStatus === 'sold' ? 'seen' : newStatus; const newNotification: Notification = { id: Date.now(), vendorId: updatedBooking.vendor.id, bookingId: updatedBooking.id, message: `Your appointment for ${updatedBooking.clientName} has been updated to "${notificationStatus.charAt(0).toUpperCase() + notificationStatus.slice(1)}".`, read: false, timestamp: new Date().toISOString() }; setNotifications(prev => [...prev, newNotification]); }
     setBookingToUpdate(null); 
-    triggerSystemAlert(`Lead status updated to ${newStatus.toUpperCase()}. Syncing in background.`);
+    triggerSystemAlert("Lead status updated and team notified.");
   };
   
   const handleSaveNoteAndReminder = (bookingId: number, note: string, reminder: string | null) => { 
-    let updatedBooking: Booking | undefined;
-    setAllBookings(prev => prev.map(b => {
-      if (b.id === bookingId) {
-        updatedBooking = { ...b, bdmPrivateNote: note || undefined, bdmReminder: reminder || undefined };
-        return updatedBooking;
-      }
-      return b;
-    }));
-    
-    // Background sync for note updates
-    if (updatedBooking) {
-      saveSingleBookingToFirebase(updatedBooking).catch(error => {
-        console.error("Background sync failed for note update:", bookingId, error);
-      });
-    }
-    
+    setAllBookings(prev => prev.map(b => b.id === bookingId ? { ...b, bdmPrivateNote: note || undefined, bdmReminder: reminder || undefined } : b)); 
     setBookingToManageNotes(null); 
-    triggerSystemAlert("Notes and reminder saved.");
   };
 
   const handleOpenRequestModal = (prefill: Booking | null = null) => { setRequestModalPrefill(prefill); setIsRequestModalOpen(true); };
@@ -395,13 +336,12 @@ const visibilityCutoff = (() => {
       const newBooking: Booking = { 
           ...bookingDetails, 
           id: requestId, 
-          createdAt: new Date().toISOString().split('T')[0],
           status: 'pending_approval',
           isDuplicate: !!existingMatch,
-          duplicateOfBookingId: existingMatch?.id
+          duplicateOfBookingId: existingMatch?.id,
+          bookedAt: new Date().toISOString()
       };
 
-      // Fire and forget emails
       managers.forEach(m => { 
         if (m.notificationPreferences?.bookingRequest && m.email) {
             sendEmailNotification(
@@ -413,21 +353,14 @@ const visibilityCutoff = (() => {
             );
         }
       });
-      
       const managerNotif: Notification = { id: Date.now(), vendorId: 0, bookingId: requestId, message: `${originalId ? 'Reschedule' : 'New'} Request from BDM ${currentUser.name}: ${bookingDetails.clientName}${existingMatch ? ' (Duplicate)' : ''}`, read: false, timestamp: new Date().toISOString() };
+      setNotifications(prev => [...prev, managerNotif]);
       
-      // Optimistic UI update
       if (originalId) {
           setAllBookings(prev => prev.map(b => b.id === originalId ? newBooking : b));
       } else {
           setAllBookings(prev => [...prev, newBooking]);
       }
-      setNotifications(prev => [...prev, managerNotif]);
-      
-      // Background sync
-      saveSingleBookingToFirebase(newBooking).catch(error => {
-        console.error("Background sync failed for request:", requestId, error);
-      });
       
       setIsRequestModalOpen(false); 
       triggerSystemAlert(originalId ? "Reschedule request sent to Managers." : (existingMatch ? "Request sent (Duplicate detected)." : "Booking request sent to Managers."));
@@ -435,45 +368,18 @@ const visibilityCutoff = (() => {
   
   const bgColor = getRegionBackgroundColor(currentUser.region, regionColors);
 
-  // Helper to check if there are any active bookings to show
-  const hasActiveBookings = filteredActiveBookings.length > 0;
-
   return (
     <div className="min-h-screen transition-colors duration-300" style={{ backgroundColor: bgColor }}>
       <div>
         <Header currentUser={currentUser} onLogout={onLogout} branding={branding} notifications={(notifications || []).filter(n => n.vendorId === currentUser.id)} setNotifications={setNotifications} />
         <main className="p-4 sm:p-6 lg:p-8">
-            <div className="max-w-[100rem] mx-auto">
-            <div className="mb-6 border-b border-gray-300/50">
-                <nav className="flex flex-wrap gap-x-6 gap-y-2 -mb-px">
-                    <button 
-                        onClick={() => setActiveTab('dashboard')} 
-                        className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-all ${activeTab === 'dashboard' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-                    >
-                        <DocumentTextIcon className="w-5 h-5" /> 
-                        <span>Appointments List</span>
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('calendar')} 
-                        className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-all ${activeTab === 'calendar' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-                    >
-                        <CalendarDaysIcon className="w-5 h-5" /> 
-                        <span>My Calendar</span>
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('performance')} 
-                        className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-all ${activeTab === 'performance' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-                    >
-                        <PresentationChartLineIcon className="w-5 h-5" /> 
-                        <span>My Performance</span>
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('settings')} 
-                        className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-all ${activeTab === 'settings' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-                    >
-                        <Cog6ToothIcon className="w-5 h-5" /> 
-                        <span>Settings</span>
-                    </button>
+            <div className="max-w-7xl mx-auto">
+            <div className="mb-6 border-b border-gray-300/50 overflow-x-auto">
+                <nav className="-mb-px flex space-x-8">
+                    <button onClick={() => setActiveTab('dashboard')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'dashboard' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><DocumentTextIcon className="w-5 h-5" /> Appointments List</button>
+                    <button onClick={() => setActiveTab('calendar')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'calendar' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><CalendarDaysIcon className="w-5 h-5" /> My Calendar</button>
+                    <button onClick={() => setActiveTab('performance')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'performance' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><PresentationChartLineIcon className="w-5 h-5" /> My Performance</button>
+                    <button onClick={() => setActiveTab('settings')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'settings' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><Cog6ToothIcon className="w-5 h-5" /> Settings</button>
                 </nav>
             </div>
 
@@ -538,21 +444,12 @@ const visibilityCutoff = (() => {
                     </div>
 
                     <div className="space-y-12 pb-12">
-                        {/* ACTIVE SECTION - ALWAYS SHOW MOBILE VIEW */}
+                        {/* ACTIVE SECTION */}
                         <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
-                            {/* Desktop Table View - Hidden on mobile */}
+                            {/* Desktop Table View */}
                             <div className="hidden md:block overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Client & Business</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Calling Team</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Time</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Notes</th>
-                                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-widest">Actions</th>
-                                        </tr>
-                                    </thead>
+                                    <thead className="bg-gray-50"><tr><th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Client & Business</th><th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Calling Team</th><th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Time</th><th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th><th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Notes</th><th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-widest">Actions</th></tr></thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
                                         {sortedDateKeysActive.length === 0 ? (
                                             <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-500 italic">No active appointments matching your criteria.</td></tr>
@@ -600,12 +497,7 @@ const visibilityCutoff = (() => {
                                                                         </div>
                                                                     )}
                                                                 </div>
-                                                            </td>
-                                                            <td className="px-6 py-5 align-top whitespace-nowrap text-sm text-gray-600 font-medium pt-7">{booking.vendor.name}</td>
-                                                            <td className="px-6 py-5 align-top whitespace-nowrap pt-7"><div className="text-sm font-black text-gray-900">{booking.time}</div></td>
-                                                            <td className="px-6 py-5 align-top pt-6">{getStatusPill(booking.status)}</td>
-                                                            <td className="px-6 py-5 align-top text-sm text-gray-500 max-w-xs pt-7"><ExpandableNote text={booking.bdmNote || booking.notes} /></td>
-                                                            <td className="px-6 py-5 align-top whitespace-nowrap text-sm font-medium pt-6">
+                                                            </td><td className="px-6 py-5 align-top whitespace-nowrap text-sm text-gray-600 font-medium pt-7">{booking.vendor.name}</td><td className="px-6 py-5 align-top whitespace-nowrap pt-7"><div className="text-sm font-black text-gray-900">{booking.time}</div></td><td className="px-6 py-5 align-top pt-6">{getStatusPill(booking.status)}</td><td className="px-6 py-5 align-top text-sm text-gray-500 max-w-xs pt-7"><ExpandableNote text={booking.bdmNote || booking.notes} /></td><td className="px-6 py-5 align-top whitespace-nowrap text-sm font-medium pt-6">
                                                                 <div className="flex justify-end gap-2">
                                                                     {booking.status === 'rescheduled_bdm' && (
                                                                     <button 
@@ -623,8 +515,7 @@ const visibilityCutoff = (() => {
                                                                     <BellIcon className="w-4 h-4" />
                                                                     </button>
                                                                 </div>
-                                                            </td>
-                                                        </tr>
+                                                            </td></tr>
                                                     ))}
                                                 </React.Fragment>
                                             ))
@@ -633,7 +524,7 @@ const visibilityCutoff = (() => {
                                 </table>
                             </div>
 
-                            {/* Mobile Card View - Always visible on mobile, conditionally visible on desktop when no data? Let's simplify: always show on all screens, but with responsive classes */}
+                            {/* Mobile Card View */}
                             <div className="md:hidden divide-y divide-gray-200">
                                 {sortedDateKeysActive.length === 0 ? (
                                     <div className="px-6 py-12 text-center text-gray-500 italic">No active appointments matching your criteria.</div>

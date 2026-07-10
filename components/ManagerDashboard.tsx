@@ -8,7 +8,7 @@ import ArchivedBookingsList from './ArchivedBookingsList';
 import VendorPerformanceAnalytics from './VendorPerformanceAnalytics';
 import PerformanceLeadLog from './PerformanceLeadLog';
 import { getStatusPill } from '../utils/statusUtils';
-import { formatDDMMYY } from '../utils/dateUtils';
+import { formatToDDMMYY } from '../utils/dateUtils';
 import ManagerCalendar from './ManagerCalendar';
 import StatusAnalytics from './StatusAnalytics';
 import DateRangePicker from './DateRangePicker';
@@ -25,9 +25,6 @@ import NotificationSettings from './NotificationSettings';
 import BdmBookingRequestModal from './BdmBookingRequestModal';
 import BdmOutcomePerformance from './BdmOutcomePerformance';
 import { sendEmailNotification } from '../utils/emailService';
-import { saveSingleBookingToFirebase } from '../services/firebaseService';
-
-
 import { DEFAULT_NOTIFICATION_PREFERENCES, MANAGERS, VENDORS, BDMS, PUBLIC_HOLIDAYS, APPOINTMENT_TIMES, DEFAULT_BRANDING, DEFAULT_REGION_COLORS } from '../constants';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -307,7 +304,7 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
                                             <td className="p-3 text-gray-500 whitespace-nowrap">{b.clientPhone || '-'}</td>
                                             <td className="p-3 text-gray-500 whitespace-nowrap">{b.clientEmail || '-'}</td>
                                             <td className="p-3 text-indigo-600 truncate max-w-[120px]" title={b.clientWebsite}>{b.clientWebsite || '-'}</td>
-                                            <td className="p-3 text-gray-600 whitespace-nowrap">{formatDDMMYY(b.date)}</td>
+                                            <td className="p-3 text-gray-600 whitespace-nowrap">{formatToDDMMYY(b.date)}</td>
                                             <td className="p-3">
                                                 <span className="px-1.5 py-0.5 bg-gray-100 rounded font-bold uppercase text-[9px]">{b.region}</span>
                                             </td>
@@ -461,25 +458,24 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         return (allBookings || []).filter(b => !b.isBlocker);
     }, [allBookings]);
 
-    // Place this ABOVE: const ManagerDashboard: React.FC<...> = (...) => {
-    const matchesGlobalSearch = (b: Booking, term: string): boolean => {
-      if (!term) return true;
-      const s = term.trim().toLowerCase();
-      return (
-        b.clientName.toLowerCase().includes(s) ||
-        b.businessName.toLowerCase().includes(s) ||
-        b.clientPhone.toLowerCase().includes(s) ||
-        b.clientWebsite.toLowerCase().includes(s) ||
-        b.address.toLowerCase().includes(s) ||
-        b.callerName.toLowerCase().includes(s) ||
-        b.vendor.name.toLowerCase().includes(s) ||
-        !!(b.notes?.toLowerCase().includes(s)) ||
-        !!(b.bdmNote?.toLowerCase().includes(s)) ||
-        b.date.includes(s) ||
-        b.time.toLowerCase().includes(s) ||
-        b.region.toLowerCase().includes(s) ||
-        b.status.toLowerCase().includes(s)
-      );
+    const matchesGlobalSearch = (b: Booking, term: string) => {
+        if (!term) return true;
+        const s = term.trim().toLowerCase();
+        return (
+            b.clientName.toLowerCase().includes(s) ||
+            b.businessName.toLowerCase().includes(s) ||
+            b.clientPhone.toLowerCase().includes(s) ||
+            b.clientWebsite.toLowerCase().includes(s) ||
+            b.address.toLowerCase().includes(s) ||
+            b.callerName.toLowerCase().includes(s) ||
+            b.vendor.name.toLowerCase().includes(s) ||
+            (b.notes?.toLowerCase().includes(s)) ||
+            (b.bdmNote?.toLowerCase().includes(s)) ||
+            b.date.includes(s) ||
+            b.time.toLowerCase().includes(s) ||
+            b.region.toLowerCase().includes(s) ||
+            b.status.toLowerCase().includes(s)
+        );
     };
 
     const activeLeads = useMemo(() => {
@@ -704,10 +700,11 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             const updatedBooking: Booking = { 
                 ...bookingToEdit, 
                 ...updatedDetails,
+                bookedAt: bookingToEdit.bookedAt || new Date().toISOString(),
                 isDuplicate: !!existingMatch,
                 duplicateOfBookingId: existingMatch?.id
             };
-            const newBlockers: Booking[] = slotsToRemove.map((time, index) => ({ id: Date.now() + index + 1, clientName: `Slot Blocked`, businessName: `Conflict`, clientWebsite: '', clientPhone: '', address: '', callerName: 'System', date: updatedBooking.date, time: time, vendor: bookingToEdit.vendor, region: updatedBooking.region, isBlocker: true, parentBookingId: updatedBooking.id, status: 'active' }));
+            const newBlockers: Booking[] = slotsToRemove.map((time, index) => ({ id: Date.now() + index + 1, clientName: `Slot Blocked`, businessName: `Conflict`, clientWebsite: '', clientPhone: '', address: '', callerName: 'System', date: updatedBooking.date, time: time, vendor: bookingToEdit.vendor, region: updatedBooking.region, isBlocker: true, parentBookingId: updatedBooking.id, status: 'active', bookedAt: new Date().toISOString() }));
             return [...otherBookings, updatedBooking, ...newBlockers];
         });
         setBookingToEdit(null);
@@ -722,13 +719,13 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             const booking = newBookings[requestIndex];
             approvedBooking = { ...booking, status: 'active' };
             newBookings[requestIndex] = approvedBooking;
-            slotsToRemove.forEach((time, index) => { newBookings.push({ id: Date.now() + index + 1, clientName: 'Manual Block', businessName: booking.clientName, clientWebsite: '', clientPhone: '', address: '', callerName: 'Manager', date: booking.date, time: time, vendor: booking.vendor, region: booking.region, isBlocker: true, parentBookingId: bookingId, status: 'active' }); });
+            slotsToRemove.forEach((time, index) => { newBookings.push({ id: Date.now() + index + 1, clientName: 'Manual Block', businessName: booking.clientName, clientWebsite: '', clientPhone: '', address: '', callerName: 'Manager', date: booking.date, time: time, vendor: booking.vendor, region: booking.region, isBlocker: true, parentBookingId: bookingId, status: 'active', bookedAt: new Date().toISOString() }); });
             return newBookings;
         });
 
         if (approvedBooking) {
             const targetId = approvedBooking.bdmId || approvedBooking.vendor.id;
-            setNotifications(prev => [...prev, { id: Date.now(), vendorId: targetId, bookingId, message: `Request Approved: ${approvedBooking?.clientName} on ${formatDDMMYY(approvedBooking?.date || '')}`, read: false, timestamp: new Date().toISOString() }]);
+            setNotifications(prev => [...prev, { id: Date.now(), vendorId: targetId, bookingId, message: `Request Approved: ${approvedBooking?.clientName} on ${formatToDDMMYY(approvedBooking?.date || '')}`, read: false, timestamp: new Date().toISOString() }]);
             const targetUser = approvedBooking.bdmId ? bdms.find(b => b.id === approvedBooking?.bdmId) : vendors.find(v => v.id === approvedBooking?.vendor.id);
             if (targetUser && targetUser.notificationPreferences?.requestDecision && targetUser.email) {
                  sendEmailNotification(
@@ -772,69 +769,65 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
          setRequestToReview(null);
     };
 
-    const handleManualBookingEntry = async (bookingDetails: Omit<Booking, 'id' | 'status'>, slotsToBlock: string[]) => {
-    const mainBookingId = Date.now();
-    
-    const normalizedWebsite = normalizeWebsite(bookingDetails.clientWebsite);
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const handleManualBookingEntry = (bookingDetails: Omit<Booking, 'id' | 'status'>, slotsToBlock: string[]) => {
+        const mainBookingId = Date.now();
+        
+        const normalizedWebsite = normalizeWebsite(bookingDetails.clientWebsite);
 
-    const existingMatch = allBookings.find(b => {
-        if (b.isBlocker || b.status === 'rejected') return false;
-        const bDate = new Date(b.date);
-        if (bDate < oneYearAgo) return false;
-        return normalizedWebsite && normalizeWebsite(b.clientWebsite) === normalizedWebsite;
-    });
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
-    const newBooking: Booking = { 
-        ...bookingDetails, 
-        id: mainBookingId, 
-        createdAt: new Date().toISOString().split('T')[0], // Add createdAt
-        status: 'active',
-        date: bookingDetails.date.trim(),
-        time: bookingDetails.time.trim(),
-        isDuplicate: !!existingMatch,
-        duplicateOfBookingId: existingMatch?.id
+        const existingMatch = allBookings.find(b => {
+            if (b.isBlocker || b.status === 'rejected') return false;
+            const bDate = new Date(b.date);
+            if (bDate < oneYearAgo) return false;
+            return normalizedWebsite && normalizeWebsite(b.clientWebsite) === normalizedWebsite;
+        });
+
+        const newBooking: Booking = { 
+            ...bookingDetails, 
+            id: mainBookingId, 
+            status: 'active',
+            date: bookingDetails.date.trim(),
+            time: bookingDetails.time.trim(),
+            isDuplicate: !!existingMatch,
+            duplicateOfBookingId: existingMatch?.id,
+            bookedAt: new Date().toISOString()
+        };
+
+        const targetRegion = bookingDetails.region;
+        const targetDate = bookingDetails.date.trim();
+
+        const blockers: Booking[] = slotsToBlock.map((slotTime, index) => ({
+            id: mainBookingId + (index + 1),
+            clientName: 'Slot Blocked',
+            businessName: 'Manual Block',
+            clientWebsite: '',
+            clientPhone: '',
+            address: '',
+            callerName: 'Manager Adjustment',
+            date: targetDate,
+            time: slotTime.trim(),
+            vendor: newBooking.vendor,
+            region: targetRegion,
+            isBlocker: true,
+            parentBookingId: mainBookingId,
+            status: 'active',
+            bookedAt: new Date().toISOString()
+        }));
+
+        sendEmailNotification(
+          "pia@zealdigital.com.au", 
+          `New Lead Booked (Admin): ${bookingDetails.businessName}`, 
+          newBooking, 
+          `Hello, Admin ${currentUser.name} has manually entered a new lead for ${bookingDetails.clientName} at ${bookingDetails.businessName}.`,
+          "ADMIN MANUAL BOOKING"
+        );
+        
+        setAllBookings(prev => [...prev, newBooking, ...blockers]);
+        setIsManualBookingOpen(false);
+        triggerSystemAlert(existingMatch ? `Lead booked (Duplicate Detected).` : `Lead booked directly.`);
     };
-
-    const targetRegion = bookingDetails.region;
-    const targetDate = bookingDetails.date.trim();
-
-    const blockers: Booking[] = slotsToBlock.map((slotTime, index) => ({
-        id: mainBookingId + (index + 1),
-        clientName: 'Slot Blocked',
-        businessName: 'Manual Block',
-        clientWebsite: '',
-        clientPhone: '',
-        address: '',
-        callerName: 'Manager Adjustment',
-        date: targetDate,
-        time: slotTime.trim(),
-        vendor: newBooking.vendor,
-        region: targetRegion,
-        isBlocker: true,
-        parentBookingId: mainBookingId,
-        status: 'active'
-    }));
-
-    sendEmailNotification(
-        "pia@zealdigital.com.au", 
-        `New Lead Booked (Admin): ${bookingDetails.businessName}`, 
-        newBooking, 
-        `Hello, Admin ${currentUser.name} has manually entered a new lead for ${bookingDetails.clientName} at ${bookingDetails.businessName}.`,
-        "ADMIN MANUAL BOOKING"
-    );
-    
-    // OPTIMISTIC UI UPDATE
-    setAllBookings(prev => [...prev, newBooking, ...blockers]);
-    setIsManualBookingOpen(false);
-    triggerSystemAlert(existingMatch ? `Lead booked (Duplicate Detected).` : `Lead booked directly.`);
-    
-    // BACKGROUND SYNC
-    saveSingleBookingToFirebase(newBooking).catch(error => {
-        console.error("Background sync failed for manual booking:", newBooking.id, error);
-    });
-};
 
     const handleSaveUser = (updatedUser: Vendor | BDM | Manager) => {
         if (editingUser?.type === 'vendor') setVendors(prev => prev.map(v => v.id === updatedUser.id ? (updatedUser as Vendor) : v)); 
@@ -899,12 +892,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     };
 
     const handleDeleteLeave = (id: number) => { setLeaveDays(prev => prev.filter(l => l.id !== id)); };
-    
-    
-    
 
-
-    
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -1046,24 +1034,11 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         <div className="min-h-screen transition-colors duration-300" style={{ backgroundColor: dashboardBackground }}>
             <Header currentUser={currentUser} onLogout={onLogout} branding={branding} notifications={myNotifications} setNotifications={setNotifications} />
             <main className="p-4 sm:p-6 lg:p-8">
-                <div className="max-w-[100rem] mx-auto">
+                <div className="max-w-7xl mx-auto">
                     <div className="border-b border-gray-300">
-                        <nav className="flex flex-wrap gap-x-6 gap-y-2 -mb-px">
-                            {[
-                                { id: 'bookings', label: 'Bookings', icon: DocumentTextIcon },
-                                { id: 'analytics', label: 'Analytics & Reports', icon: PresentationChartLineIcon },
-                                { id: 'users', label: 'User Management', icon: UserGroupIcon },
-                                { id: 'calendar', label: 'My Calendar', icon: CalendarDaysIcon },
-                                { id: 'settings', label: 'Settings', icon: Cog6ToothIcon }
-                            ].map(item => (
-                                <button 
-                                    key={item.id} 
-                                    onClick={() => setActiveTab(item.id as any)} 
-                                    className={`py-4 px-1 border-b-2 font-bold text-sm flex items-center gap-2 transition-all ${activeTab === item.id ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-                                >
-                                    <item.icon className="w-5 h-5" /> 
-                                    <span>{item.label}</span>
-                                </button>
+                        <nav className="-mb-px flex space-x-8">
+                            {[{ id: 'bookings', label: 'Bookings', icon: DocumentTextIcon }, { id: 'analytics', label: 'Analytics & Reports', icon: PresentationChartLineIcon }, { id: 'users', label: 'User Management', icon: UserGroupIcon }, { id: 'calendar', label: 'My Calendar', icon: CalendarDaysIcon }, { id: 'settings', label: 'Settings', icon: Cog6ToothIcon }].map(item => (
+                                <button key={item.id} onClick={() => setActiveTab(item.id as any)} className={`whitespace-nowrap py-4 px-1 border-b-2 font-bold text-sm flex items-center gap-2 ${activeTab === item.id ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><item.icon className="w-5 h-5" /> {item.label}</button>
                             ))}
                         </nav>
                     </div>
@@ -1232,13 +1207,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                     <div>
                                         <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-4 flex items-center gap-2"><CheckBadgeIcon className="w-5 h-5 text-emerald-600" /> Archived Leads (History)</h2>
                                         <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-                                            <ArchivedBookingsList
-    bookings={archivedLeads}
-    role="manager"
-    searchTerm={searchTerm}
-    onEditBooking={(b) => setBookingToEdit(b)}
-    bdms={bdms}
-/>
+                                            <ArchivedBookingsList bookings={archivedLeads} role="manager" searchTerm={searchTerm} onEditBooking={setBookingToEdit} />
                                         </div>
                                     </div>
                                 </div>
@@ -1846,10 +1815,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                             </button>
                                         </div>
                                     </div>
-
-                                    
-                                    
-                                    
                                 </div>
                             </div>
                         )}

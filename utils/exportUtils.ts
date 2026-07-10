@@ -1,11 +1,17 @@
+
 import type { Booking } from '../types';
 
+/**
+ * Exports booking data to a standard CSV file.
+ * Uses specific formatting to ensure Microsoft Excel treats numbers and dates as text.
+ */
 export const exportBookingsToCSV = (bookings: Booking[], filename: string) => {
     if (!bookings || bookings.length === 0) {
         alert('No data to export.');
         return;
     }
 
+    // 1. Define Headers
     const headers = [
         'Calling team',
         'Website',
@@ -22,8 +28,8 @@ export const exportBookingsToCSV = (bookings: Booking[], filename: string) => {
         'Notes'
     ];
 
+    // 2. Helper to format dates to DD-MMM-YYYY which Excel likes
     const formatDateForExcel = (dateStr: string) => {
-        if (!dateStr) return '';
         const d = new Date(dateStr + 'T00:00:00Z');
         if (isNaN(d.getTime())) return dateStr;
         const day = d.getUTCDate().toString().padStart(2, '0');
@@ -33,24 +39,25 @@ export const exportBookingsToCSV = (bookings: Booking[], filename: string) => {
         return `${day}-${month}-${year}`;
     };
 
+    // 3. Map Data to Rows
     const rows = bookings.map(b => {
         const clean = (val: any) => {
             if (val === undefined || val === null) return '';
+            // Remove commas, newlines, and tabs so they don't break the CSV structure
             return String(val)
-                .replace(/,/g, ';')
-                .replace(/\n/g, ' ')
+                .replace(/,/g, ';') // Replace commas with semicolons to stay in one cell
+                .replace(/\n/g, ' ') 
                 .replace(/\r/g, '')
                 .replace(/\t/g, ' ')
-                .replace(/"/g, "'");
+                .replace(/"/g, "'"); // Replace double quotes with single
         };
 
         const apptDate = formatDateForExcel(b.date);
-        
-        // Use the createdAt field that was added to the Booking type
-        // Fallback to current date if createdAt is missing (for existing bookings)
-        const bookedDateRaw = b.createdAt || new Date().toISOString().split('T')[0];
-        const bookedDate = formatDateForExcel(bookedDateRaw);
-        
+        const bookedAtDate = b.bookedAt ? b.bookedAt.split('T')[0] : (typeof b.id === 'number' && b.id > 1000000000000 ? new Date(b.id).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+        const bookedDate = formatDateForExcel(bookedAtDate);
+
+        // Secret trick for Excel: wrapping in =" " forces it to be TEXT
+        // This prevents 04... becoming 4.5E+08 and dates becoming ####
         const forceText = (val: string) => `="${val}"`;
 
         return [
@@ -66,10 +73,11 @@ export const exportBookingsToCSV = (bookings: Booking[], filename: string) => {
             clean(b.region),
             clean(b.address || ''),
             forceText(clean(b.clientPhone || '')), 
-            clean((b as any).bdmNote || b.notes || '')
-        ].join(',');
+            clean(b.bdmNote || b.notes || '')
+        ].join(','); // Standard CSV comma
     });
 
+    // 4. Construct Final Content with UTF-8 BOM (Essential for Excel to see the encoding)
     const csvContent = [
         headers.join(','),
         ...rows

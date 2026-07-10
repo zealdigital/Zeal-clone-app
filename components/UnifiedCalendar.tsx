@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { Booking, User, ManagerAppointment, Region, PublicHoliday, LeaveDay, AppointmentSlotsConfig } from '../types';
 import { PlusIcon, UserGroupIcon, BellIcon, TrashIcon, ClockIcon } from './Icons';
@@ -24,12 +25,6 @@ interface UnifiedCalendarProps {
 type CalendarItem = 
   | { type: 'appointment'; data: ManagerAppointment; sortTime: number }
   | { type: 'booking'; data: Booking; sortTime: number };
-
-// Helper to check if a date is a weekend (Saturday or Sunday)
-const isWeekend = (date: Date): boolean => {
-  const day = date.getDay();
-  return day === 0 || day === 6; // 0 = Sunday, 6 = Saturday
-};
 
 const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({ 
   bookings, 
@@ -133,14 +128,14 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
   const handlePrev = () => {
     const newDate = new Date(currentDate);
     if (viewMode === 'month') newDate.setMonth(newDate.getMonth() - 1);
-    else newDate.setDate(newDate.getDate() - 5); // Changed from 7 to 5 days for week view (weekdays only)
+    else newDate.setDate(newDate.getDate() - 7);
     setCurrentDate(newDate);
   };
 
   const handleNext = () => {
     const newDate = new Date(currentDate);
     if (viewMode === 'month') newDate.setMonth(newDate.getMonth() + 1);
-    else newDate.setDate(newDate.getDate() + 5); // Changed from 7 to 5 days for week view (weekdays only)
+    else newDate.setDate(newDate.getDate() + 7);
     setCurrentDate(newDate);
   };
 
@@ -179,175 +174,122 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
 
   const getHeaderDateString = () => {
     if (viewMode === 'month') return currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    // Weekdays only view
     const startOfWeek = new Date(currentDate);
-    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + 1); // Start from Monday
-    // Adjust to skip weekends
-    if (isWeekend(startOfWeek)) {
-      startOfWeek.setDate(startOfWeek.getDate() + (startOfWeek.getDay() === 6 ? 2 : 1));
-    }
+    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
     const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 4); // 5 weekdays (Mon-Fri)
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
     return `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${endOfWeek.getFullYear()}`;
   };
 
-      const renderMonthView = () => {
+  const renderMonthView = () => {
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
     const startDay = startOfMonth.getDay();
     const daysInMonth = endOfMonth.getDate();
 
-    // Helper to check if a date is a weekend
-    const isWeekendDate = (date: Date) => {
-      const day = date.getDay();
-      return day === 0 || day === 6;
-    };
-
-    // Create array of all days in month (including padding for start and end)
-    const daysArray: (Date | null)[] = [];
-    
-    // Add padding days for start of month (Sunday to Saturday)
-    for (let i = 0; i < startDay; i++) {
-      daysArray.push(null);
-    }
-    
-    // Add actual days of month
-    for (let i = 1; i <= daysInMonth; i++) {
-      daysArray.push(new Date(currentDate.getFullYear(), currentDate.getMonth(), i));
-    }
-    
-    // Add padding days for end of month to complete grid
-    const remainingCells = (7 - (daysArray.length % 7)) % 7;
-    for (let i = 0; i < remainingCells; i++) {
-      daysArray.push(null);
-    }
-
     return (
       <div className="grid grid-cols-7 gap-px border-l border-t border-gray-200 bg-gray-200">
-        {/* Day headers: Sun, Mon, Tue, Wed, Thu, Fri, Sat */}
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
           <div key={day} className="py-2 text-center text-xs font-semibold text-gray-600 bg-gray-50">{day}</div>
         ))}
-        
-        {/* Calendar cells */}
-        {daysArray.map((fullDate, idx) => {
-          if (!fullDate) {
-            return <div key={`empty-${idx}`} className="bg-gray-50 min-h-28"></div>;
-          }
-          
+        {Array.from({ length: startDay }).map((_, i) => <div key={`empty-start-${i}`} className="bg-gray-50 min-h-28"></div>)}
+        {Array.from({ length: daysInMonth }).map((_, i) => {
+          const dayNum = i + 1;
+          const fullDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), dayNum);
           const dateStr = getDateKey(fullDate);
           const dayItems = mixedItemsByDate.get(dateStr) || [];
           const isToday = getDateKey(new Date()) === dateStr;
-          const dayNum = fullDate.getDate();
-          const isWeekendDay = isWeekendDate(fullDate);
-          const availability = isWeekendDay ? null : getDayAvailability(fullDate);
+          const availability = getDayAvailability(fullDate);
 
           return (
-            <div key={dateStr} className={`bg-white p-1.5 min-h-32 relative group ${isWeekendDay ? 'bg-gray-50' : ''}`}>
+            <div key={dayNum} className="bg-white p-1.5 min-h-28 relative group">
               <div className="flex justify-between items-start">
-                  <span className={`text-xs font-bold ${isToday ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-full' : isWeekendDay ? 'text-gray-400' : 'text-gray-700'}`}>{dayNum}</span>
-                  {!isWeekendDay && availability && (
+                  <span className={`text-xs font-bold ${isToday ? 'bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded-full' : 'text-gray-700'}`}>{dayNum}</span>
+                  {availability && (
                       <div className="relative group/avail flex flex-col items-end">
                           <div className={`text-[9px] font-black uppercase px-1 rounded cursor-help ${availability.free > 0 ? 'text-green-600 bg-green-50' : 'text-gray-400 bg-gray-50'}`}>
                               {availability.free} Free
                           </div>
-                          {/* SHOW ALL SLOTS - Horizontal scroll if needed */}
-                          <div className="mt-1 flex flex-wrap gap-1 justify-end max-w-[100px]">
-                              {availability.slotBreakdown.map(slot => (
-                                  <span key={slot.time} className="text-[9px] font-bold text-green-800 bg-green-100 px-1.5 py-0.5 rounded leading-none border border-green-200 shadow-sm whitespace-nowrap">
-                                      {slot.time}
+                          {/* Compact direct view of available slots */}
+                          <div className="mt-1 flex flex-wrap gap-1 justify-end max-w-[75px]">
+                              {availability.slotBreakdown.filter(s => s.free > 0).map(slot => (
+                                  <span key={slot.time} className="text-[9px] font-bold text-green-800 bg-green-100 px-1 rounded leading-none py-1 flex items-center gap-1 border border-green-200 shadow-sm">
+                                      {slot.time.replace(':00', '').replace(' ', '')}
+                                      <span className="bg-green-700 text-white rounded-full w-3 h-3 flex items-center justify-center text-[8px]">{slot.free}</span>
                                   </span>
                               ))}
                           </div>
-                          <div className="absolute top-full right-0 mt-1 w-32 bg-white border border-gray-200 rounded shadow-lg z-50 p-2 opacity-0 group-hover/avail:opacity-100 pointer-events-none transition-opacity">
-                              <p className="text-[8px] font-black text-gray-400 uppercase mb-1 border-b pb-1">All Slots</p>
+                          {/* Detailed hover tooltip */}
+                          <div className="absolute top-full right-0 mt-1 w-24 bg-white border border-gray-200 rounded shadow-lg z-50 p-2 opacity-0 group-hover/avail:opacity-100 pointer-events-none transition-opacity">
+                              <p className="text-[8px] font-black text-gray-400 uppercase mb-1 border-b pb-1">Slot Availability</p>
                               {availability.slotBreakdown.map(slot => (
                                   <div key={slot.time} className="flex justify-between items-center text-[8px] py-0.5">
                                       <span className="text-gray-500">{slot.time}</span>
-                                      <span className={`font-bold ${slot.free > 0 ? 'text-green-600' : 'text-red-400'}`}>{slot.free} free</span>
+                                      <span className={`font-bold ${slot.free > 0 ? 'text-green-600' : 'text-red-400'}`}>{slot.free}</span>
                                   </div>
                               ))}
                           </div>
                       </div>
                   )}
-                  {isWeekendDay && (
-                    <div className="text-[9px] font-black uppercase px-1 rounded text-gray-300 bg-gray-100">
-                      Weekend
-                    </div>
-                  )}
               </div>
-              {setAppointments && !isWeekendDay && (
+              {setAppointments && (
                 <button onClick={() => openAddModal(fullDate)} className="absolute top-6 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-indigo-500 text-white rounded-full p-1 hover:bg-indigo-600 z-10">
                   <PlusIcon className="w-4 h-4" />
                 </button>
               )}
-              {/* SHOW ALL BOOKINGS - removed limit */}
-              <div className="mt-1 space-y-1 overflow-y-auto max-h-32">
-                {!isWeekendDay && dayItems.length > 0 ? (
-                  dayItems.map((item, idx) => {
-                    if (item.type === 'booking') {
-                      const booking = item.data;
-                      const styleClass = booking.region === 'NSW' ? 'bg-green-50 text-green-900 border-green-200' : booking.region === 'VIC' ? 'bg-blue-50 text-blue-900 border-blue-200' : 'bg-purple-50 text-purple-900 border-purple-200';
-                      return (
-                        <div 
-                          key={`bk-${booking.id}-${idx}`} 
-                          className={`w-full text-left text-[10px] p-1 rounded border ${styleClass} select-none shadow-sm`}
-                          title={`${booking.clientName} (${booking.businessName}) - ${booking.region} [${booking.status.toUpperCase()}]`}
-                        >
-                          <div className="flex items-center gap-1 overflow-hidden">
-                            <UserGroupIcon className="w-2.5 h-2.5 opacity-50 flex-shrink-0" />
-                            <span className="font-mono font-bold flex-shrink-0">{booking.time.split(' ')[0]}</span>
-                            <a 
-                              href={getFullUrl(booking.clientWebsite)} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              className="truncate font-medium flex-grow hover:underline text-blue-600"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {normalizeWebsite(booking.clientWebsite) || booking.clientName}
-                            </a>
-                            <span className="text-[8px] uppercase font-bold opacity-60 flex-shrink-0">{booking.status === 'rescheduled_bdm' ? 'RESCHED' : booking.status}</span>
-                          </div>
+              <div className="mt-1 space-y-1 overflow-y-auto max-h-24">
+                {dayItems.map((item, idx) => {
+                  if (item.type === 'booking') {
+                    const booking = item.data;
+                    const styleClass = booking.region === 'NSW' ? 'bg-green-50 text-green-900 border-green-200' : booking.region === 'VIC' ? 'bg-blue-50 text-blue-900 border-blue-200' : 'bg-purple-50 text-purple-900 border-purple-200';
+                    return (
+                      <div 
+                        key={`bk-${booking.id}-${idx}`} 
+                        className={`w-full text-left text-[10px] p-1 rounded border ${styleClass} select-none shadow-sm`}
+                        title={`${booking.clientName} (${booking.businessName}) - ${booking.region} [${booking.status.toUpperCase()}]`}
+                      >
+                        <div className="flex items-center gap-1 overflow-hidden">
+                          <UserGroupIcon className="w-2.5 h-2.5 opacity-50 flex-shrink-0" />
+                          <span className="font-mono font-bold flex-shrink-0">{booking.time.split(' ')[0]}</span>
+                          <a 
+                            href={getFullUrl(booking.clientWebsite)} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="truncate font-medium flex-grow hover:underline text-blue-600"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {normalizeWebsite(booking.clientWebsite) || booking.clientName}
+                          </a>
+                          <span className="text-[8px] uppercase font-bold opacity-60 flex-shrink-0">{booking.status === 'rescheduled_bdm' ? 'RESCHED' : booking.status}</span>
                         </div>
-                      );
-                    } else {
-                      const app = item.data;
-                      return (
-                        <div key={`app-${app.id}`} onClick={() => openEditModal(app)} className="w-full text-left text-[10px] p-1 bg-indigo-100 text-indigo-800 rounded border border-indigo-200 hover:bg-indigo-200 cursor-pointer truncate select-none shadow-sm">
-                          {new Date(app.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} {app.title}
-                        </div>
-                      );
-                    }
-                  })
-                ) : !isWeekendDay ? (
-                  <div className="text-[10px] text-center text-gray-400 py-2">No bookings</div>
-                ) : (
-                  <div className="flex items-center justify-center h-20 text-[10px] text-gray-300 italic">
-                    No bookings
-                  </div>
-                )}
+                      </div>
+                    );
+                  } else {
+                    const app = item.data;
+                    return (
+                      <div key={`app-${app.id}`} onClick={() => openEditModal(app)} className="w-full text-left text-[10px] p-1 bg-indigo-100 text-indigo-800 rounded border border-indigo-200 hover:bg-indigo-200 cursor-pointer truncate select-none shadow-sm">
+                        {new Date(app.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} {app.title}
+                      </div>
+                    );
+                  }
+                })}
               </div>
             </div>
           );
         })}
+        {Array.from({ length: (7 - (startDay + daysInMonth) % 7) % 7 }).map((_, i) => <div key={`empty-end-${i}`} className="bg-gray-50 min-h-28"></div>)}
       </div>
     );
   };
 
   const renderWeekView = () => {
     const startOfWeek = new Date(currentDate);
-    // Start from Monday instead of Sunday
-    const currentDay = startOfWeek.getDay();
-    const daysToMonday = currentDay === 0 ? 6 : currentDay - 1;
-    startOfWeek.setDate(currentDate.getDate() - daysToMonday);
-    
-    // Generate only weekdays (Monday to Friday)
-    const weekDays: Date[] = [];
-    for (let i = 0; i < 5; i++) {
-      const d = new Date(startOfWeek);
-      d.setDate(startOfWeek.getDate() + i);
-      weekDays.push(d);
-    }
+    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+    const weekDays = Array.from({ length: 7 }).map((_, i) => {
+        const d = new Date(startOfWeek);
+        d.setDate(startOfWeek.getDate() + i);
+        return d;
+    });
 
     return (
        <div className="border-t border-gray-200">
@@ -459,7 +401,7 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                  <span className="bg-indigo-600 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded tracking-widest">{region}</span>
              )}
           </div>
-          <p className="text-sm font-medium text-gray-500">Scheduled appointments and availability for your region (Mon-Fri only).</p>
+          <p className="text-sm font-medium text-gray-500">Scheduled appointments and availability for your region.</p>
         </div>
         <div className="w-full sm:w-auto flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex-shrink-0 bg-gray-100 rounded-xl p-1.5 flex gap-1 border border-gray-200">

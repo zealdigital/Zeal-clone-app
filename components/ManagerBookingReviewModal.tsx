@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { Booking, AppointmentSlotsConfig } from '../types';
 import { XMarkIcon } from './Icons';
@@ -19,24 +20,14 @@ const ManagerBookingReviewModal: React.FC<ManagerBookingReviewModalProps> = ({
   const [rejectionReason, setRejectionReason] = useState('');
   const [activeTab, setActiveTab] = useState<'approve' | 'reject'>('approve');
 
-  // Get all available slots for this specific date and region
   const standardSlotsForDay = useMemo(() => {
       const dateObj = new Date(booking.date + 'T00:00:00Z');
-      const slots = getAppointmentSlotsForDay(dateObj, booking.region, appointmentTimes);
-      return slots;
+      return getAppointmentSlotsForDay(dateObj, booking.region, appointmentTimes);
   }, [booking, appointmentTimes]);
 
   const handleSlotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { value, checked } = e.target;
     setSlotsToRemove(prev => checked ? [...prev, value] : prev.filter(s => s !== value));
-  };
-
-  const handleSelectAll = () => {
-    setSlotsToRemove([...standardSlotsForDay]);
-  };
-
-  const handleClearAll = () => {
-    setSlotsToRemove([]);
   };
 
   return (
@@ -47,7 +38,7 @@ const ManagerBookingReviewModal: React.FC<ManagerBookingReviewModalProps> = ({
           <button onClick={onClose} className="text-indigo-100 hover:text-white transition-colors"><XMarkIcon className="w-6 h-6" /></button>
         </div>
         
-        <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+        <div className="p-6 space-y-4">
             {/* Booking Summary */}
             <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-2 text-sm shadow-sm">
                 <div className="flex justify-between">
@@ -82,7 +73,7 @@ const ManagerBookingReviewModal: React.FC<ManagerBookingReviewModalProps> = ({
                 </div>
                 <div className="flex justify-between text-indigo-700 font-black">
                   <span className="font-bold text-indigo-500 uppercase text-[10px] tracking-wider">Requested Time:</span> 
-                  <span className="bg-indigo-100 px-2 py-0.5 rounded">{booking.time}</span>
+                  <span>{booking.time}</span>
                 </div>
                 {booking.notes && (
                   <div className="pt-3 border-t border-gray-200 mt-2">
@@ -110,65 +101,28 @@ const ManagerBookingReviewModal: React.FC<ManagerBookingReviewModalProps> = ({
 
             {activeTab === 'approve' && (
                 <div className="space-y-3 animate-fadeIn">
-                    <div className="flex justify-between items-center">
-                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">
-                            Select slots to block ({slotsToRemove.length} selected):
-                        </label>
-                        <div className="flex gap-2">
-                            {standardSlotsForDay.length > 0 && (
-                                <>
-                                    <button 
-                                        onClick={handleSelectAll}
-                                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800"
-                                    >
-                                        Select All
-                                    </button>
-                                    {slotsToRemove.length > 0 && (
-                                        <button 
-                                            onClick={handleClearAll}
-                                            className="text-[10px] font-bold text-red-500 hover:text-red-700"
-                                        >
-                                            Clear All
-                                        </button>
-                                    )}
-                                </>
-                            )}
-                        </div>
+                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">Select standard slots to remove/block (if any):</label>
+                    <div className="grid grid-cols-2 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200 max-h-40 overflow-y-auto shadow-inner">
+                        {standardSlotsForDay.map(slot => (
+                            <label key={slot} className="flex items-center gap-3 cursor-pointer group">
+                                <input 
+                                    type="checkbox" 
+                                    value={slot} 
+                                    checked={slotsToRemove.includes(slot)} 
+                                    onChange={handleSlotChange}
+                                    className="h-5 w-5 text-indigo-600 rounded-md border-gray-300 focus:ring-indigo-500 transition-all cursor-pointer" 
+                                />
+                                <span className="text-sm font-bold text-gray-700 group-hover:text-black">{slot}</span>
+                            </label>
+                        ))}
+                        {standardSlotsForDay.length === 0 && <p className="col-span-2 text-center text-xs text-gray-400 italic py-2">No standard slots available for this date.</p>}
                     </div>
-                    
-                    {standardSlotsForDay.length === 0 ? (
-                        <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 text-center">
-                            <p className="text-sm text-amber-700">No standard slots available for this date.</p>
-                            <p className="text-xs text-amber-500 mt-1">The appointment will still be approved without blocking any slots.</p>
-                        </div>
-                    ) : (
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                            <div className="grid grid-cols-2 gap-2">
-                                {standardSlotsForDay.map(slot => (
-                                    <label key={slot} className="flex items-center gap-3 cursor-pointer group p-2 rounded hover:bg-white transition-colors">
-                                        <input 
-                                            type="checkbox" 
-                                            value={slot} 
-                                            checked={slotsToRemove.includes(slot)} 
-                                            onChange={handleSlotChange}
-                                            className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer" 
-                                        />
-                                        <span className="text-sm font-medium text-gray-700 group-hover:text-indigo-600">{slot}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                    
-                    <p className="text-[10px] text-gray-400 font-medium italic">
-                        Selected slots will be marked as 'Blocked' on the Vendor Dashboard to prevent overlap.
-                    </p>
-                    
+                    <p className="text-[10px] text-gray-400 font-medium italic">Selected slots will be marked as 'Blocked' on the Vendor Dashboard to prevent overlap.</p>
                     <button 
                         onClick={() => onApprove(booking.id, slotsToRemove)}
                         className="w-full py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-black uppercase tracking-widest text-xs shadow-lg shadow-green-100 transition-all active:scale-95"
                     >
-                        Confirm Approval {slotsToRemove.length > 0 ? `(${slotsToRemove.length} slot${slotsToRemove.length !== 1 ? 's' : ''} will be blocked)` : ''}
+                        Confirm Approval
                     </button>
                 </div>
             )}

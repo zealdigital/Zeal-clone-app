@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import type { Booking } from '../types';
 
@@ -5,108 +6,72 @@ interface CallerPerformanceAnalyticsProps {
   bookings: Booking[];
 }
 
-// List of values that should NOT appear as caller names
-const INVALID_CALLER_VALUES = new Set([
-  'nsw', 'vic', 'qld', 'wa', 'sa', 'tas', 'act', 'nt',
-  'active', 'seen', 'sold', 'rejected', 'cancelled', 'rescheduled', 'dq', 'pending_approval', 'rescheduled_bdm',
-  'caller', 'name', 'team', 'region', 'status', 'lead', 'booking'
-]);
-
-const ITEMS_PER_PAGE = 5;
-
 const CallerPerformanceAnalytics: React.FC<CallerPerformanceAnalyticsProps> = ({ bookings }) => {
-    const [currentPage, setCurrentPage] = useState(1);
+    const [showAll, setShowAll] = useState(false);
 
     const analytics = useMemo(() => {
         // Track both count and the latest activity timestamp for each caller
-        // Use case-insensitive grouping (store by lowercase key, but keep original case for display)
         const callersMap = bookings.reduce((acc, booking) => {
             if (!booking.callerName) return acc;
-            
-            const rawName = booking.callerName.trim();
-            const normalizedKey = rawName.toLowerCase(); // Normalize to lowercase for grouping
-            
-            // Skip invalid caller names (empty, regions, statuses, etc.)
-            if (!rawName || rawName.length === 0) return acc;
-            if (INVALID_CALLER_VALUES.has(normalizedKey)) return acc;
-            if (rawName.length < 2) return acc;
-            
-            if (!acc[normalizedKey]) {
-                acc[normalizedKey] = { 
-                    count: 0, 
-                    lastActive: 0,
-                    displayName: rawName  // Keep original case for display
-                };
+            const name = booking.callerName.trim();
+            if (!acc[name]) {
+                acc[name] = { count: 0, lastActive: 0 };
             }
-            acc[normalizedKey].count += 1;
-            acc[normalizedKey].lastActive = Math.max(acc[normalizedKey].lastActive, booking.id);
+            acc[name].count += 1;
+            // Use booking.id as it's a timestamp of when the lead was created
+            acc[name].lastActive = Math.max(acc[name].lastActive, booking.id);
             return acc;
-        }, {} as Record<string, { count: number, lastActive: number, displayName: string }>);
-    
-        // Sort by count (highest first) then by name
-        const sortedCallers = Object.entries(callersMap)
-            .sort(([, a], [, b]) => {
-                // Sort by count descending first
-                if (a.count !== b.count) return b.count - a.count;
-                // Then alphabetically by name (case-insensitive)
-                return a.displayName.localeCompare(b.displayName);
-            })
-            .map(([, data]) => ({ 
-                name: data.displayName,
+        }, {} as Record<string, { count: number, lastActive: number }>);
+
+        // Sort by lastActive (most recent activity at the top)
+        // FIX: Explicitly cast Object.entries to resolve TypeScript errors where 'a', 'b', and 'data' are inferred as 'unknown'.
+        const sortedCallers = (Object.entries(callersMap) as [string, { count: number, lastActive: number }][])
+            .sort(([, a], [, b]) => b.lastActive - a.lastActive)
+            .map(([name, data]) => ({ 
+                name, 
                 count: data.count,
                 lastActive: data.lastActive 
             }));
-    
+
+        // For the bar width, we still need the highest count in the list
         const maxCallerBookings = sortedCallers.length > 0 
             ? Math.max(...sortedCallers.map(c => c.count)) 
             : 0;
-    
+
         return {
             sortedCallers,
             maxCallerBookings
         };
     }, [bookings]);
 
-    const totalPages = Math.max(1, Math.ceil(analytics.sortedCallers.length / ITEMS_PER_PAGE));
-    
-    // Reset to page 1 when bookings change
-    React.useEffect(() => {
-        setCurrentPage(1);
-    }, [bookings]);
+    const displayedCallers = showAll 
+        ? analytics.sortedCallers 
+        : analytics.sortedCallers.slice(0, 5);
 
-    const paginatedCallers = useMemo(() => {
-        const start = (currentPage - 1) * ITEMS_PER_PAGE;
-        return analytics.sortedCallers.slice(start, start + ITEMS_PER_PAGE);
-    }, [analytics.sortedCallers, currentPage]);
+    const hasMore = analytics.sortedCallers.length > 5;
 
-    const totalCallers = analytics.sortedCallers.length;
-
-    if (analytics.sortedCallers.length === 0) {
-        return (
-            <div className="bg-white p-6 rounded-lg shadow h-fit">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance by Caller</h3>
-                <p className="text-center text-sm text-gray-500">No caller performance data available.</p>
-            </div>
-        );
-    }
-
-    return (
-        <div className="bg-white p-6 rounded-lg shadow h-fit">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Performance by Caller</h3>
-                <span className="text-[10px] font-black text-gray-400 bg-gray-50 px-2 py-1 rounded uppercase tracking-widest">
-                    Showing {paginatedCallers.length} of {totalCallers} entries
+  return (
+    <div className="bg-white p-6 rounded-lg shadow h-fit">
+        <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Performance by Caller</h3>
+            {!showAll && hasMore && (
+                <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
+                    Showing Top 5
                 </span>
-            </div>
-            
+            )}
+        </div>
+        
+        {analytics.sortedCallers.length === 0 ? (
+            <p className="mt-4 text-center text-sm text-gray-500">No caller performance data available.</p>
+        ) : (
             <div className="space-y-4">
-                {paginatedCallers.map(caller => {
+                {displayedCallers.map(caller => {
                     const widthPercentage = analytics.maxCallerBookings > 0 
                         ? (caller.count / analytics.maxCallerBookings) * 100 
                         : 0;
                     
-                    return (
-                        <div key={caller.name.toLowerCase()} className="flex items-center group">
+                    return(
+                        <div key={caller.name} className="flex items-center group">
                             <div className="w-1/3 text-sm font-medium text-gray-700 truncate pr-2" title={caller.name}>
                                 {caller.name}
                             </div>
@@ -126,47 +91,24 @@ const CallerPerformanceAnalytics: React.FC<CallerPerformanceAnalyticsProps> = ({
                     );
                 })}
 
-                {/* Pagination Controls */}
-                {totalPages > 1 && (
-                    <div className="mt-6 pt-4 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                            Page {currentPage} of {totalPages}
-                        </span>
-                        <div className="flex items-center gap-2">
-                            <button 
-                                onClick={() => setCurrentPage(1)} 
-                                disabled={currentPage === 1} 
-                                className="px-3 py-1 text-[10px] font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white uppercase"
-                            >
-                                First
-                            </button>
-                            <button 
-                                onClick={() => setCurrentPage(curr => Math.max(1, curr - 1))} 
-                                disabled={currentPage === 1} 
-                                className="px-3 py-1 text-[10px] font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white uppercase"
-                            >
-                                Prev
-                            </button>
-                            <button 
-                                onClick={() => setCurrentPage(curr => Math.min(totalPages, curr + 1))} 
-                                disabled={currentPage === totalPages} 
-                                className="px-3 py-1 text-[10px] font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white uppercase"
-                            >
-                                Next
-                            </button>
-                            <button 
-                                onClick={() => setCurrentPage(totalPages)} 
-                                disabled={currentPage === totalPages} 
-                                className="px-3 py-1 text-[10px] font-bold border rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed bg-white uppercase"
-                            >
-                                Last
-                            </button>
-                        </div>
+                {hasMore && (
+                    <div className="pt-2 border-t border-gray-50 mt-4 text-center">
+                        <button 
+                            onClick={() => setShowAll(!showAll)}
+                            className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center justify-center gap-1 mx-auto py-1"
+                        >
+                            {showAll ? (
+                                <>Show Less <span className="text-lg leading-none">▴</span></>
+                            ) : (
+                                <>Show All {analytics.sortedCallers.length} Callers <span className="text-lg leading-none">▾</span></>
+                            )}
+                        </button>
                     </div>
                 )}
             </div>
-        </div>
-    );
+        )}
+    </div>
+  );
 };
 
 export default CallerPerformanceAnalytics;

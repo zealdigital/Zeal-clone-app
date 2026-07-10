@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import type { Vendor, Booking, User, Manager, LeaveDay, PublicHoliday, Region, AppointmentSlotsConfig, BDM, Notification, ManagerAppointment, Branding, PersistedState } from './types';
 import { VENDORS, MANAGERS, PUBLIC_HOLIDAYS, APPOINTMENT_TIMES, BDMS, REGIONS, DEFAULT_BRANDING, DEFAULT_REGION_COLORS, DEFAULT_NOTIFICATION_PREFERENCES } from './constants';
@@ -25,97 +26,19 @@ const defaultState: PersistedState = {
 };
 
 function adjustColor(col: string, amt: number) {
-  let usePound = false;
-  if (col[0] === "#") { col = col.slice(1); usePound = true; }
-  let num = parseInt(col, 16);
-  let r = (num >> 16) + amt; if (r > 255) r = 255; else if (r < 0) r = 0;
-  let b = ((num >> 8) & 0x00FF) + amt; if (b > 255) b = 255; else if (b < 0) b = 0;
-  let g = (num & 0x0000FF) + amt; if (g > 255) g = 255; else if (g < 0) g = 0;
-  return (usePound ? "#" : "") + (g | (b << 8) | (r << 16)).toString(16).padStart(6, '0');
-}
-
-// ✅ FIX 1: processIncomingState moved OUTSIDE the component entirely.
-// Previously it was defined inside App with useCallback, which meant a new
-// function reference was created on every render. That function was a dep of
-// the Firebase useEffect, so the listener was being torn down and re-created
-// much more often than needed.
-function processIncomingState(incomingState: Partial<PersistedState>): PersistedState {
-  const mergedState = { ...defaultState };
-
-  Object.keys(incomingState).forEach(key => {
-    const k = key as keyof PersistedState;
-    if (incomingState[k] !== undefined) {
-      (mergedState as any)[k] = incomingState[k];
+    let usePound = false;
+    if (col[0] === "#") {
+        col = col.slice(1);
+        usePound = true;
     }
-  });
-
-  const currentRegions = mergedState.regions || REGIONS;
-
-  const migrateUser = (u: any) => {
-    if (!u) return null;
-    return {
-      ...u,
-      active: u.active ?? true,
-      email: u.email || '',
-      notificationPreferences: { ...DEFAULT_NOTIFICATION_PREFERENCES, ...(u.notificationPreferences || {}) }
-    };
-  };
-
-  const migrateVendor = (v: any) => {
-    const user = migrateUser(v);
-    if (!user) return null;
-    return { ...user, allowedRegions: v.allowedRegions || currentRegions };
-  };
-
-  if (incomingState.vendors && Array.isArray(incomingState.vendors)) {
-    mergedState.vendors = incomingState.vendors.map(migrateVendor).filter(Boolean) as Vendor[];
-  } else if (!mergedState.vendors || mergedState.vendors.length === 0) {
-    mergedState.vendors = VENDORS.map(migrateVendor).filter(Boolean) as Vendor[];
-  }
-
-  const masterVendor = VENDORS[0];
-  if (masterVendor) {
-    const hasMaster = (mergedState.vendors || []).some((v: Vendor) => v.username.toLowerCase() === masterVendor.username.toLowerCase());
-    if (!hasMaster) {
-      if (!mergedState.vendors) mergedState.vendors = [];
-      mergedState.vendors.push(migrateVendor(masterVendor) as Vendor);
-    }
-  }
-
-  if (incomingState.bdms && Array.isArray(incomingState.bdms)) {
-    mergedState.bdms = incomingState.bdms.map(migrateUser).filter(Boolean) as BDM[];
-  } else if (!mergedState.bdms || mergedState.bdms.length === 0) {
-    mergedState.bdms = BDMS.map(migrateUser).filter(Boolean) as BDM[];
-  }
-
-  const masterBdm = BDMS[0];
-  if (masterBdm) {
-    const hasMaster = (mergedState.bdms || []).some((b: BDM) => b.username.toLowerCase() === masterBdm.username.toLowerCase());
-    if (!hasMaster) {
-      if (!mergedState.bdms) mergedState.bdms = [];
-      mergedState.bdms.push(migrateUser(masterBdm) as BDM);
-    }
-  }
-
-  if (incomingState.managers && Array.isArray(incomingState.managers)) {
-    mergedState.managers = incomingState.managers.map(migrateUser).filter(Boolean) as Manager[];
-  } else if (!mergedState.managers || mergedState.managers.length === 0) {
-    mergedState.managers = MANAGERS.map(migrateUser).filter(Boolean) as Manager[];
-  }
-
-  const defaultAdmin = MANAGERS[0];
-  if (defaultAdmin) {
-    const adminIndex = (mergedState.managers || []).findIndex((m: Manager) => m.username === defaultAdmin.username);
-    if (adminIndex !== -1) {
-      mergedState.managers[adminIndex].password = defaultAdmin.password;
-      mergedState.managers[adminIndex].active = true;
-    } else {
-      if (!mergedState.managers) mergedState.managers = [];
-      mergedState.managers.push(migrateUser(defaultAdmin) as Manager);
-    }
-  }
-
-  return mergedState;
+    let num = parseInt(col, 16);
+    let r = (num >> 16) + amt;
+    if (r > 255) r = 255; else if (r < 0) r = 0;
+    let b = ((num >> 8) & 0x00FF) + amt;
+    if (b > 255) b = 255; else if (b < 0) b = 0;
+    let g = (num & 0x0000FF) + amt;
+    if (g > 255) g = 255; else if (g < 0) g = 0;
+    return (usePound ? "#" : "") + (g | (b << 8) | (r << 16)).toString(16).padStart(6, '0');
 }
 
 const App: React.FC = () => {
@@ -125,82 +48,172 @@ const App: React.FC = () => {
       return storedUser ? JSON.parse(storedUser) : null;
     } catch { return null; }
   });
-
+  
   const [appState, setAppState] = useState<PersistedState>(() => {
     try {
       const saved = localStorage.getItem('vendorBookingAppState');
       return saved ? { ...defaultState, ...JSON.parse(saved) } : defaultState;
-    } catch { return defaultState; }
+    } catch {
+      return defaultState;
+    }
   });
-
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
   const [isSyncingToCloud, setIsSyncingToCloud] = useState(false);
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
+  
+  const processIncomingState = useCallback((incomingState: Partial<PersistedState>): PersistedState => {
+      // Start with a clean copy of defaultState
+      const mergedState = { ...defaultState };
+      
+      // Only merge keys that are actually present in the incoming state
+      // This prevents defaultState's empty arrays (like vendors: []) from 
+      // being processed as "new data" if incomingState doesn't have the key yet.
+      Object.keys(incomingState).forEach(key => {
+          const k = key as keyof PersistedState;
+          if (incomingState[k] !== undefined) {
+              (mergedState as any)[k] = incomingState[k];
+          }
+      });
 
-  // ✅ FIX 2: Firebase subscription setup no longer depends on processIncomingState
-  // as a useCallback dep — it's a stable module-level function now.
+      const currentRegions = mergedState.regions || REGIONS;
+
+      const migrateUser = (u: any) => {
+          if (!u) return null;
+          return {
+              ...u, 
+              active: u.active ?? true,
+              email: u.email || '',
+              notificationPreferences: { ...DEFAULT_NOTIFICATION_PREFERENCES, ...(u.notificationPreferences || {}) }
+          };
+      };
+      
+      const migrateVendor = (v: any) => {
+          const user = migrateUser(v);
+          if (!user) return null;
+          return {
+              ...user,
+              allowedRegions: v.allowedRegions || currentRegions
+          };
+      };
+
+      // Handle Vendors
+      if (incomingState.vendors && Array.isArray(incomingState.vendors)) {
+          mergedState.vendors = incomingState.vendors.map(migrateVendor).filter(Boolean);
+      } else if (!mergedState.vendors || mergedState.vendors.length === 0) {
+          mergedState.vendors = VENDORS.map(migrateVendor).filter(Boolean);
+      }
+      
+      const masterVendor = VENDORS[0];
+      if (masterVendor) {
+          const hasMaster = (mergedState.vendors || []).some((v: Vendor) => v.username.toLowerCase() === masterVendor.username.toLowerCase());
+          if (!hasMaster) {
+              if (!mergedState.vendors) mergedState.vendors = [];
+              mergedState.vendors.push(migrateVendor(masterVendor) as Vendor);
+          }
+      }
+
+      // Handle BDMs
+      if (incomingState.bdms && Array.isArray(incomingState.bdms)) {
+          mergedState.bdms = incomingState.bdms.map(migrateUser).filter(Boolean);
+      } else if (!mergedState.bdms || mergedState.bdms.length === 0) {
+          mergedState.bdms = BDMS.map(migrateUser).filter(Boolean);
+      }
+      
+      const masterBdm = BDMS[0];
+      if (masterBdm) {
+          const hasMaster = (mergedState.bdms || []).some((b: BDM) => b.username.toLowerCase() === masterBdm.username.toLowerCase());
+          if (!hasMaster) {
+              if (!mergedState.bdms) mergedState.bdms = [];
+              mergedState.bdms.push(migrateUser(masterBdm) as BDM);
+          }
+      }
+      
+      // Handle Managers
+      if (incomingState.managers && Array.isArray(incomingState.managers)) {
+          mergedState.managers = incomingState.managers.map(migrateUser).filter(Boolean);
+      } else if (!mergedState.managers || mergedState.managers.length === 0) {
+          mergedState.managers = MANAGERS.map(migrateUser).filter(Boolean);
+      }
+      
+      const defaultAdmin = MANAGERS[0];
+      if (defaultAdmin) {
+          const adminIndex = (mergedState.managers || []).findIndex((m: Manager) => m.username === defaultAdmin.username);
+          if (adminIndex !== -1) {
+             mergedState.managers[adminIndex].password = defaultAdmin.password;
+             mergedState.managers[adminIndex].active = true;
+          } else {
+             if (!mergedState.managers) mergedState.managers = [];
+             mergedState.managers.push(migrateUser(defaultAdmin) as Manager);
+          }
+      }
+
+      return mergedState;
+  }, []);
+
   useEffect(() => {
     if (!isFirebaseConfigured || !auth) {
-      const saved = localStorage.getItem('vendorBookingAppState');
-      if (saved) setAppState(JSON.parse(saved));
-      return;
+        const saved = localStorage.getItem('vendorBookingAppState');
+        if (saved) setAppState(JSON.parse(saved));
+        return;
     }
 
     let unsubscribe: (() => void) | undefined;
     let active = true;
 
     signInAnonymously(auth).then(() => {
-      if (!active) return;
+        if (!active) return;
+        
+        const setupListener = () => {
+            if (unsubscribe) unsubscribe();
+            unsubscribe = subscribeToState((remoteData, isComplete) => {
+                if (!active) return;
+                const processed = processIncomingState(remoteData);
+                setAppState(processed);
+                
+                // Only mark as ready if we have completed the initial load of all shards
+                if (isComplete) {
+                    setIsFirebaseReady(true);
+                }
+                setFirebaseError(null);
+            }, (err) => {
+                if (!active) return;
+                console.error("Firebase Sync Error:", err);
+                setFirebaseError(err.message);
+                // If it's not a permission error, try to reconnect after 5 seconds
+                if (err.code !== 'permission-denied') {
+                    setTimeout(() => {
+                        if (active) setupListener();
+                    }, 5000);
+                }
+            });
+        };
 
-      const setupListener = () => {
-        if (unsubscribe) unsubscribe();
-
-        unsubscribe = subscribeToState((remoteData, isComplete) => {
-          if (!active) return;
-          const processed = processIncomingState(remoteData);
-          setAppState(processed);
-          if (isComplete) setIsFirebaseReady(true);
-          setFirebaseError(null);
-        }, (err) => {
-          if (!active) return;
-          console.error("Firebase Sync Error:", err);
-          setFirebaseError(err.message);
-          if (err.code !== 'permission-denied') {
-            setTimeout(() => { if (active) setupListener(); }, 5000);
-          }
-        });
-      };
-
-      setupListener();
+        setupListener();
     }).catch(err => {
-      if (!active) return;
-      setFirebaseError("Auth Error: Enable Anonymous Sign-in in Firebase Console.");
+        if (!active) return;
+        setFirebaseError("Auth Error: Enable Anonymous Sign-in in Firebase Console.");
     });
 
-    return () => {
-      active = false;
-      if (unsubscribe) unsubscribe();
+    return () => { 
+        active = false;
+        if (unsubscribe) unsubscribe(); 
     };
-  }, []); // ✅ Empty deps — this effect runs once. processIncomingState is stable (module-level).
+  }, [processIncomingState]);
 
   useEffect(() => {
     return subscribeToSyncStatus((isSaving) => {
-      setIsSyncingToCloud(isSaving);
+        setIsSyncingToCloud(isSaving);
     });
   }, []);
 
-  const {
-    allBookings, publicHolidays, appointmentTimes, leaveDays,
-    bdms, vendors, managers, notifications, managerAppointments,
-    branding, regions, regionColors
-  } = appState;
+  const { allBookings, publicHolidays, appointmentTimes, leaveDays, bdms, vendors, managers, notifications, managerAppointments, branding, regions, regionColors } = appState;
 
-  // Theme override effect
   useEffect(() => {
     const color = branding.primaryColor;
     const hoverColor = adjustColor(color, -20);
     const paleBg = color + '15';
     const borderPale = color + '40';
+
     const styleContent = `
       .bg-indigo-600 { background-color: ${color} !important; }
       .text-indigo-600 { color: ${color} !important; }
@@ -211,6 +224,7 @@ const App: React.FC = () => {
       .bg-indigo-50 { background-color: ${paleBg} !important; }
       .border-indigo-200 { border-color: ${borderPale} !important; }
     `;
+    
     let styleEl = document.getElementById('theme-overrides');
     if (!styleEl) {
       styleEl = document.createElement('style');
@@ -220,37 +234,46 @@ const App: React.FC = () => {
     styleEl.innerHTML = styleContent;
   }, [branding]);
 
-  // ✅ FIX 3: Exclude large data from localStorage to avoid QuotaExceededError
   useEffect(() => {
+    // Exclude large data sets (already synced via Firebase) from localStorage to avoid QuotaExceededError
     const { allBookings, notifications, ...configState } = appState;
     localStorage.setItem('vendorBookingAppState', JSON.stringify(configState));
   }, [appState]);
 
-  // ✅ FIX 4: updateState is a stable useCallback.
-  // The isFirebaseReady dep is intentional — we only want to save once the
-  // initial load is complete, to avoid overwriting server data with local state.
-  const updateState = useCallback(<K extends keyof PersistedState>(
-    key: K,
-    updater: ((prev: PersistedState[K]) => PersistedState[K]) | PersistedState[K]
-  ) => {
-    setAppState(prev => {
-      const currentValue = prev[key];
-      const newValue = typeof updater === 'function' ? (updater as any)(currentValue) : updater;
-      if (currentValue === newValue) return prev;
-      if (isFirebaseConfigured && isFirebaseReady) {
-        saveStateToFirebase({ [key]: newValue });
-      }
-      return { ...prev, [key]: newValue };
-    });
+  /**
+   * REFACTORED: Targeted Write-Through Update
+   * This ensures that every state change is immediately persisted to Firestore.
+   */
+  const updateState = useCallback(<K extends keyof PersistedState>(key: K, updater: ((prev: PersistedState[K]) => PersistedState[K]) | PersistedState[K]) => {
+      setAppState(prev => {
+          const currentValue = prev[key];
+          const newValue = typeof updater === 'function' ? (updater as any)(currentValue) : updater;
+          
+          // Simple equality check to avoid redundant updates
+          if (currentValue === newValue) return prev;
+
+          // Persist the specific change to Firebase immediately
+          // CRITICAL: Only save if we are correctly configured AND initial load is complete
+          // This prevents overwriting server data with partial/empty local state during load
+          if (isFirebaseConfigured && isFirebaseReady) {
+              saveStateToFirebase({ [key]: newValue });
+          }
+          
+          return {
+              ...prev,
+              [key]: newValue
+          };
+      });
   }, [isFirebaseReady]);
 
   const salespeopleCount = useMemo(() => {
     return regions.reduce((acc, region) => {
-      const normalizedRegion = region.trim().toUpperCase();
-      acc[normalizedRegion] = bdms.filter(bdm =>
-        bdm.region.trim().toUpperCase() === normalizedRegion && bdm.active !== false
-      ).length;
-      return acc;
+        const normalizedRegion = region.trim().toUpperCase();
+        acc[normalizedRegion] = bdms.filter(bdm => 
+            bdm.region.trim().toUpperCase() === normalizedRegion && 
+            bdm.active !== false
+        ).length;
+        return acc;
     }, {} as Record<Region, number>);
   }, [bdms, regions]);
 
@@ -273,24 +296,23 @@ const App: React.FC = () => {
   };
 
   const handleResetData = () => {
-    if (window.confirm("WARNING: This clears all Local Storage and reloads. Continue?")) {
-      localStorage.removeItem('vendorBookingAppState');
-      localStorage.removeItem('vendorBookingCurrentUser');
-      window.location.reload();
-    }
+      if (window.confirm("WARNING: This clears all Local Storage and reloads. Continue?")) {
+          localStorage.removeItem('vendorBookingAppState');
+          localStorage.removeItem('vendorBookingCurrentUser');
+          window.location.reload();
+      }
   };
 
   const renderDashboard = () => {
     if (!currentUser) return null;
-
     const commonProps = {
-      onLogout: handleLogout, allBookings,
-      setAllBookings: (val: any) => updateState('allBookings', val),
-      notifications,
-      setNotifications: (val: any) => updateState('notifications', val),
-      branding, regions, regionColors, onUpdateProfile: handleUpdateProfile,
-      managerAppointments,
-      setManagerAppointments: (val: any) => updateState('managerAppointments', val),
+        onLogout: handleLogout, allBookings, 
+        setAllBookings: (val: any) => updateState('allBookings', val),
+        notifications, 
+        setNotifications: (val: any) => updateState('notifications', val),
+        branding, regions, regionColors, onUpdateProfile: handleUpdateProfile,
+        managerAppointments,
+        setManagerAppointments: (val: any) => updateState('managerAppointments', val),
     };
 
     switch (currentUser.role) {
@@ -329,7 +351,7 @@ const App: React.FC = () => {
             leaveDays={leaveDays}
             bdms={bdms}
             vendors={vendors}
-            managers={managers}
+            managers={managers} 
             personalAppointments={managerAppointments}
             setPersonalAppointments={(val: any) => updateState('managerAppointments', val)}
             isSyncing={!isFirebaseReady || isSyncingToCloud}
@@ -353,40 +375,39 @@ const App: React.FC = () => {
         );
       default: return null;
     }
-  };
+  }
 
   return (
     <>
       <div className={`fixed top-0 left-0 right-0 z-[100] text-[10px] text-center transition-all ${isFirebaseReady ? 'h-0 overflow-hidden' : 'bg-indigo-600 text-white p-1'}`}>
-        Connecting to Real-time Sync Engine...
+          Connecting to Real-time Sync Engine...
       </div>
-
       {isSyncingToCloud && (
         <div className="fixed top-0 left-1/2 -translate-x-1/2 z-[200] bg-black/80 text-white px-4 py-2 rounded-b-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 animate-pulse transition-all">
-          <div className="w-2 h-2 bg-emerald-400 rounded-full animate-ping" />
-          Syncing to Cloud...
+           <div className="w-2 h-2 bg-emerald-400 rounded-full animate-ping" />
+           Syncing Large Data Set to Cloud... Do not close tab.
         </div>
       )}
-
       {firebaseError && (
         <div className="bg-red-600 text-white px-4 py-2 text-xs flex items-center justify-between sticky top-0 z-[101]">
-          <span className="font-bold uppercase tracking-widest">⚠️ Connection Lost: {firebaseError}</span>
-          <button onClick={() => window.location.reload()} className="underline font-bold">Retry Connection</button>
+           <span className="font-bold uppercase tracking-widest">⚠️ Connection Lost: {firebaseError}</span>
+           <button onClick={() => window.location.reload()} className="underline font-bold">Retry Connection</button>
         </div>
       )}
-
       {!currentUser ? (
-        <LoginScreen
-          vendors={vendors}
-          managers={managers}
-          bdms={bdms}
-          onLogin={handleLogin}
-          branding={branding}
-          onResetData={handleResetData}
-          isFirebaseReady={isFirebaseReady}
+        <LoginScreen 
+            vendors={vendors} 
+            managers={managers} 
+            bdms={bdms}
+            onLogin={handleLogin}
+            branding={branding}
+            onResetData={handleResetData}
+            isFirebaseReady={isFirebaseReady}
         />
       ) : (
-        renderDashboard()
+        <>
+            {renderDashboard()}
+        </>
       )}
     </>
   );

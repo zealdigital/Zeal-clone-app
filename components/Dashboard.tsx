@@ -22,8 +22,6 @@ import { sendEmailNotification } from '../utils/emailService';
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../constants';
 import { formatDDMMYY } from '../utils/dateUtils';
 import { maskSoldText } from '../utils/statusUtils';
-import { saveSingleBookingToFirebase } from '../services/firebaseService';
-import { saveSingleBookingToFirebase, deleteSingleBookingFromFirebase } from '../services/firebaseService';
 
 const normalizeWebsite = (url: string): string => {
     if (!url) return '';
@@ -119,28 +117,16 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleOpenSlotManager = (date: Date, time: string, isCustom: boolean, region: Region) => setSlotToManage({ date, time, isCustom, region });
   const handleEditFromList = (booking: Booking) => setBookingToEdit(booking);
-  const handleDeleteBooking = (bookingId: number) => { 
-    if (window.confirm('Delete booking?')) {
-        const bookingToDelete = allBookings.find(b => b.id === bookingId);
-        setAllBookings(prev => prev.filter(b => b.id !== bookingId && b.parentBookingId !== bookingId));
-        
-        // BACKGROUND SYNC: Delete from Firebase
-        if (bookingToDelete && !bookingToDelete.isBlocker) {
-            deleteSingleBookingFromFirebase(bookingId).catch(error => {
-                console.error("Background sync failed for deletion:", bookingId, error);
-            });
-        }
-        triggerSystemAlert("Booking deleted.");
-    }
-};
+  const handleDeleteBooking = (bookingId: number) => { if (window.confirm('Delete booking?')) setAllBookings(prev => prev.filter(b => b.id !== bookingId && b.parentBookingId !== bookingId)); };
   const handleEditFromModal = (booking: Booking) => { setSlotToManage(null); setBookingToEdit(booking); };
   const closeModal = () => { setSlotToManage(null); setBookingToEdit(null); };
 
-  const handleConfirmBooking = async (bookingDetails: Omit<Booking, 'id' | 'vendor' | 'status'>, slotsToRemove: string[]) => {
+  const handleConfirmBooking = (bookingDetails: Omit<Booking, 'id' | 'vendor' | 'status'>, slotsToRemove: string[]) => {
     const mainBookingId = Date.now();
     
     // Duplicate Check
     const normalizedWebsite = normalizeWebsite(bookingDetails.clientWebsite);
+
     const oneYearAgo = new Date();
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
@@ -154,31 +140,16 @@ const Dashboard: React.FC<DashboardProps> = ({
     const newBooking: Booking = { 
         ...bookingDetails, 
         id: mainBookingId, 
-        createdAt: new Date().toISOString().split('T')[0], // Add createdAt
         vendor: currentUser, 
         status: 'active',
+        bookedAt: new Date().toISOString(),
         isDuplicate: !!existingMatch,
         duplicateOfBookingId: existingMatch?.id
     };
 
-    const newBlockers: Booking[] = slotsToRemove.map((time, index) => ({ 
-        id: Date.now() + index + 1, 
-        clientName: `Slot Blocked`, 
-        businessName: `Conflict`, 
-        clientWebsite: '', 
-        clientPhone: '', 
-        address: '', 
-        callerName: 'System', 
-        date: bookingDetails.date, 
-        time: time, 
-        vendor: currentUser, 
-        region: bookingDetails.region, 
-        isBlocker: true, 
-        parentBookingId: mainBookingId, 
-        status: 'active' 
-    }));
+    const newBlockers: Booking[] = slotsToRemove.map((time, index) => ({ id: Date.now() + index + 1, clientName: `Slot Blocked`, businessName: `Conflict`, clientWebsite: '', clientPhone: '', address: '', callerName: 'System', date: bookingDetails.date, time: time, vendor: currentUser, region: bookingDetails.region, isBlocker: true, parentBookingId: mainBookingId, status: 'active', bookedAt: new Date().toISOString() }));
     
-    // NOTIFY MANAGERS VIA EMAIL (don't await - fire and forget)
+    // NOTIFY MANAGERS VIA EMAIL
     managers.forEach(m => {
         if (m.notificationPreferences?.newBooking && m.email) {
             sendEmailNotification(
@@ -191,18 +162,11 @@ const Dashboard: React.FC<DashboardProps> = ({
         }
     });
 
-    // OPTIMISTIC UI UPDATE: Update local state immediately
     setNotifications(prev => [...prev, { id: Date.now(), vendorId: 0, bookingId: mainBookingId, message: `New Booking: ${bookingDetails.clientName} by ${currentUser.name}${existingMatch ? ' (Duplicate)' : ''}`, read: false, timestamp: new Date().toISOString() }]);
     setAllBookings(prev => [...prev, newBooking, ...newBlockers]);
     closeModal();
     triggerSystemAlert(existingMatch ? "Booking confirmed (Duplicate detected)." : "Booking confirmed. Admins notified.");
-    
-    // BACKGROUND SYNC: Save to Firebase without blocking UI
-    saveSingleBookingToFirebase(newBooking).catch(error => {
-        console.error("Background sync failed for booking:", newBooking.id, error);
-        // Don't show error to user - will sync on next full sync
-    });
-};
+  };
   
   const handleUpdateBooking = (updatedDetails: any, slotsToRemove: string[]) => {
     if (!bookingToEdit) return;
@@ -224,41 +188,43 @@ const Dashboard: React.FC<DashboardProps> = ({
         const updatedBooking: Booking = { 
             ...bookingToEdit, 
             ...updatedDetails,
+            bookedAt: bookingToEdit.bookedAt || new Date().toISOString(),
             isDuplicate: !!existingMatch,
             duplicateOfBookingId: existingMatch?.id
         };
-        const newBlockers: Booking[] = slotsToRemove.map((time, index) => ({ id: Date.now() + index + 1, clientName: `Slot Blocked`, businessName: `Conflict`, clientWebsite: '', clientPhone: '', address: '', callerName: 'System', date: updatedBooking.date, time: time, vendor: bookingToEdit.vendor, region: updatedBooking.region, isBlocker: true, parentBookingId: updatedBooking.id, status: 'active' }));
+        const newBlockers: Booking[] = slotsToRemove.map((time, index) => ({ id: Date.now() + index + 1, clientName: `Slot Blocked`, businessName: `Conflict`, clientWebsite: '', clientPhone: '', address: '', callerName: 'System', date: updatedBooking.date, time: time, vendor: bookingToEdit.vendor, region: updatedBooking.region, isBlocker: true, parentBookingId: updatedBooking.id, status: 'active', bookedAt: new Date().toISOString() }));
         return [...otherBookings, updatedBooking, ...newBlockers];
     });
     closeModal();
   };
 
-  const handleRequestManualBooking = async (bookingDetails: Omit<Booking, 'id' | 'status'>) => {
-    const requestId = Date.now();
-    
-    // Duplicate Check
-    const normalizedWebsite = normalizeWebsite(bookingDetails.clientWebsite);
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  const handleRequestManualBooking = (bookingDetails: Omit<Booking, 'id' | 'status'>) => {
+      const requestId = Date.now();
+      
+      // Duplicate Check
+      const normalizedWebsite = normalizeWebsite(bookingDetails.clientWebsite);
 
-    const existingMatch = allBookings.find(b => {
-        if (b.isBlocker || b.status === 'rejected') return false;
-        const bDate = new Date(b.date);
-        if (bDate < oneYearAgo) return false;
-        return normalizedWebsite && normalizeWebsite(b.clientWebsite) === normalizedWebsite;
-    });
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
-    const newBooking: Booking = { 
-        ...bookingDetails, 
-        id: requestId, 
-        createdAt: new Date().toISOString().split('T')[0], // Add createdAt
-        status: 'pending_approval',
-        isDuplicate: !!existingMatch,
-        duplicateOfBookingId: existingMatch?.id
-    };
-    
-    // NOTIFY MANAGERS VIA EMAIL (fire and forget - don't await)
-    managers.forEach(m => { 
+      const existingMatch = allBookings.find(b => {
+          if (b.isBlocker || b.status === 'rejected') return false;
+          const bDate = new Date(b.date);
+          if (bDate < oneYearAgo) return false;
+          return normalizedWebsite && normalizeWebsite(b.clientWebsite) === normalizedWebsite;
+      });
+
+      const newBooking: Booking = { 
+          ...bookingDetails, 
+          id: requestId, 
+          status: 'pending_approval',
+          bookedAt: new Date().toISOString(),
+          isDuplicate: !!existingMatch,
+          duplicateOfBookingId: existingMatch?.id
+      };
+      
+      // NOTIFY MANAGERS VIA EMAIL
+      managers.forEach(m => { 
         if (m.notificationPreferences?.bookingRequest && m.email) {
             sendEmailNotification(
                 m.email,
@@ -268,19 +234,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                 "MANUAL DATE REQUEST"
             );
         }
-    });
+      });
 
-    // OPTIMISTIC UI UPDATE: Update local state immediately
-    setNotifications(prev => [...prev, { id: Date.now(), vendorId: 0, bookingId: requestId, message: `Manual Request from ${currentUser.name}: ${bookingDetails.clientName}${existingMatch ? ' (Duplicate)' : ''}`, read: false, timestamp: new Date().toISOString() }]);
-    setAllBookings(prev => [...prev, newBooking]);
-    setIsRequestModalOpen(false); 
-    triggerSystemAlert(existingMatch ? "Manual request sent (Duplicate detected)." : "Manual request sent to Admin.");
-    
-    // BACKGROUND SYNC: Save to Firebase without blocking UI
-    saveSingleBookingToFirebase(newBooking).catch(error => {
-        console.error("Background sync failed for manual request:", newBooking.id, error);
-    });
-};
+      setNotifications(prev => [...prev, { id: Date.now(), vendorId: 0, bookingId: requestId, message: `Manual Request from ${currentUser.name}: ${bookingDetails.clientName}${existingMatch ? ' (Duplicate)' : ''}`, read: false, timestamp: new Date().toISOString() }]);
+      setAllBookings(prev => [...prev, newBooking]);
+      setIsRequestModalOpen(false); 
+      triggerSystemAlert("Manual request sent to Admin.");
+  };
 
   const handleRequestSms = (bookingId: number, type: string, message: string) => {
       const booking = allBookings.find(b => b.id === bookingId);
@@ -402,40 +362,24 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div> 
           <Header currentUser={currentUser} onLogout={onLogout} notifications={myNotifications} setNotifications={setNotifications} branding={branding} />
           <main className="p-4 sm:p-6 lg:p-8">
-            <div className="max-w-[100rem] mx-auto">
+            <div className="max-w-7xl mx-auto">
               
-              <div className="mb-6 border-b border-gray-300/50">
-                <nav className="flex flex-wrap gap-x-6 gap-y-2 -mb-px">
-                    <button 
-                        onClick={() => setActiveTab('bookings')} 
-                        className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-all ${activeTab === 'bookings' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-                    >
-                        <DocumentTextIcon className="w-5 h-5" /> 
-                        <span>Booking Slots</span>
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('calendar')} 
-                        className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-all ${activeTab === 'calendar' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-                    >
-                        <CalendarDaysIcon className="w-5 h-5" /> 
-                        <span>My Calendar</span>
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('performance')} 
-                        className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-all ${activeTab === 'performance' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-                    >
-                        <PresentationChartLineIcon className="w-5 h-5" /> 
-                        <span>My Performance</span>
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('settings')} 
-                        className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-all ${activeTab === 'settings' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-                    >
-                        <Cog6ToothIcon className="w-5 h-5" /> 
-                        <span>Settings</span>
-                    </button>
-                </nav>
-            </div>
+              <div className="mb-6 border-b border-gray-300/50 overflow-x-auto">
+                  <nav className="-mb-px flex space-x-8">
+                      <button onClick={() => setActiveTab('bookings')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'bookings' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                          <DocumentTextIcon className="w-5 h-5" /> Booking Slots
+                      </button>
+                      <button onClick={() => setActiveTab('calendar')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'calendar' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                          <CalendarDaysIcon className="w-5 h-5" /> My Calendar
+                      </button>
+                      <button onClick={() => setActiveTab('performance')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'performance' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                          <PresentationChartLineIcon className="w-5 h-5" /> My Performance
+                      </button>
+                      <button onClick={() => setActiveTab('settings')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'settings' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                          <Cog6ToothIcon className="w-5 h-5" /> Settings
+                      </button>
+                  </nav>
+              </div>
 
               {activeTab === 'bookings' && (
                   <div className="animate-fadeIn">
@@ -562,7 +506,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </div>
               )}
 
-                {activeTab === 'performance' && (
+              {activeTab === 'performance' && (
                   <div className="animate-fadeIn mt-6 space-y-8">
                     <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
                       <h3 className="text-lg font-bold text-gray-800 mb-4">Team Performance Analytics</h3>
@@ -586,6 +530,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <PerformanceLeadLog bookings={analyticsBookings} role="vendor" title="Team Performance Lead Log" />
                   </div>
               )}
+
               {activeTab === 'settings' && (
                   <div className="animate-fadeIn mt-6 max-w-2xl mx-auto">
                       <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">

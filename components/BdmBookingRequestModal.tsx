@@ -157,6 +157,7 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
         time: formattedTime,
         region: formData.region as Region,
         notes: formData.notes,
+        bookedAt: prefillData?.bookedAt || new Date().toISOString(),
         customReason: isReschedule ? 'BDM Reschedule Request' : (isManager ? 'Manager Manual Entry' : isVendor ? 'Caller Manual Request' : 'BDM Requested Booking'),
         bdmId: isBdm ? currentUser.id : (isReschedule ? prefillData?.bdmId : undefined),
         vendor: selectedVendor,
@@ -167,7 +168,7 @@ const BdmBookingRequestModal: React.FC<BdmBookingRequestModalProps> = ({ current
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-scaleIn">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden animate-scaleIn">
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
             {/* Header */}
             <div className="flex justify-between items-center p-5 border-b bg-gray-50/80">

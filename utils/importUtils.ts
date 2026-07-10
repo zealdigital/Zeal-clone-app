@@ -40,21 +40,6 @@ const parseDateTime = (dateTimeStr: string): { date: string | null, time: string
         const input = dateTimeStr.trim().replace(/[\r\n]+/g, ' ');
         if (!input) return { date: null, time: '10:00 AM' };
 
-        // Handle Excel serial dates
-        if (/^\d{5}(\.\d+)?$/.test(input)) {
-            const excelDate = parseFloat(input);
-            const jsDate = new Date((excelDate - 25569) * 86400 * 1000);
-
-            const yyyy = jsDate.getFullYear();
-            const mm = String(jsDate.getMonth() + 1).padStart(2, '0');
-            const dd = String(jsDate.getDate()).padStart(2, '0');
-
-            return {
-                date: `${yyyy}-${mm}-${dd}`,
-                time: '10:00 AM'
-            };
-        }
-
         // Try to handle spaces around slashes, dashes, or dots first to normalize the string
         const normalizedInput = input.replace(/\s*([/.-])\s*/g, '$1');
         const parts = normalizedInput.split(/\s+/);
@@ -389,22 +374,7 @@ export const processImportFile = async (
                     statusRaw = (cols[headerMap['status']] || '').trim();
                 }
 
-                // Parse appointment date separately
-                const apptParsed = parseDateTime(
-                    apptDateRaw !== '-' ? apptDateRaw : ''
-                );
-
-                // Parse booked date separately
-                const bookedParsed = parseDateTime(
-                    bookedDateRaw !== '-' ? bookedDateRaw : ''
-                );
-
-                // Use appointment date first, fallback to booked date
-                const date = apptParsed.date || bookedParsed.date;
-                const time = apptParsed.time || '10:00 AM';
-
-                // Preserve booked date separately
-                const bookedDate = bookedParsed.date;
+                const { date, time } = parseDateTime(apptDateRaw !== '-' ? apptDateRaw : (bookedDateRaw !== '-' ? bookedDateRaw : ''));
                 
                 // Final ghost check: 
                 // 1. If no valid date was found, skip it
@@ -416,7 +386,7 @@ export const processImportFile = async (
 
                 let matchedVendor = vendors.find(v => normalize(v.name) === normalize(callingTeam));
                 if (!matchedVendor) {
-                    matchedVendor = { id: 999999 + index, name: callingTeam === '-' ? 'Imported' : callingTeam, username: 'imported', active: true } as Vendor;
+                    matchedVendor = { id: 999999 + index, name: callingTeam === '-' ? 'Imported' : callingTeam, username: 'imported', active: true };
                 }
 
                 // Map BDM if provided
@@ -459,14 +429,11 @@ export const processImportFile = async (
 
                 if (duplicateId) duplicates++;
 
-                // Store the booked date from CSV as createdAt
-                const createdAt = bookedDate && bookedDate !== '-' ? bookedDate : new Date().toISOString().split('T')[0];
-
                 newBookings.push({
                     id: baseId + index,
                     clientName,
                     businessName,
-                    date, // Use the parsed valid date (Appointment date)
+                    date, // Use the parsed valid date
                     time,
                     region,
                     address,
@@ -478,7 +445,7 @@ export const processImportFile = async (
                     callerName: callerName,
                     notes: notes || '-',
                     status,
-                    createdAt, // Store the booked/import date here
+                    bookedAt: (date && bookedDateRaw && bookedDateRaw !== '-') ? new Date(bookedDateRaw).toISOString() : new Date().toISOString(),
                     isDuplicate: !!duplicateId,
                     duplicateOfBookingId: duplicateId,
                 });

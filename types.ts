@@ -1,3 +1,4 @@
+
 import type { REGIONS } from './constants';
 
 export interface NotificationPreferences {
@@ -59,7 +60,6 @@ export interface Branding {
 
 export interface Booking {
   id: number;
-  createdAt: string; // YYYY-MM-DD format - when the booking was created/imported
   clientName: string;
   businessName: string;
   clientWebsite: string;
@@ -67,7 +67,7 @@ export interface Booking {
   clientEmail?: string; // New field for email duplicate checking
   address: string;
   callerName: string;
-  date: string; // YYYY-MM-DD format (Appointment date)
+  date: string; // YYYY-MM-DD format
   time: string; // HH:MM AM/PM format
   vendor: Vendor;
   region: Region;
@@ -77,6 +77,7 @@ export interface Booking {
   customReason?: string;
   bdmId?: number;
   status: 'active' | 'rejected' | 'seen' | 'rescheduled' | 'cancelled' | 'dq' | 'sold' | 'rescheduled_bdm' | 'pending_approval';
+  bookedAt: string; // ISO Date for tracking creation time
   rejectionReason?: string;
   rejectedBy?: string; // Manager's name
   bdmNote?: string;
