@@ -33,15 +33,29 @@ const extractBusinessFromUrl = (url: string): string => {
  */
 const parseDateTime = (dateTimeStr: string): { date: string | null, time: string } => {
     const now = new Date();
-    const today = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
     if (!dateTimeStr || dateTimeStr.trim() === '') return { date: null, time: '10:00 AM' };
 
     try {
         const input = dateTimeStr.trim().replace(/[\r\n]+/g, ' ');
         if (!input) return { date: null, time: '10:00 AM' };
 
-        // Try to handle spaces around slashes, dashes, or dots first to normalize the string
-        const normalizedInput = input.replace(/\s*([/.-])\s*/g, '$1');
+        // Handle Excel serial dates
+        if (/^\d{5}(\.\d+)?$/.test(input)) {
+            const excelDate = parseFloat(input);
+            const jsDate = new Date((excelDate - 25569) * 86400 * 1000);
+
+            const yyyy = jsDate.getFullYear();
+            const mm = String(jsDate.getMonth() + 1).padStart(2, '0');
+            const dd = String(jsDate.getDate()).padStart(2, '0');
+
+            return {
+                date: `${yyyy}-${mm}-${dd}`,
+                time: '10:00 AM'
+            };
+        }
+
+        // Normalize separators to /
+        const normalizedInput = input.replace(/[.-]/g, '/');
         const parts = normalizedInput.split(/\s+/);
         
         let datePart = parts[0];
@@ -69,21 +83,27 @@ const parseDateTime = (dateTimeStr: string): { date: string | null, time: string
                 
                 // Handle YYYY/MM/DD
                 if (d.length === 4) {
-                   finalDate = `${d}-${m.padStart(2, '0')}-${slashParts[2].padStart(2, '0')}`;
+                    finalDate = `${d}-${m.padStart(2, '0')}-${slashParts[2].padStart(2, '0')}`;
                 } else {
-                    if (y.length === 2) y = `20${y}`;
+                    // Determine if it's DD/MM/YYYY or MM/DD/YYYY
+                    const day = parseInt(d, 10);
+                    const month = parseInt(m, 10);
                     
-                    const val1 = parseInt(d);
-                    const val2 = parseInt(m);
-                    
-                    if (val1 > 12) {
+                    // If day > 12, it must be DD/MM/YYYY
+                    if (day > 12) {
                         // DD/MM/YYYY
+                        if (y.length === 2) y = `20${y}`;
                         finalDate = `${y}-${m}-${d}`;
-                    } else if (val2 > 12) {
+                    } 
+                    // If month > 12, it must be MM/DD/YYYY
+                    else if (month > 12) {
                         // MM/DD/YYYY
+                        if (y.length === 2) y = `20${y}`;
                         finalDate = `${y}-${d}-${m}`;
-                    } else {
-                        // Default to Australian standard DD/MM/YYYY
+                    } 
+                    // If both are <= 12, default to DD/MM/YYYY (Australian format)
+                    else {
+                        if (y.length === 2) y = `20${y}`;
                         finalDate = `${y}-${m}-${d}`;
                     }
                 }
@@ -91,6 +111,13 @@ const parseDateTime = (dateTimeStr: string): { date: string | null, time: string
                 // MM/DD or DD/MM - assume current year
                 let d = slashParts[0].padStart(2, '0');
                 let m = slashParts[1].padStart(2, '0');
+                const y = now.getFullYear();
+                // Assume DD/MM
+                finalDate = `${y}-${m}-${d}`;
+            } else if (slashParts.length === 1) {
+                // Just a day - use current month/year
+                const d = slashParts[0].padStart(2, '0');
+                const m = String(now.getMonth() + 1).padStart(2, '0');
                 const y = now.getFullYear();
                 finalDate = `${y}-${m}-${d}`;
             }
@@ -102,28 +129,47 @@ const parseDateTime = (dateTimeStr: string): { date: string | null, time: string
             if (!t.includes('AM') && !t.includes('PM')) {
                 const timeParts = t.split(':');
                 if (timeParts.length >= 2) {
-                    let h = parseInt(timeParts[0]);
+                    let h = parseInt(timeParts[0], 10);
                     let m = timeParts[1].substring(0, 2);
                     const suffix = h >= 12 ? 'PM' : 'AM';
                     h = h % 12;
                     if (h === 0) h = 12;
-                    finalTime = `${h.toString().padStart(2, '0')}:${m} ${suffix}`;
+                    finalTime = `${String(h).padStart(2, '0')}:${m} ${suffix}`;
                 } else if (timeParts.length === 1) {
-                    let h = parseInt(timeParts[0]);
+                    let h = parseInt(timeParts[0], 10);
                     if (!isNaN(h)) {
                         const suffix = h >= 12 ? 'PM' : 'AM';
                         h = h % 12;
                         if (h === 0) h = 12;
-                        finalTime = `${h.toString().padStart(2, '0')}:00 ${suffix}`;
+                        finalTime = `${String(h).padStart(2, '0')}:00 ${suffix}`;
                     }
                 }
             } else {
-                finalTime = t;
+                // Time already has AM/PM, ensure it's properly formatted
+                const timeMatch = t.match(/(\d{1,2}):?(\d{2})?\s*(AM|PM)/);
+                if (timeMatch) {
+                    let h = parseInt(timeMatch[1], 10);
+                    const m = timeMatch[2] || '00';
+                    const modifier = timeMatch[3];
+                    if (modifier === 'PM' && h < 12) h += 12;
+                    if (modifier === 'AM' && h === 12) h = 0;
+                    finalTime = `${String(h).padStart(2, '0')}:${m} ${modifier}`;
+                }
+            }
+        }
+
+        // Validate the date is reasonable (between 2000 and 2100)
+        if (finalDate) {
+            const year = parseInt(finalDate.split('-')[0], 10);
+            if (year < 2000 || year > 2100) {
+                console.warn(`Invalid year in date: ${finalDate}`);
+                return { date: null, time: finalTime };
             }
         }
 
         return { date: finalDate, time: finalTime };
     } catch (e) {
+        console.error('Error parsing date/time:', dateTimeStr, e);
         return { date: null, time: '10:00 AM' };
     }
 };
