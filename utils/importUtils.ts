@@ -28,6 +28,43 @@ const extractBusinessFromUrl = (url: string): string => {
 };
 
 /**
+ * Safely parses a date string to ISO format
+ * Handles DD/MM/YYYY, MM/DD/YYYY, and standard ISO formats
+ */
+const safeParseToISO = (dateStr: string | undefined | null): string => {
+    const fallback = new Date().toISOString();
+    if (!dateStr || dateStr === '-' || dateStr.trim() === '') {
+        return fallback;
+    }
+    
+    try {
+        const trimmed = dateStr.trim();
+        let parsedDate: Date | null = null;
+        
+        // Try DD/MM/YYYY or DD/MM/YY format
+        const ddmmyyMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+        if (ddmmyyMatch) {
+            const day = parseInt(ddmmyyMatch[1], 10);
+            const month = parseInt(ddmmyyMatch[2], 10) - 1;
+            let year = parseInt(ddmmyyMatch[3], 10);
+            if (year < 100) year += 2000;
+            parsedDate = new Date(year, month, day);
+        } else {
+            // Try standard Date parsing
+            parsedDate = new Date(trimmed);
+        }
+        
+        if (parsedDate && !isNaN(parsedDate.getTime())) {
+            return parsedDate.toISOString();
+        }
+    } catch (e) {
+        console.warn(`Date parsing failed for: ${dateStr}`, e);
+    }
+    
+    return fallback;
+};
+
+/**
  * Robust date and time parser for CSV imports.
  * Returns null for date if invalid/missing to allow skipping rows.
  */
@@ -420,7 +457,14 @@ export const processImportFile = async (
                     statusRaw = (cols[headerMap['status']] || '').trim();
                 }
 
-                const { date, time } = parseDateTime(apptDateRaw !== '-' ? apptDateRaw : (bookedDateRaw !== '-' ? bookedDateRaw : ''));
+                // Parse appointment date from available data
+                let dateToParse = '';
+                if (apptDateRaw !== '-') {
+                    dateToParse = apptDateRaw;
+                } else if (bookedDateRaw !== '-') {
+                    dateToParse = bookedDateRaw;
+                }
+                const { date, time } = parseDateTime(dateToParse);
                 
                 // Final ghost check: 
                 // 1. If no valid date was found, skip it
@@ -475,6 +519,9 @@ export const processImportFile = async (
 
                 if (duplicateId) duplicates++;
 
+                // Safely parse bookedAt date using the helper function
+                const bookedAtISO = safeParseToISO(bookedDateRaw);
+
                 newBookings.push({
                     id: baseId + index,
                     clientName,
@@ -491,7 +538,7 @@ export const processImportFile = async (
                     callerName: callerName,
                     notes: notes || '-',
                     status,
-                    bookedAt: (date && bookedDateRaw && bookedDateRaw !== '-') ? new Date(bookedDateRaw).toISOString() : new Date().toISOString(),
+                    bookedAt: bookedAtISO,
                     isDuplicate: !!duplicateId,
                     duplicateOfBookingId: duplicateId,
                 });
