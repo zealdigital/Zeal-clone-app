@@ -1036,9 +1036,22 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             <main className="p-4 sm:p-6 lg:p-8">
                 <div className="max-w-7xl mx-auto">
                     <div className="border-b border-gray-300">
-                        <nav className="-mb-px flex space-x-8">
-                            {[{ id: 'bookings', label: 'Bookings', icon: DocumentTextIcon }, { id: 'analytics', label: 'Analytics & Reports', icon: PresentationChartLineIcon }, { id: 'users', label: 'User Management', icon: UserGroupIcon }, { id: 'calendar', label: 'My Calendar', icon: CalendarDaysIcon }, { id: 'settings', label: 'Settings', icon: Cog6ToothIcon }].map(item => (
-                                <button key={item.id} onClick={() => setActiveTab(item.id as any)} className={`whitespace-nowrap py-4 px-1 border-b-2 font-bold text-sm flex items-center gap-2 ${activeTab === item.id ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><item.icon className="w-5 h-5" /> {item.label}</button>
+                        <nav className="flex flex-wrap gap-x-6 gap-y-2 -mb-px">
+                            {[
+                                { id: 'bookings', label: 'Bookings', icon: DocumentTextIcon },
+                                { id: 'analytics', label: 'Analytics & Reports', icon: PresentationChartLineIcon },
+                                { id: 'users', label: 'User Management', icon: UserGroupIcon },
+                                { id: 'calendar', label: 'My Calendar', icon: CalendarDaysIcon },
+                                { id: 'settings', label: 'Settings', icon: Cog6ToothIcon }
+                            ].map(item => (
+                                <button 
+                                    key={item.id} 
+                                    onClick={() => setActiveTab(item.id as any)} 
+                                    className={`py-4 px-1 border-b-2 font-bold text-sm flex items-center gap-2 transition-all ${activeTab === item.id ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                                >
+                                    <item.icon className="w-5 h-5" /> 
+                                    <span>{item.label}</span>
+                                </button>
                             ))}
                         </nav>
                     </div>
@@ -1072,748 +1085,995 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                             </div>
                                                             <div className="text-[10px] font-bold text-gray-400 uppercase">{req.region}</div>
                                                         </div>
-                                                        <div className="font-bold text-gray-900 leading-tight mb-1">{req.businessName}</div>
-                                                        <div className="text-xs text-gray-500 mb-3">{req.clientName}</div>
-                                                        <div className="flex items-center gap-2 text-xs font-bold text-gray-700 mb-3">
-                                                            <CalendarDaysIcon className="w-3.5 h-3.5 text-gray-400" />
-                                                            {new Date(req.date + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                        <div className="font-bold text-gray-900 text-sm leading-tight truncate">{req.businessName}</div>
+                                                        <div className="text-[11px] text-gray-500 truncate">{req.clientName}</div>
+                                                        <div className="flex items-center gap-2 text-[10px] font-bold text-gray-600 mt-2">
+                                                            <CalendarDaysIcon className="w-3 h-3 text-gray-400" />
+                                                            {formatToDDMMYY(req.date)}
                                                             <span className="text-gray-300">|</span>
-                                                            <ClockIcon className="w-3.5 h-3.5 text-gray-400" />
+                                                            <ClockIcon className="w-3 h-3 text-gray-400" />
                                                             {req.time}
                                                         </div>
                                                     </div>
-                                                    <button onClick={() => setRequestToReview(req)} className="w-full py-2 bg-indigo-600 text-white rounded-lg font-black uppercase text-[10px] tracking-widest hover:bg-indigo-700 shadow-sm transition-all">Review & Action</button>
+                                                    <div className="mt-3 flex justify-end">
+                                                        <button 
+                                                            onClick={() => setRequestToReview(req)}
+                                                            className="px-3 py-1.5 text-xs font-bold bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+                                                        >
+                                                            Review Request
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
                                 )}
 
-                                <div className="space-y-4 mt-4">
-                                    <div className="w-full">
-                                        <div className="relative flex items-center">
-                                            <MagnifyingGlassIcon className="absolute left-3 w-5 h-5 text-gray-400" />
-                                            <input type="text" className="block w-full rounded-xl border-0 py-3 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-black transition-all bg-white" placeholder="Search by name, phone, website, address..." value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setActiveLeadsPage(1); }} />
-                                            {searchTerm && (
-                                                <button onClick={() => { setSearchTerm(''); setActiveLeadsPage(1); }} className="absolute right-3 p-1 text-gray-400 hover:text-gray-600 rounded-full"><XMarkIcon className="w-5 h-5" /></button>
+                                {/* Active Leads Table - UPDATED with black header and date rows */}
+                                <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200 mb-8">
+                                    <div className="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                        <div>
+                                            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                                                <ClockIcon className="w-5 h-5 text-green-500" />
+                                                Active Leads
+                                            </h2>
+                                            <p className="text-sm text-gray-500">All currently active appointments</p>
+                                        </div>
+                                        <div className="flex gap-2 w-full sm:w-auto">
+                                            <DateRangePicker startDate={dateRange.startDate} endDate={dateRange.endDate} onDateChange={setDateRange} />
+                                        </div>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="min-w-full divide-y divide-gray-200">
+                                            {/* BLACK HEADER */}
+                                            <thead className="bg-black">
+                                                <tr>
+                                                    <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Client & Business</th>
+                                                    <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Calling Team</th>
+                                                    <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Time</th>
+                                                    <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Status</th>
+                                                    <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Notes</th>
+                                                    <th className="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-widest">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="bg-white divide-y divide-gray-200">
+                                                {sortedActiveDates.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={6} className="px-6 py-12 text-center text-gray-500 italic">No active leads matching your criteria.</td>
+                                                    </tr>
+                                                ) : (
+                                                    sortedActiveDates.map(dateKey => (
+                                                        <React.Fragment key={dateKey}>
+                                                            {/* BLACK DATE ROW */}
+                                                            <tr className="bg-black border-y border-gray-800">
+                                                                <td colSpan={6} className="px-6 py-3 text-sm font-bold text-white uppercase tracking-tight">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <CalendarDaysIcon className="w-4 h-4 text-white opacity-70" />
+                                                                        {formatToDDMMYY(dateKey)}
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                            {groupedActiveLeads[dateKey].map(booking => (
+                                                                <tr key={booking.id} className={`hover:bg-gray-50 transition-colors ${booking.isDuplicate ? 'bg-amber-50' : ''}`}>
+                                                                    <td className="px-6 py-4">
+                                                                        <div className="text-sm font-bold text-gray-900">{booking.clientName}</div>
+                                                                        <div className="text-xs text-gray-500">{booking.businessName}</div>
+                                                                        {booking.clientWebsite && (
+                                                                            <a href={booking.clientWebsite.startsWith('http') ? booking.clientWebsite : `https://${booking.clientWebsite}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
+                                                                                {booking.clientWebsite}
+                                                                            </a>
+                                                                        )}
+                                                                        {booking.isDuplicate && (
+                                                                            <div className="mt-1 text-[10px] font-bold text-amber-600">⚠️ Duplicate</div>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="px-6 py-4 text-sm text-gray-600">{booking.vendor.name}</td>
+                                                                    <td className="px-6 py-4 text-sm font-bold text-gray-900">{booking.time}</td>
+                                                                    <td className="px-6 py-4">{getStatusPill(booking.status)}</td>
+                                                                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
+                                                                        <ExpandableNote text={booking.bdmNote || booking.notes} />
+                                                                    </td>
+                                                                    <td className="px-6 py-4 text-right text-sm font-medium">
+                                                                        <button
+                                                                            onClick={() => setBookingToManage(booking)}
+                                                                            className="text-indigo-600 hover:text-indigo-900 mr-3"
+                                                                        >
+                                                                            <PencilSquareIcon className="w-4 h-4" />
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleDeleteBooking(booking.id)}
+                                                                            className="text-red-600 hover:text-red-900"
+                                                                        >
+                                                                            <TrashIcon className="w-4 h-4" />
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </React.Fragment>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {totalActiveLeadsPages > 1 && (
+                                        <div className="px-6 py-4 bg-gray-50 border-t">
+                                            <Pagination
+                                                totalPages={totalActiveLeadsPages}
+                                                currentPage={activeLeadsPage}
+                                                onPageChange={setActiveLeadsPage}
+                                                totalItems={activeLeads.length}
+                                                label="Active Leads"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Archived Leads - using the updated component */}
+                                <div className="mt-8">
+                                    <ArchivedBookingsList
+                                        bookings={archivedLeads}
+                                        role="manager"
+                                        searchTerm={searchTerm}
+                                        onEditBooking={setBookingToEdit}
+                                        bdms={bdms}
+                                    />
+                                </div>
+
+                                {/* Rejected Leads */}
+                                {rejectedLeads.length > 0 && (
+                                    <div className="mt-8">
+                                        <RejectedBookingsList bookings={rejectedLeads} role="manager" searchTerm={searchTerm} />
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        {activeTab === 'analytics' && (
+                            <div className="space-y-8">
+                                <AnalyticsDashboard bookings={analyticsBookings} />
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    <StatusAnalytics bookings={analyticsBookings} title="Booking Status Breakdown" role="manager" />
+                                    <VendorPerformanceAnalytics bookings={analyticsBookings} vendors={vendors} />
+                                </div>
+                                <BdmOutcomePerformance bookings={analyticsBookings} bdms={bdms} />
+                                <PerformanceLeadLog bookings={analyticsBookings} bdms={bdms} title="Global Data Report Log" role="manager" />
+                            </div>
+                        )}
+
+                        {activeTab === 'users' && (
+                            <div>
+                                <div className="border-b border-gray-200 mb-6">
+                                    <nav className="-mb-px flex space-x-8">
+                                        {['vendors', 'bdms', 'managers', 'leave'].map(tab => (
+                                            <button
+                                                key={tab}
+                                                onClick={() => setUserMgmtTab(tab as any)}
+                                                className={`py-2 px-1 border-b-2 font-medium text-sm capitalize ${userMgmtTab === tab ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                                            >
+                                                {tab === 'vendors' ? 'Calling Teams' : tab}
+                                            </button>
+                                        ))}
+                                    </nav>
+                                </div>
+
+                                {userMgmtTab === 'vendors' && (
+                                    <div>
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h3 className="text-lg font-bold">Calling Teams</h3>
+                                            <button
+                                                onClick={() => {
+                                                    const name = prompt('Enter vendor name:');
+                                                    if (name) {
+                                                        const username = prompt('Enter username:');
+                                                        const password = prompt('Enter password:');
+                                                        if (username && password) {
+                                                            setNewVendorName(name);
+                                                            setNewVendorUsername(username);
+                                                            setNewVendorPassword(password);
+                                                            handleAddVendor();
+                                                        }
+                                                    }
+                                                }}
+                                                className="px-4 py-2 bg-black text-white rounded-lg text-sm font-bold hover:bg-gray-800"
+                                            >
+                                                <PlusIcon className="w-4 h-4 inline mr-1" /> Add Vendor
+                                            </button>
+                                        </div>
+                                        <div className="bg-white rounded-xl shadow overflow-hidden">
+                                            <table className="min-w-full divide-y divide-gray-200">
+                                                <thead className="bg-gray-50">
+                                                    <tr>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Allowed Regions</th>
+                                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-200">
+                                                    {paginatedVendors.map(vendor => (
+                                                        <tr key={vendor.id} className="hover:bg-gray-50">
+                                                            <td className="px-6 py-4 text-sm text-gray-900">{vendor.name}</td>
+                                                            <td className="px-6 py-4 text-sm text-gray-500">{vendor.username}</td>
+                                                            <td className="px-6 py-4">
+                                                                <span className={`px-2 py-1 text-xs rounded-full ${vendor.active !== false ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                                    {vendor.active !== false ? 'Active' : 'Inactive'}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-4 text-sm text-gray-500">
+                                                                {vendor.allowedRegions?.join(', ') || 'All'}
+                                                            </td>
+                                                            <td className="px-6 py-4 text-right">
+                                                                <button
+                                                                    onClick={() => setEditingUser({ user: vendor, type: 'vendor' })}
+                                                                    className="text-indigo-600 hover:text-indigo-900"
+                                                                >
+                                                                    <PencilSquareIcon className="w-4 h-4" />
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                            {vendors.length > ITEMS_PER_PAGE && (
+                                                <Pagination
+                                                    totalPages={Math.ceil(vendors.length / ITEMS_PER_PAGE)}
+                                                    currentPage={vendorsPage}
+                                                    onPageChange={setVendorsPage}
+                                                    totalItems={vendors.length}
+                                                    label="Vendors"
+                                                />
                                             )}
                                         </div>
                                     </div>
-                                    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 w-full items-stretch">
-                                        <div className="flex-1">
-                                            <DateRangePicker startDate={dateRange.startDate} endDate={dateRange.endDate} onDateChange={setDateRange} />
-                                        </div>
-                                        <div className="flex gap-2 w-full sm:w-auto items-end">
-                                            <button 
-                                                onClick={() => setIsManualBookingOpen(true)} 
-                                                disabled={isSyncing}
-                                                className="px-6 py-3 bg-black text-white rounded-xl hover:bg-gray-800 shadow-md transition-all font-bold uppercase text-xs tracking-widest flex items-center gap-2 h-[46px] disabled:opacity-50 disabled:cursor-not-allowed"
+                                )}
+
+                                {userMgmtTab === 'bdms' && (
+                                    <div>
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h3 className="text-lg font-bold">BDMs</h3>
+                                            <button
+                                                onClick={() => {
+                                                    const name = prompt('Enter BDM name:');
+                                                    if (name) {
+                                                        const username = prompt('Enter username:');
+                                                        const password = prompt('Enter password:');
+                                                        if (username && password) {
+                                                            setNewBdmName(name);
+                                                            setNewBdmUsername(username);
+                                                            setNewBdmPassword(password);
+                                                            handleAddBdm();
+                                                        }
+                                                    }
+                                                }}
+                                                className="px-4 py-2 bg-black text-white rounded-lg text-sm font-bold hover:bg-gray-800"
                                             >
-                                                <PlusIcon className="w-4 h-4" /> {isSyncing ? 'Syncing...' : 'Book Lead'}
+                                                <PlusIcon className="w-4 h-4 inline mr-1" /> Add BDM
                                             </button>
                                         </div>
-                                    </div>
-                                </div>
-
-                                <div className="mt-8 space-y-12 pb-20">
-                                    {/* 1. ACTIVE LEADS */}
-                                    <div>
-                                        <div className="flex items-center justify-between mb-4 border-b pb-2">
-                                            <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-2"><ClockIcon className="w-5 h-5 text-indigo-600" /> Active Leads</h2>
-                                        </div>
-                                        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-                                            <div className="overflow-x-auto">
-                                                <table className="min-w-full divide-y divide-gray-200">
-                                                    <thead className="bg-gray-50">
-                                                        <tr>
-                                                            <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Client & Business</th>
-                                                            <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Contact & Address</th>
-                                                            <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Team</th>
-                                                            <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Time</th>
-                                                            <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Region</th>
-                                                            <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
-                                                            <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-100">
-                                                        {sortedActiveDates.map(date => {
-                                                            const [y, m, d] = date.split('-').map(Number);
-                                                            const displayDate = new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                                                            return (
-                                                                <React.Fragment key={date}>
-                                                                    <tr className="bg-gray-50/50"><td colSpan={7} className="px-6 py-2 text-xs font-bold text-gray-500 uppercase tracking-tighter">{displayDate}</td></tr>
-                                                                    {groupedActiveLeads[date].map(b => (
-                                                                        <tr key={b.id} className={`hover:bg-gray-50 transition-all ${b.isDuplicate && (new Date(b.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'bg-amber-50 border-l-4 border-amber-400' : (b.smsRequest?.status === 'pending' ? 'bg-purple-50 border-l-4 border-purple-400' : '')}`}>
-                                                                            <td className="px-6 py-4">
-                                                                                <div className="flex flex-col">
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <span className="text-sm font-bold text-gray-900">{b.clientName}</span>
-                                                                                        {b.isDuplicate && (new Date(b.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) && (
-                                                                                            <span className="text-[9px] font-black bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">DUPLICATE</span>
-                                                                                        )}
-                                                                                        {b.smsRequest?.status === 'pending' && (
-                                                                                            <span className="text-[9px] font-black bg-purple-200 text-purple-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">SMS REQUESTED</span>
-                                                                                        )}
-                                                                                    </div>
-                                                                                    <div className="text-xs text-gray-400">{b.businessName}</div>
-                                                                                    {b.clientWebsite && (<a href={b.clientWebsite.startsWith('http') ? b.clientWebsite : `https://${b.clientWebsite}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-500 hover:text-indigo-700 hover:underline truncate max-w-[150px] block transition-colors mt-0.5">{b.clientWebsite}</a>)}
-                                                                                    {b.clientEmail && (<span className="text-[10px] text-gray-400 mt-0.5">{b.clientEmail}</span>)}
-                                                                                </div>
-                                                                            </td>
-                                                                            <td className="px-6 py-4"><div className="flex items-center gap-1.5 text-xs text-gray-900 font-bold mb-1"><PhoneIcon className="w-3.5 h-3.5 text-indigo-400" /><a href={`tel:${b.clientPhone}`} className="hover:text-indigo-600 transition-colors">{b.clientPhone}</a></div>{b.address && (<div className="mt-1 flex items-start gap-1.5"><MapPinIcon className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" /><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.address)}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-600 hover:text-indigo-800 hover:underline font-medium leading-tight break-words max-w-[180px] transition-colors">{b.address}</a></div>)}</td>
-                                                                            <td className="px-6 py-4 text-xs text-gray-500 font-bold">{b.vendor.name}</td>
-                                                                            <td className="px-6 py-4 text-sm font-bold text-gray-900">{b.time}</td>
-                                                                            <td className="px-6 py-4"><span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-gray-100 text-gray-600 uppercase">{b.region}</span></td>
-                                                                            <td className="px-6 py-4">{getStatusPill(b.status)}</td>
-                                                                            <td className="px-6 py-4 text-right">
-                                                                              <div className="flex items-center justify-end gap-2">
-                                                                                  <button 
-                                                                                      onClick={() => setSmsActionBooking(b)} 
-                                                                                      className={`flex items-center gap-1 transition-all ${
-                                                                                          b.smsRequest?.status === 'pending'
-                                                                                          ? 'p-1.5 bg-orange-100 text-orange-600 rounded-full border border-orange-200 animate-pulse'
-                                                                                          : b.smsRequest?.status === 'sent'
-                                                                                          ? 'text-green-600 font-bold'
-                                                                                          : 'text-gray-300'
-                                                                                      }`}
-                                                                                      title={b.smsRequest ? (b.smsRequest.status === 'pending' ? 'Pending SMS Action' : 'SMS Sent') : 'No SMS Requested'}
-                                                                                  >
-                                                                                      <ChatBubbleLeftRightIcon className="w-4 h-4" />
-                                                                                      {b.smsRequest?.status === 'sent' && <span className="text-[10px] uppercase">Sent</span>}
-                                                                                  </button>
-                                                                                  <select className="text-[10px] border-gray-200 rounded-lg p-1 font-bold outline-none" value={b.bdmId || ''} onChange={(e) => handleAssignBdm(b.id, Number(e.target.value))}><option value="">Assign BDM</option>{bdmsByRegion[b.region]?.map(bdm => (<option key={bdm.id} value={bdm.id}>{bdm.name}</option>))}</select><button onClick={() => setBookingToManage(b)} className="text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-all" title="Reject"><XMarkIcon className="w-4 h-4" /></button><button onClick={() => setBookingToEdit(b)} className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-all" title="Edit"><PencilSquareIcon className="w-4 h-4" /></button><button onClick={() => handleDeleteBooking(b.id)} className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg transition-all" title="Delete"><TrashIcon className="w-4 h-4" /></button>
-                                                                              </div>
-                                                                            </td>
-                                                                        </tr>
-                                                                    ))}
-                                                                </React.Fragment>
-                                                            );
-                                                        })}
-                                                        {activeLeads.length === 0 && <tr><td colSpan={7} className="p-12 text-center text-gray-400 italic">No active leads in current view.</td></tr>}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                            <Pagination totalPages={totalActiveLeadsPages} currentPage={activeLeadsPage} onPageChange={setActiveLeadsPage} totalItems={activeLeads.length} label="Active Leads" />
-                                        </div>
-                                    </div>
-
-                                    {/* 2. REJECTED LEADS */}
-                                    <div>
-                                        <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-4 flex items-center gap-2"><ExclamationTriangleIcon className="w-5 h-5 text-red-600" /> Rejected Leads</h2>
-                                        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden"><RejectedBookingsList bookings={rejectedLeads} role="manager" searchTerm={searchTerm} /></div>
-                                    </div>
-
-                                    {/* 3. ARCHIVED LEADS */}
-                                    <div>
-                                        <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-4 flex items-center gap-2"><CheckBadgeIcon className="w-5 h-5 text-emerald-600" /> Archived Leads (History)</h2>
-                                        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-                                            <ArchivedBookingsList bookings={archivedLeads} role="manager" searchTerm={searchTerm} onEditBooking={setBookingToEdit} />
-                                        </div>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                        {activeTab === 'analytics' && (
-                          <div className="space-y-8 animate-fadeIn pb-20">
-                            <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-                                <h3 className="text-lg font-bold text-gray-800 mb-4">Analytics Controls</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:items-center items-stretch">
-                                    <div className="flex-1">
-                                        <DateRangePicker startDate={analyticsDateRange.startDate} endDate={analyticsDateRange.endDate} onDateChange={setAnalyticsDateRange} />
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Trend Grouping</label>
-                                        <div className="flex flex-wrap rounded-md shadow-sm">
-                                            {['daily', 'weekly', 'monthly', 'yearly'].map(p => (<button key={p} onClick={() => setAnalyticsTimePeriod(p as any)} className={`flex-1 min-w-[70px] py-2 text-sm border capitalize transition-all ${analyticsTimePeriod === p ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>{p}</button>))}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <AnalyticsDashboard bookings={analyticsBookings} isManager={true} /><BdmOutcomePerformance bookings={analyticsBookings} bdms={bdms} /><TrendAnalytics bookings={analyticsBookings} period={analyticsTimePeriod} /><div className="grid grid-cols-1 lg:grid-cols-2 gap-8"><StatusAnalytics bookings={analyticsBookings} title="Database Distribution" /><VendorPerformanceAnalytics bookings={analyticsBookings} vendors={vendors} /></div><PerformanceLeadLog bookings={analyticsBookings} bdms={bdms} title="Global Data Report Log" />
-                          </div>
-                        )}
-                        {activeTab === 'users' && (
-                            <>
-                                <div className="mb-6 border-b border-gray-300">
-                                    <nav className="flex space-x-6">
-                                        <button onClick={() => setUserMgmtTab('vendors')} className={`pb-4 px-1 border-b-2 font-bold text-sm ${userMgmtTab === 'vendors' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Calling Team Management</button>
-                                        <button onClick={() => setUserMgmtTab('bdms')} className={`pb-4 px-1 border-b-2 font-bold text-sm ${userMgmtTab === 'bdms' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>BDM Management</button>
-                                        <button onClick={() => setUserMgmtTab('managers')} className={`pb-4 px-1 border-b-2 font-bold text-sm ${userMgmtTab === 'managers' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Manager Management</button>
-                                        <button onClick={() => setUserMgmtTab('leave')} className={`pb-4 px-1 border-b-2 font-bold text-sm ${userMgmtTab === 'leave' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Staff Leave</button>
-                                    </nav>
-                                </div>
-                                {userMgmtTab === 'vendors' && (
-                                    <div className="space-y-8 animate-fadeIn">
-                                        <div className="bg-white p-6 rounded-xl shadow border border-gray-200"><h4 className="font-bold mb-4 uppercase tracking-widest text-xs text-gray-400">Add New Calling Team</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4"><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Name</label><input type="text" value={newVendorName} onChange={e => setNewVendorName(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/></div><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Username</label><input type="text" value={newVendorUsername} onChange={e => setNewVendorUsername(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/></div></div><div className="mb-4"><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Password</label><div className="flex gap-2"><input type="text" value={newVendorPassword} onChange={e => setNewVendorPassword(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/><button onClick={() => setNewVendorPassword(generateSecurePassword())} className="bg-gray-100 border px-3 rounded hover:bg-gray-200 text-xs font-bold transition-colors">Generate</button></div></div></div><div className="mb-4"><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-2">Allowed Regions</label><div className="flex flex-wrap gap-3">{regions.map(r => (<label key={r} className="inline-flex items-center bg-gray-50 px-3 py-1.5 rounded border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"><input type="checkbox" checked={newVendorRegions.includes(r)} onChange={() => setNewVendorRegions(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r])} className="rounded text-indigo-600 focus:ring-indigo-500 mr-2"/><span className="text-sm font-medium text-gray-700">{r}</span></label>))}</div></div><button onClick={handleAddVendor} className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 uppercase tracking-widest text-xs">Register Calling Team</button></div>
-                                        <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+                                        <div className="bg-white rounded-xl shadow overflow-hidden">
                                             <table className="min-w-full divide-y divide-gray-200">
-                                                <thead className="bg-gray-50 border-b border-gray-200">
+                                                <thead className="bg-gray-50">
                                                     <tr>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Name</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Username</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Password</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Regions</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
-                                                        <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Region</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody className="bg-white divide-y divide-100">
-                                                    {paginatedVendors.map(v => (
-                                                        <tr key={v.id} className="hover:bg-gray-50 transition-colors">
-                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">{v.name}</td>
-                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{v.username}</td>
-                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                                                <div className="flex items-center gap-2"><span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-xs">{visiblePasswords[v.id] ? v.password : '••••••••'}</span><button type="button" onClick={() => togglePasswordVisibility(v.id)} className="text-gray-400 hover:text-indigo-600 transition-colors">{visiblePasswords[v.id] ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}</button></div>
+                                                <tbody className="divide-y divide-gray-200">
+                                                    {paginatedBdms.map(bdm => (
+                                                        <tr key={bdm.id} className="hover:bg-gray-50">
+                                                            <td className="px-6 py-4 text-sm text-gray-900">{bdm.name}</td>
+                                                            <td className="px-6 py-4 text-sm text-gray-500">{bdm.username}</td>
+                                                            <td className="px-6 py-4 text-sm text-gray-500">{bdm.region}</td>
+                                                            <td className="px-6 py-4">
+                                                                <span className={`px-2 py-1 text-xs rounded-full ${bdm.active !== false ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                                    {bdm.active !== false ? 'Active' : 'Inactive'}
+                                                                </span>
                                                             </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap"><div className="flex flex-wrap gap-2">{v.allowedRegions?.map(r => (<span key={r} className="text-[10px] px-2 py-0.5 border border-gray-200 bg-gray-50 text-gray-500 rounded font-bold uppercase tracking-tight">{r}</span>)) || <span className="text-[10px] text-gray-400">ALL</span>}</div></td>
-                                                            <td className="px-6 py-4 whitespace-nowrap">{v.active !== false ? <span className="text-emerald-600 font-bold text-[10px] bg-emerald-50 px-2 py-1 rounded-full uppercase">Active</span> : <span className="text-red-600 font-bold text-[10px] bg-red-50 px-2 py-1 rounded-full uppercase">Inactive</span>}</td>
-                                                            <td className="px-6 py-4 text-right"><div className="flex justify-end gap-3"><button onClick={() => setEditingUser({user: v, type: 'vendor'})} className="text-gray-400 hover:text-indigo-600 transition-colors p-1"><PencilSquareIcon className="w-4 h-4" /></button></div></td>
+                                                            <td className="px-6 py-4 text-right">
+                                                                <button
+                                                                    onClick={() => setEditingUser({ user: bdm, type: 'bdm' })}
+                                                                    className="text-indigo-600 hover:text-indigo-900"
+                                                                >
+                                                                    <PencilSquareIcon className="w-4 h-4" />
+                                                                </button>
+                                                            </td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
                                             </table>
-                                            <Pagination totalPages={Math.ceil(sortedVendors.length/ITEMS_PER_PAGE)} currentPage={vendorsPage} onPageChange={setVendorsPage} totalItems={sortedVendors.length} label="Calling Teams" />
+                                            {bdms.length > ITEMS_PER_PAGE && (
+                                                <Pagination
+                                                    totalPages={Math.ceil(bdms.length / ITEMS_PER_PAGE)}
+                                                    currentPage={bdmsPage}
+                                                    onPageChange={setBdmsPage}
+                                                    totalItems={bdms.length}
+                                                    label="BDMs"
+                                                />
+                                            )}
                                         </div>
                                     </div>
                                 )}
-                                {userMgmtTab === 'bdms' && (
-                                    <div className="space-y-8 animate-fadeIn">
-                                        <div className="bg-white p-6 rounded-xl shadow border border-gray-200"><h4 className="font-bold mb-4 uppercase tracking-widest text-xs text-gray-400">Add New BDM</h4><div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end"><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Name</label><input type="text" value={newBdmName} onChange={e => setNewBdmName(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/></div><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Region</label><select value={newBdmRegion} onChange={e => setNewBdmRegion(e.target.value as any)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none">{regions.map(r => <option key={r} value={r}>{r}</option>)}</select></div><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Username</label><input type="text" value={newBdmUsername} onChange={e => setNewBdmUsername(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/></div><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Password</label><div className="flex gap-2"><input type="text" value={newBdmPassword} onChange={e => setNewBdmPassword(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/><button onClick={() => setNewBdmPassword(generateSecurePassword())} className="bg-gray-100 border px-3 rounded hover:bg-gray-200 text-xs font-bold">Gen</button></div></div></div><button onClick={handleAddBdm} className="w-full mt-6 bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 uppercase tracking-widest text-xs shadow-md shadow-indigo-100">Register BDM Account</button></div>
-                                        <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
-                                            <table className="min-w-full divide-y divide-gray-200">
-                                                <thead className="bg-gray-50 border-b border-gray-200">
-                                                    <tr>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Name</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Region</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Username</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Password</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
-                                                        <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="bg-white divide-y divide-100">
-                                                    {paginatedBdms.map(b => (
-                                                        <tr key={b.id} className="hover:bg-gray-50 transition-colors">
-                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">{b.name}</td>
-                                                            <td className="px-6 py-4 whitespace-nowrap"><span className="text-[10px] px-2 py-0.5 border border-gray-200 bg-gray-50 text-gray-500 rounded font-bold uppercase tracking-tight">{b.region}</span></td>
-                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{b.username}</td>
-                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                                                <div className="flex items-center gap-2"><span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-xs">{visiblePasswords[b.id] ? b.password : '••••••••'}</span><button type="button" onClick={() => togglePasswordVisibility(b.id)} className="text-gray-400 hover:text-indigo-600">{visiblePasswords[b.id] ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}</button></div>
-                                                            </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap">{b.active !== false ? <span className="text-emerald-600 font-bold text-[10px] bg-emerald-50 px-2 py-1 rounded-full uppercase">Active</span> : <span className="text-red-600 font-bold text-[10px] bg-red-50 px-2 py-1 rounded-full uppercase">Inactive</span>}</td>
-                                                            <td className="px-6 py-4 text-right"><div className="flex justify-end gap-3"><button onClick={() => setEditingUser({user: b, type: 'bdm'})} className="text-gray-400 hover:text-indigo-600 transition-colors p-1"><PencilSquareIcon className="w-4 h-4" /></button></div></td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                            <Pagination totalPages={Math.ceil(sortedBdms.length/ITEMS_PER_PAGE)} currentPage={bdmsPage} onPageChange={setBdmsPage} totalItems={sortedBdms.length} label="BDMs" />
-                                        </div>
-                                    </div>
-                                )}
+
                                 {userMgmtTab === 'managers' && (
-                                    <div className="space-y-8 animate-fadeIn">
-                                        <div className="bg-white p-6 rounded-xl shadow border border-gray-200">
-                                            <h4 className="font-bold mb-4 uppercase tracking-widest text-xs text-gray-400">Add New Manager</h4>
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                                                <div>
-                                                    <label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Name</label>
-                                                    <input type="text" value={newManagerName} onChange={e => setNewManagerName(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Username</label>
-                                                    <input type="text" value={newManagerUsername} onChange={e => setNewManagerUsername(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Password</label>
-                                                    <div className="flex gap-2">
-                                                        <input type="text" value={newManagerPassword} onChange={e => setNewManagerPassword(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/>
-                                                        <button onClick={() => setNewManagerPassword(generateSecurePassword())} className="bg-gray-100 border px-3 rounded hover:bg-gray-200 text-xs font-bold">Gen</button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <button onClick={handleAddManager} className="w-full mt-6 bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 uppercase tracking-widest text-xs shadow-md shadow-indigo-100">Register Manager Account</button>
+                                    <div>
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h3 className="text-lg font-bold">Managers</h3>
+                                            <button
+                                                onClick={() => {
+                                                    const name = prompt('Enter manager name:');
+                                                    if (name) {
+                                                        const username = prompt('Enter username:');
+                                                        const password = prompt('Enter password:');
+                                                        if (username && password) {
+                                                            setNewManagerName(name);
+                                                            setNewManagerUsername(username);
+                                                            setNewManagerPassword(password);
+                                                            handleAddManager();
+                                                        }
+                                                    }
+                                                }}
+                                                className="px-4 py-2 bg-black text-white rounded-lg text-sm font-bold hover:bg-gray-800"
+                                            >
+                                                <PlusIcon className="w-4 h-4 inline mr-1" /> Add Manager
+                                            </button>
                                         </div>
-                                        <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+                                        <div className="bg-white rounded-xl shadow overflow-hidden">
                                             <table className="min-w-full divide-y divide-gray-200">
-                                                <thead className="bg-gray-50 border-b border-gray-200">
+                                                <thead className="bg-gray-50">
                                                     <tr>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Name</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Username</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Password</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
-                                                        <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody className="bg-white divide-y divide-100">
-                                                    {paginatedManagers.map(m => (
-                                                        <tr key={m.id} className="hover:bg-gray-50 transition-colors">
-                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">{m.name}</td>
-                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{m.username}</td>
-                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                                                <div className="flex items-center gap-2"><span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-xs">{visiblePasswords[m.id] ? m.password : '••••••••'}</span><button type="button" onClick={() => togglePasswordVisibility(m.id)} className="text-gray-400 hover:text-indigo-600">{visiblePasswords[m.id] ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}</button></div>
+                                                <tbody className="divide-y divide-gray-200">
+                                                    {paginatedManagers.map(manager => (
+                                                        <tr key={manager.id} className="hover:bg-gray-50">
+                                                            <td className="px-6 py-4 text-sm text-gray-900">{manager.name}</td>
+                                                            <td className="px-6 py-4 text-sm text-gray-500">{manager.username}</td>
+                                                            <td className="px-6 py-4">
+                                                                <span className={`px-2 py-1 text-xs rounded-full ${manager.active !== false ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                                    {manager.active !== false ? 'Active' : 'Inactive'}
+                                                                </span>
                                                             </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap">{m.active !== false ? <span className="text-emerald-600 font-bold text-[10px] bg-emerald-50 px-2 py-1 rounded-full uppercase">Active</span> : <span className="text-red-600 font-bold text-[10px] bg-red-50 px-2 py-1 rounded-full uppercase">Inactive</span>}</td>
-                                                            <td className="px-6 py-4 text-right"><div className="flex justify-end gap-3"><button onClick={() => setEditingUser({user: m, type: 'manager'})} className="text-gray-400 hover:text-indigo-600 transition-colors p-1"><PencilSquareIcon className="w-4 h-4" /></button></div></td>
+                                                            <td className="px-6 py-4 text-right">
+                                                                <button
+                                                                    onClick={() => setEditingUser({ user: manager, type: 'manager' })}
+                                                                    className="text-indigo-600 hover:text-indigo-900"
+                                                                >
+                                                                    <PencilSquareIcon className="w-4 h-4" />
+                                                                </button>
+                                                            </td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
                                             </table>
-                                            <Pagination totalPages={Math.ceil(sortedManagers.length/ITEMS_PER_PAGE)} currentPage={managersPage} onPageChange={setManagersPage} totalItems={sortedManagers.length} label="Managers" />
+                                            {managers.length > ITEMS_PER_PAGE && (
+                                                <Pagination
+                                                    totalPages={Math.ceil(managers.length / ITEMS_PER_PAGE)}
+                                                    currentPage={managersPage}
+                                                    onPageChange={setManagersPage}
+                                                    totalItems={managers.length}
+                                                    label="Managers"
+                                                />
+                                            )}
                                         </div>
                                     </div>
                                 )}
+
                                 {userMgmtTab === 'leave' && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fadeIn">
-                                        <div className="bg-white p-6 rounded-xl shadow border border-gray-200">
-                                            <h3 className="text-xl font-bold text-gray-900 mb-6">Log Staff Leave</h3>
-                                            <div className="space-y-4">
+                                    <div>
+                                        <div className="bg-white p-6 rounded-xl shadow">
+                                            <h3 className="text-lg font-bold mb-4">Manage BDM Leave Days</h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                {bdms.map(bdm => (
+                                                    <label key={bdm.id} className="flex items-center space-x-2">
+                                                        <input
+                                                            type="checkbox"
+                                                            value={bdm.id}
+                                                            checked={selectedBdmIds.includes(bdm.id)}
+                                                            onChange={handleBdmCheckboxChange}
+                                                            className="rounded border-gray-300"
+                                                        />
+                                                        <span className="text-sm">{bdm.name}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div>
-                                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Select Staff</label>
-                                                    <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-xl p-3 bg-gray-50/50 space-y-2">
-                                                        {bdms.map(b => (
-                                                            <label key={b.id} className="flex items-center gap-3 cursor-pointer group">
-                                                                <input type="checkbox" checked={selectedBdmIds.includes(b.id)} onChange={handleBdmCheckboxChange} value={b.id} className="w-4 h-4 rounded text-indigo-600 border-gray-300 focus:ring-0" />
-                                                                <span className="text-sm font-bold text-gray-700 group-hover:text-black">{b.name} ({b.region})</span>
+                                                    <label className="block text-sm font-medium text-gray-700">Start Date</label>
+                                                    <input
+                                                        type="date"
+                                                        value={leaveStartDate}
+                                                        onChange={e => setLeaveStartDate(e.target.value)}
+                                                        className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">End Date</label>
+                                                    <input
+                                                        type="date"
+                                                        value={leaveEndDate}
+                                                        onChange={e => setLeaveEndDate(e.target.value)}
+                                                        className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="mt-4">
+                                                <label className="block text-sm font-medium text-gray-700">Reason</label>
+                                                <input
+                                                    type="text"
+                                                    value={leaveReason}
+                                                    onChange={e => setLeaveReason(e.target.value)}
+                                                    placeholder="e.g., Annual Leave, Sick Leave"
+                                                    className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                                                />
+                                            </div>
+                                            <div className="mt-4">
+                                                <label className="block text-sm font-medium text-gray-700">Leave Type</label>
+                                                <select
+                                                    value={leaveType}
+                                                    onChange={e => setLeaveType(e.target.value as 'allDay' | 'specificSlots')}
+                                                    className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                                                >
+                                                    <option value="allDay">All Day</option>
+                                                    <option value="specificSlots">Specific Slots</option>
+                                                </select>
+                                            </div>
+                                            {leaveType === 'specificSlots' && (
+                                                <div className="mt-4">
+                                                    <label className="block text-sm font-medium text-gray-700">Select Slots</label>
+                                                    <div className="flex flex-wrap gap-2 mt-2">
+                                                        {['10:00 AM', '12:00 PM', '02:00 PM', '04:00 PM'].map(slot => (
+                                                            <label key={slot} className="flex items-center space-x-1">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    value={slot}
+                                                                    checked={leaveSlots.includes(slot)}
+                                                                    onChange={e => {
+                                                                        if (e.target.checked) {
+                                                                            setLeaveSlots([...leaveSlots, slot]);
+                                                                        } else {
+                                                                            setLeaveSlots(leaveSlots.filter(s => s !== slot));
+                                                                        }
+                                                                    }}
+                                                                    className="rounded border-gray-300"
+                                                                />
+                                                                <span className="text-sm">{slot}</span>
                                                             </label>
                                                         ))}
                                                     </div>
                                                 </div>
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <div>
-                                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Start Date</label>
-                                                        <input type="date" value={leaveStartDate} onChange={e => setLeaveStartDate(e.target.value)} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl p-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">End Date</label>
-                                                        <input type="date" value={leaveEndDate} onChange={e => setLeaveEndDate(e.target.value)} min={leaveStartDate} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl p-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" />
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Reason</label>
-                                                    <input type="text" value={leaveReason} onChange={e => setLeaveReason(e.target.value)} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl p-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" placeholder="Vacation, Sick Leave, etc." />
-                                                </div>
-                                                <button onClick={handleAddLeave} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold uppercase tracking-widest text-xs shadow-md shadow-indigo-100 hover:bg-indigo-700 transition-all">Register Leave</button>
-                                            </div>
+                                            )}
+                                            <button
+                                                onClick={handleAddLeave}
+                                                className="mt-4 px-6 py-2 bg-black text-white rounded-lg text-sm font-bold hover:bg-gray-800"
+                                            >
+                                                Add Leave Days
+                                            </button>
                                         </div>
-                                        <div className="bg-white p-6 rounded-xl shadow border border-gray-200">
-                                            <h3 className="text-xl font-bold text-gray-900 mb-6">Scheduled Leave</h3>
-                                            <div className="max-h-[500px] overflow-y-auto space-y-3 pr-2">
-                                                {leaveDays.length === 0 ? (
-                                                    <p className="text-center text-gray-400 italic py-10">No leave days currently scheduled.</p>
-                                                ) : (
-                                                    leaveDays.map(l => (
-                                                        <div key={l.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 group">
-                                                            <div>
-                                                                <p className="text-sm font-bold text-gray-900">{l.bdmName}</p>
-                                                                <p className="text-xs text-gray-500">{new Date(l.date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })} • <span className="italic">{l.reason}</span></p>
-                                                            </div>
-                                                            <button onClick={() => handleDeleteLeave(l.id)} className="text-gray-300 hover:text-red-600 transition-colors p-1"><TrashIcon className="w-5 h-5" /></button>
-                                                        </div>
-                                                    ))
-                                                )}
+                                        <div className="mt-8">
+                                            <h4 className="text-lg font-bold mb-4">Existing Leave Days</h4>
+                                            <div className="bg-white rounded-xl shadow overflow-hidden">
+                                                <table className="min-w-full divide-y divide-gray-200">
+                                                    <thead className="bg-gray-50">
+                                                        <tr>
+                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">BDM</th>
+                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reason</th>
+                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Slots</th>
+                                                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-200">
+                                                        {leaveDays.map(leave => (
+                                                            <tr key={leave.id} className="hover:bg-gray-50">
+                                                                <td className="px-6 py-4 text-sm text-gray-900">{leave.bdmName}</td>
+                                                                <td className="px-6 py-4 text-sm text-gray-500">{formatToDDMMYY(leave.date)}</td>
+                                                                <td className="px-6 py-4 text-sm text-gray-500">{leave.reason || '—'}</td>
+                                                                <td className="px-6 py-4 text-sm text-gray-500">{leave.slots?.join(', ') || 'All Day'}</td>
+                                                                <td className="px-6 py-4 text-right">
+                                                                    <button
+                                                                        onClick={() => handleDeleteLeave(leave.id)}
+                                                                        className="text-red-600 hover:text-red-900"
+                                                                    >
+                                                                        <TrashIcon className="w-4 h-4" />
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
                                             </div>
                                         </div>
                                     </div>
                                 )}
-                            </>
+                            </div>
                         )}
-                        {activeTab === 'calendar' && <ManagerCalendar appointments={managerAppointments} setAppointments={setManagerAppointments} bookings={allBookingsForCalendar} />}
+
+                        {activeTab === 'calendar' && (
+                            <ManagerCalendar
+                                allBookings={allBookingsForCalendar}
+                                currentUser={currentUser}
+                                managerAppointments={managerAppointments}
+                                setManagerAppointments={setManagerAppointments}
+                            />
+                        )}
+
                         {activeTab === 'settings' && (
-                            <div className="space-y-8 pb-20">
-                                {/* 1. My Profile (Top) */}
-                                <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-200">
-                                    <h3 className="text-xl font-bold text-gray-900 mb-8 uppercase tracking-tight flex items-center gap-2">
-                                        <div className="w-1 h-6 bg-indigo-600 rounded-full" />
-                                        My Profile
-                                    </h3>
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                                        <form onSubmit={handleUpdateMyProfile} className="space-y-4">
-                                            <div><label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Name</label><input type="text" value={profileForm.name} onChange={e => setProfileForm({...profileForm, name: e.target.value})} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" /></div>
-                                            <div><label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Username</label><input type="text" value={profileForm.username} onChange={e => setProfileForm({...profileForm, username: e.target.value})} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" /></div>
+                            <div className="max-w-4xl mx-auto space-y-8">
+                                {/* Profile Settings */}
+                                <div className="bg-white rounded-xl shadow p-6">
+                                    <h2 className="text-xl font-bold mb-4">Profile Settings</h2>
+                                    <form onSubmit={handleUpdateMyProfile}>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
-                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Password</label>
+                                                <label className="block text-sm font-medium text-gray-700">Name</label>
+                                                <input
+                                                    type="text"
+                                                    value={profileForm.name}
+                                                    onChange={e => setProfileForm({ ...profileForm, name: e.target.value })}
+                                                    className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                                                    required
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700">Email</label>
+                                                <input
+                                                    type="email"
+                                                    value={profileForm.email}
+                                                    onChange={e => setProfileForm({ ...profileForm, email: e.target.value })}
+                                                    className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                                                    required
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700">Username</label>
+                                                <input
+                                                    type="text"
+                                                    value={profileForm.username}
+                                                    onChange={e => setProfileForm({ ...profileForm, username: e.target.value })}
+                                                    className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                                                    required
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700">Password</label>
                                                 <div className="flex gap-2">
-                                                    <div className="relative flex-grow">
-                                                        <input 
-                                                            type={showProfilePassword ? "text" : "password"} 
-                                                            value={profileForm.password} 
-                                                            onChange={e => setProfileForm({...profileForm, password: e.target.value})} 
-                                                            className={`w-full border-2 border-gray-100 rounded-xl px-4 py-2.5 text-sm font-bold pr-12 transition-all outline-none ${!isEditingPassword ? 'bg-[#f0f7ff]' : 'bg-gray-50 focus:border-indigo-500'}`} 
-                                                            readOnly={!isEditingPassword}
-                                                        />
-                                                        <button 
-                                                            type="button" 
-                                                            onClick={() => setShowProfilePassword(!showProfilePassword)} 
-                                                            className="absolute inset-y-0 right-0 px-4 flex items-center text-gray-400 hover:text-indigo-600"
-                                                        >
-                                                            {showProfilePassword ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
-                                                        </button>
-                                                    </div>
-                                                    <button 
-                                                        type="button" 
-                                                        onClick={() => setIsEditingPassword(!isEditingPassword)} 
-                                                        className="px-6 py-2.5 bg-gray-100 text-indigo-700 border border-gray-200 rounded-xl hover:bg-gray-200 text-xs font-bold whitespace-nowrap flex items-center gap-2 shadow-sm transition-all"
+                                                    <input
+                                                        type={showProfilePassword ? "text" : "password"}
+                                                        value={profileForm.password}
+                                                        onChange={e => setProfileForm({ ...profileForm, password: e.target.value })}
+                                                        className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                                                        required
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowProfilePassword(!showProfilePassword)}
+                                                        className="mt-1 px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
                                                     >
-                                                        <PencilSquareIcon className="w-3.5 h-3.5" /> 
-                                                        {isEditingPassword ? 'LOCK' : 'EDIT'}
+                                                        {showProfilePassword ? "Hide" : "Show"}
                                                     </button>
                                                 </div>
                                             </div>
-                                            <div><label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Recovery Email</label><input type="email" value={profileForm.recoveryEmail} onChange={e => setProfileForm({...profileForm, recoveryEmail: e.target.value})} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" placeholder="pia@zealdigital.com.au" /></div>
-                                            <div><label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Contact Emails</label><div className="flex gap-2 mt-1"><input type="email" value={emailInput} onChange={e => setEmailInput(e.target.value)} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" placeholder="Enter email address..." /><button type="button" onClick={() => { if(emailInput && !profileForm.email.includes(emailInput)) { setProfileForm({...profileForm, email: profileForm.email ? `${profileForm.email},${emailInput}` : emailInput}); setEmailInput(''); } }} className="bg-black text-white px-6 py-2.5 rounded-xl font-bold uppercase text-[10px] tracking-widest">ADD</button></div><div className="mt-3 flex flex-wrap gap-2">{profileForm.email.split(',').filter(Boolean).map(email => (<span key={email} className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold border border-indigo-100 shadow-sm">{email}<button type="button" onClick={() => setProfileForm({...profileForm, email: profileForm.email.split(',').filter(e => e !== email).join(',')})} className="text-indigo-400 hover:text-indigo-600 transition-colors"><XMarkIcon className="w-3.5 h-3.5" /></button></span>))}</div></div>
-                                            <div className="pt-4"><button type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">Update My Profile</button>{showProfileSuccess && <p className="text-center text-xs font-bold text-green-600 mt-2 animate-bounceIn">✅ Changes saved successfully!</p>}</div>
-                                        </form>
-                                        <div className="bg-gray-50 p-8 rounded-2xl border border-gray-100 h-fit"><h4 className="text-xs font-black text-gray-800 mb-6 uppercase tracking-widest border-b pb-3">Automated Email Alerts</h4><NotificationSettings preferences={profileForm.notificationPreferences} onChange={(p) => setProfileForm({...profileForm, notificationPreferences: p})} role="manager" /></div>
-                                    </div>
-                                </div>
-
-                                {/* 2. Branding & Appearance */}
-                                <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-200">
-                                    <h3 className="text-xl font-bold text-gray-900 mb-8 uppercase tracking-tight flex items-center gap-2">
-                                        <div className="w-1 h-6 bg-indigo-600 rounded-full" />
-                                        Branding & Appearance
-                                    </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                        <div><label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Company Name</label><input type="text" value={brandingForm.companyName} onChange={e => setBrandingForm({...brandingForm, companyName: e.target.value})} className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none" /></div>
-                                        <div><label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Primary Brand Color</label><div className="flex items-center gap-4 mt-1"><input type="color" value={brandingForm.primaryColor} onChange={e => setBrandingForm({...brandingForm, primaryColor: e.target.value})} className="w-12 h-12 border-4 border-white shadow-sm rounded-xl cursor-pointer" /><span className="text-xs font-black text-gray-400 uppercase font-mono tracking-widest">{brandingForm.primaryColor}</span></div></div>
-                                        <div><label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Logo Upload</label><input type="file" accept="image/*" onChange={handleLogoUpload} className="w-full text-[10px] text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />{branding.logoUrl && <div className="mt-4 bg-gray-900 p-4 rounded-xl flex items-center justify-center inline-block"><img src={branding.logoUrl} alt="Preview" className="h-10 object-contain" /></div>}</div>
-                                    </div>
-                                    <div className="mt-10 pt-6 border-t border-gray-100 flex justify-end"><button onClick={handleSaveBranding} className="px-10 py-3.5 bg-black text-white font-black rounded-xl uppercase tracking-widest text-xs shadow-lg hover:bg-gray-800 transition-all active:scale-95">Save Branding Appearance</button></div>
-                                </div>
-
-                                {/* 3. Region Management */}
-                                <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-200">
-                                    <h3 className="text-xl font-bold text-gray-900 mb-8 uppercase tracking-tight flex items-center gap-2">
-                                        <div className="w-1 h-6 bg-indigo-600 rounded-full" />
-                                        Region Management
-                                    </h3>
-                                    <div className="flex flex-wrap items-end gap-4 mb-10">
-                                        <div className="flex-1 min-w-[280px]">
-                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">New Region Name (e.g. QLD)</label>
-                                            <input 
-                                                type="text" 
-                                                value={newRegionName} 
-                                                onChange={e => setNewRegionName(e.target.value)} 
-                                                className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none"
-                                                placeholder="Enter region code..." 
+                                        </div>
+                                        <div className="mt-4">
+                                            <label className="block text-sm font-medium text-gray-700">Recovery Email</label>
+                                            <input
+                                                type="email"
+                                                value={profileForm.recoveryEmail}
+                                                onChange={e => setProfileForm({ ...profileForm, recoveryEmail: e.target.value })}
+                                                className="mt-1 block w-full border border-gray-300 rounded-md p-2"
                                             />
                                         </div>
-                                        <button onClick={handleAddRegion} className="bg-black text-white px-8 py-3 rounded-xl font-black uppercase text-xs tracking-widest shadow-md hover:bg-gray-800 transition-all active:scale-95">Add Region</button>
+                                        <div className="mt-6">
+                                            <button
+                                                type="submit"
+                                                className="px-6 py-2 bg-black text-white rounded-lg text-sm font-bold hover:bg-gray-800"
+                                            >
+                                                Update Profile
+                                            </button>
+                                            {showProfileSuccess && (
+                                                <span className="ml-4 text-green-600 text-sm">Profile updated successfully!</span>
+                                            )}
+                                        </div>
+                                    </form>
+                                </div>
+
+                                {/* Appointment Slot Configuration */}
+                                <div className="bg-white rounded-xl shadow p-6">
+                                    <h2 className="text-xl font-bold mb-4">Appointment Slot Configuration</h2>
+                                    <div className="mb-4">
+                                        <label className="block text-sm font-medium text-gray-700">Region</label>
+                                        <select
+                                            value={slotConfigRegion}
+                                            onChange={e => setSlotConfigRegion(e.target.value as Region)}
+                                            className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                                        >
+                                            {regions.map(r => (
+                                                <option key={r} value={r}>{r}</option>
+                                            ))}
+                                        </select>
                                     </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {regions.map(r => (
-                                            <div key={r} className="bg-gray-50 p-5 rounded-2xl border border-gray-100 flex items-center justify-between shadow-sm group">
-                                                <span className="font-black text-gray-800 text-lg">{r}</span>
-                                                <div className="flex items-center gap-4">
-                                                    <div className="relative">
-                                                        <input 
-                                                            type="color" 
-                                                            value={regionColors[r] || '#CBD5E1'} 
-                                                            onChange={(e) => handleRegionColorChange(r, e.target.value)}
-                                                            className="w-9 h-9 rounded-full cursor-pointer border-4 border-white shadow-sm appearance-none bg-transparent"
-                                                        />
-                                                    </div>
-                                                    <button onClick={() => handleDeleteRegion(r)} className="text-gray-300 hover:text-red-600 transition-colors p-1" title={`Delete ${r}`}>
-                                                        <TrashIcon className="w-5 h-5" />
+                                    <div className="mb-4">
+                                        <label className="block text-sm font-medium text-gray-700">Base Slots</label>
+                                        <div className="flex flex-wrap gap-2 mt-2">
+                                            {appointmentTimes[slotConfigRegion]?.base.map(slot => (
+                                                <span key={slot} className="inline-flex items-center px-3 py-1 bg-gray-100 rounded-full text-sm">
+                                                    {slot}
+                                                    <button
+                                                        onClick={() => handleRemoveBaseSlot(slot)}
+                                                        className="ml-2 text-red-600 hover:text-red-800"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                        <div className="flex gap-2 mt-2">
+                                            <select
+                                                value={newBaseSlot}
+                                                onChange={e => setNewBaseSlot(e.target.value)}
+                                                className="block border border-gray-300 rounded-md p-2"
+                                            >
+                                                {['09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'].map(slot => (
+                                                    <option key={slot} value={slot}>{slot}</option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                onClick={handleAddBaseSlot}
+                                                className="px-4 py-2 bg-black text-white rounded-lg text-sm font-bold hover:bg-gray-800"
+                                            >
+                                                Add Slot
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="mb-4">
+                                        <label className="block text-sm font-medium text-gray-700">Day Specific Overrides</label>
+                                        <div className="flex gap-2 mt-2">
+                                            <select
+                                                value={newDayOverrideDay}
+                                                onChange={e => setNewDayOverrideDay(e.target.value)}
+                                                className="block border border-gray-300 rounded-md p-2"
+                                            >
+                                                {DAYS_OF_WEEK.map((day, index) => (
+                                                    <option key={index} value={index}>{day}</option>
+                                                ))}
+                                            </select>
+                                            <select
+                                                value={tempDaySlot}
+                                                onChange={e => setTempDaySlot(e.target.value)}
+                                                className="block border border-gray-300 rounded-md p-2"
+                                            >
+                                                {['09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'].map(slot => (
+                                                    <option key={slot} value={slot}>{slot}</option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                onClick={handleAddDaySlotToStaging}
+                                                className="px-4 py-2 bg-black text-white rounded-lg text-sm font-bold hover:bg-gray-800"
+                                            >
+                                                Add Slot
+                                            </button>
+                                        </div>
+                                        {newDayOverrideSlots.length > 0 && (
+                                            <div className="mt-2">
+                                                <span className="text-sm font-medium">Staging: </span>
+                                                {newDayOverrideSlots.map(slot => (
+                                                    <span key={slot} className="inline-flex items-center px-3 py-1 bg-gray-100 rounded-full text-sm ml-2">
+                                                        {slot}
+                                                        <button
+                                                            onClick={() => handleRemoveDaySlotFromStaging(slot)}
+                                                            className="ml-2 text-red-600 hover:text-red-800"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </span>
+                                                ))}
+                                                <button
+                                                    onClick={handleAddDayOverride}
+                                                    className="ml-4 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700"
+                                                >
+                                                    Save Day Override
+                                                </button>
+                                            </div>
+                                        )}
+                                        <div className="mt-2">
+                                            {Object.entries(appointmentTimes[slotConfigRegion]?.overrides.dayOfWeek || {}).map(([day, slots]) => (
+                                                <div key={day} className="inline-flex items-center px-3 py-1 bg-blue-100 rounded-full text-sm ml-2 mt-2">
+                                                    {DAYS_OF_WEEK[parseInt(day)]}: {slots.join(', ')}
+                                                    <button
+                                                        onClick={() => handleRemoveDayOverride(parseInt(day))}
+                                                        className="ml-2 text-red-600 hover:text-red-800"
+                                                    >
+                                                        ×
                                                     </button>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-
-                                {/* 4. Appointment Slot Configuration */}
-                                <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-200">
-                                    <h3 className="text-xl font-bold text-gray-900 mb-8 uppercase tracking-tight flex items-center gap-2">
-                                        <div className="w-1 h-6 bg-indigo-600 rounded-full" />
-                                        Appointment Slot Configuration
-                                    </h3>
-                                    <div className="flex gap-2 mb-10 overflow-x-auto pb-2 scrollbar-hide">
-                                        {regions.map(r => (
-                                            <button 
-                                                key={r} 
-                                                onClick={() => setSlotConfigRegion(r)}
-                                                className={`px-8 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shadow-sm ${slotConfigRegion === r ? 'bg-black text-white scale-105' : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600'}`}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Specific Date Overrides</label>
+                                        <div className="flex gap-2 mt-2">
+                                            <input
+                                                type="date"
+                                                value={newDateOverrideDate}
+                                                onChange={e => setNewDateOverrideDate(e.target.value)}
+                                                className="block border border-gray-300 rounded-md p-2"
+                                            />
+                                            <select
+                                                value={tempDateSlot}
+                                                onChange={e => setTempDateSlot(e.target.value)}
+                                                className="block border border-gray-300 rounded-md p-2"
                                             >
-                                                {r}
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                        {/* Base Availability */}
-                                        <div className="border border-gray-100 rounded-2xl p-6 bg-gray-50/50 shadow-inner">
-                                            <h4 className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                                                BASE AVAILABILITY ({slotConfigRegion})
-                                            </h4>
-                                            <div className="flex items-center gap-2 mb-6">
-                                                <TimePicker value={newBaseSlot} onChange={setNewBaseSlot} className="flex-1" />
-                                                <button onClick={handleAddBaseSlot} className="bg-green-600 text-white p-2.5 rounded-xl hover:bg-green-700 transition-all shadow-md shadow-green-100 active:scale-95"><PlusIcon className="w-5 h-5" /></button>
-                                            </div>
-                                            <div className="bg-white rounded-xl border border-gray-100 divide-y overflow-hidden shadow-sm">
-                                                {(appointmentTimes[slotConfigRegion]?.base || []).map(slot => (
-                                                    <div key={slot} className="flex justify-between items-center p-4 hover:bg-indigo-50/30 transition-colors group">
-                                                        <span className="text-sm font-black text-gray-700">{slot}</span>
-                                                        <button onClick={() => handleRemoveBaseSlot(slot)} className="text-gray-300 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"><XMarkIcon className="w-4 h-4" /></button>
-                                                    </div>
+                                                {['09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'].map(slot => (
+                                                    <option key={slot} value={slot}>{slot}</option>
                                                 ))}
-                                                {(appointmentTimes[slotConfigRegion]?.base || []).length === 0 && <p className="p-10 text-center text-xs text-gray-400 italic font-bold">No base slots set.</p>}
-                                            </div>
-                                        </div>
-
-                                        {/* Day Overrides */}
-                                        <div className="border border-gray-100 rounded-2xl p-6 bg-gray-50/50 shadow-inner">
-                                            <h4 className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                                                DAY SPECIFIC OVERRIDES
-                                            </h4>
-                                            <div className="space-y-5">
-                                                <select 
-                                                    value={newDayOverrideDay} 
-                                                    onChange={e => setNewDayOverrideDay(e.target.value)}
-                                                    className="w-full border-2 border-gray-100 bg-white rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none"
-                                                >
-                                                    {DAYS_OF_WEEK.map((day, i) => <option key={day} value={i}>{day}</option>)}
-                                                </select>
-                                                <div className="flex items-center gap-2">
-                                                    <TimePicker value={tempDaySlot} onChange={setTempDaySlot} className="flex-1" />
-                                                    <button onClick={handleAddDaySlotToStaging} className="bg-white text-gray-400 p-2.5 rounded-xl border-2 border-gray-100 hover:text-indigo-600 hover:border-indigo-600 transition-all active:scale-95"><PlusIcon className="w-5 h-5" /></button>
-                                                </div>
-                                                {newDayOverrideSlots.length > 0 && (
-                                                    <div className="flex flex-wrap gap-2 p-3 bg-white rounded-xl border-2 border-dashed border-indigo-100">
-                                                        {newDayOverrideSlots.map(s => (
-                                                            <span key={s} className="bg-indigo-50 text-[10px] font-black px-3 py-1.5 rounded-full flex items-center gap-2 text-indigo-700 shadow-sm border border-indigo-100">
-                                                                {s} <button onClick={() => handleRemoveDaySlotFromStaging(s)} className="text-indigo-300 hover:text-red-500"><XMarkIcon className="w-3 h-3"/></button>
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                <button onClick={handleAddDayOverride} className="w-full bg-slate-500 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest shadow-md hover:bg-slate-600 transition-all active:scale-95">Save Day Override</button>
-                                            </div>
-                                            <div className="mt-6 space-y-3">
-                                                {Object.entries(appointmentTimes[slotConfigRegion]?.overrides?.dayOfWeek || {}).map(([day, slots]) => (
-                                                    <div key={day} className="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center shadow-sm group">
-                                                        <div className="truncate pr-4">
-                                                            <span className="font-black text-indigo-600 text-xs uppercase tracking-tighter mr-2">{DAYS_OF_WEEK[parseInt(day)]}: </span>
-                                                            <span className="text-xs font-bold text-gray-500">{(slots as string[]).join(', ')}</span>
-                                                        </div>
-                                                        <button onClick={() => handleRemoveDayOverride(parseInt(day))} className="text-gray-300 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"><TrashIcon className="w-4 h-4"/></button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {/* Date Overrides */}
-                                        <div className="border border-gray-100 rounded-2xl p-6 bg-gray-50/50 shadow-inner">
-                                            <h4 className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                                                SPECIFIC DATE OVERRIDES
-                                            </h4>
-                                            <div className="space-y-5">
-                                                <input 
-                                                    type="date" 
-                                                    value={newDateOverrideDate} 
-                                                    onChange={e => setNewDateOverrideDate(e.target.value)}
-                                                    className="w-full border-2 border-gray-100 bg-white rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none"
-                                                />
-                                                <div className="flex items-center gap-2">
-                                                    <TimePicker value={tempDateSlot} onChange={setTempDateSlot} className="flex-1" />
-                                                    <button onClick={handleAddDateSlotToStaging} className="bg-white text-gray-400 p-2.5 rounded-xl border-2 border-gray-100 hover:text-indigo-600 hover:border-indigo-600 transition-all active:scale-95"><PlusIcon className="w-5 h-5" /></button>
-                                                </div>
-                                                {newDateOverrideSlots.length > 0 && (
-                                                    <div className="flex flex-wrap gap-2 p-3 bg-white rounded-xl border-2 border-dashed border-indigo-100">
-                                                        {newDateOverrideSlots.map(s => (
-                                                            <span key={s} className="bg-indigo-50 text-[10px] font-black px-3 py-1.5 rounded-full flex items-center gap-2 text-indigo-700 shadow-sm border border-indigo-100">
-                                                                {s} <button onClick={() => handleRemoveDateSlotFromStaging(s)} className="text-indigo-300 hover:text-red-500"><XMarkIcon className="w-3 h-3"/></button>
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                <button onClick={handleAddDateOverride} className="w-full bg-slate-500 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest shadow-md hover:bg-slate-600 transition-all active:scale-95">Save Date Override</button>
-                                            </div>
-                                            <div className="mt-6 space-y-3">
-                                                {Object.entries(appointmentTimes[slotConfigRegion]?.overrides?.date || {}).map(([date, slots]) => (
-                                                    <div key={date} className="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center shadow-sm group">
-                                                        <div className="truncate pr-4">
-                                                            <span className="font-black text-indigo-600 text-xs uppercase tracking-tighter mr-2">{date}: </span>
-                                                            <span className="text-xs font-bold text-gray-500">{(slots as string[]).join(', ')}</span>
-                                                        </div>
-                                                        <button onClick={() => handleRemoveDateOverride(date)} className="text-gray-300 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"><TrashIcon className="w-4 h-4"/></button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* 5. Holiday & Event Management */}
-                                <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-200">
-                                    <h3 className="text-xl font-bold text-gray-900 mb-8 uppercase tracking-tight flex items-center gap-2">
-                                        <div className="w-1 h-6 bg-indigo-600 rounded-full" />
-                                        Holiday & Event Management
-                                    </h3>
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                                        <div className="space-y-6">
-                                            <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">Add Holiday</h4>
-                                            <div>
-                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Holiday Name</label>
-                                                <input 
-                                                    type="text" 
-                                                    value={newHolidayName} 
-                                                    onChange={e => setNewHolidayName(e.target.value)} 
-                                                    placeholder="e.g. Christmas Day" 
-                                                    className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none"
-                                                />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div>
-                                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Start Date</label>
-                                                    <input 
-                                                        type="date" 
-                                                        value={newHolidayStartDate} 
-                                                        onChange={e => setNewHolidayStartDate(e.target.value)} 
-                                                        className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">End Date</label>
-                                                    <input 
-                                                        type="date" 
-                                                        value={newHolidayEndDate} 
-                                                        onChange={e => setNewHolidayEndDate(e.target.value)} 
-                                                        className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 transition-all outline-none"
-                                                        min={newHolidayStartDate}
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Apply to Regions</label>
-                                                <div className="flex flex-wrap gap-4 p-4 border-2 border-gray-100 bg-gray-50 rounded-xl">
-                                                    {regions.map(r => (
-                                                        <label key={r} className="flex items-center gap-3 cursor-pointer group">
-                                                            <input 
-                                                                type="checkbox" 
-                                                                checked={newHolidayRegions.includes(r)} 
-                                                                onChange={() => toggleHolidayRegion(r)}
-                                                                className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-0 transition-all"
-                                                            />
-                                                            <span className="text-sm font-bold text-gray-700 group-hover:text-black">{r}</span>
-                                                        </label>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <button onClick={handleSaveHoliday} className="w-full bg-black text-white py-3.5 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-gray-800 transition-all shadow-md active:scale-95">
-                                                {editingHolidayOriginal ? 'UPDATE HOLIDAY' : 'ADD'}
+                                            </select>
+                                            <button
+                                                onClick={handleAddDateSlotToStaging}
+                                                className="px-4 py-2 bg-black text-white rounded-lg text-sm font-bold hover:bg-gray-800"
+                                            >
+                                                Add Slot
                                             </button>
                                         </div>
-                                        <div className="space-y-4">
-                                            <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">Configured Holidays</h4>
-                                            <div className="divide-y divide-gray-100 max-h-[460px] overflow-y-auto pr-2 custom-scrollbar">
-                                                {publicHolidays.map(h => (
-                                                    <div key={h.id} className="py-5 flex justify-between items-start group hover:bg-gray-50/50 px-2 rounded-xl transition-all">
-                                                        <div>
-                                                            <p className="font-black text-gray-900 leading-tight">{h.name}</p>
-                                                            <div className="flex items-center gap-2 mt-1.5">
-                                                                <span className="text-xs font-bold text-gray-400">
-                                                                    {h.startDate} {h.endDate !== h.startDate && ` - ${h.endDate}`}
-                                                                </span>
-                                                                <span className="text-gray-300">|</span>
-                                                                <span className="italic font-black text-indigo-500 text-[10px] uppercase tracking-tighter">{h.regions.join(', ')}</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <button onClick={() => handleEditHoliday(h)} className="text-gray-300 hover:text-indigo-600 transition-colors p-1" title="Edit Holiday">
-                                                                <PencilSquareIcon className="w-4 h-4" />
-                                                            </button>
-                                                            <button onClick={() => handleDeleteHoliday(h.id)} className="text-gray-300 hover:text-red-600 transition-colors p-1" title="Delete Holiday">
-                                                                <TrashIcon className="w-5 h-5" />
-                                                            </button>
-                                                        </div>
-                                                    </div>
+                                        {newDateOverrideSlots.length > 0 && (
+                                            <div className="mt-2">
+                                                <span className="text-sm font-medium">Staging: </span>
+                                                {newDateOverrideSlots.map(slot => (
+                                                    <span key={slot} className="inline-flex items-center px-3 py-1 bg-gray-100 rounded-full text-sm ml-2">
+                                                        {slot}
+                                                        <button
+                                                            onClick={() => handleRemoveDateSlotFromStaging(slot)}
+                                                            className="ml-2 text-red-600 hover:text-red-800"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </span>
                                                 ))}
-                                                {publicHolidays.length === 0 && (
-                                                    <div className="py-20 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
-                                                        <CalendarDaysIcon className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                                                        <p className="text-sm text-gray-400 font-bold italic">No holidays configured yet.</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* 6. Data Management */}
-                                <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-200">
-                                    <h3 className="text-xl font-bold text-gray-900 mb-8 uppercase tracking-tight flex items-center gap-2">
-                                        <div className="w-1 h-6 bg-indigo-600 rounded-full" />
-                                        Data Management
-                                    </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                                        <div className="space-y-8 bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                                            <div>
-                                                <h4 className="text-base font-black text-gray-800 uppercase tracking-widest mb-1.5">Bulk Import Legacy Data</h4>
-                                                <p className="text-xs text-gray-400 font-bold">1. Download Template. 2. Edit in Excel. 3. Upload.</p>
-                                                <button 
-                                                    onClick={() => {
-                                                        const csv = generateImportTemplate();
-                                                        const blob = new Blob([csv], { type: 'text/csv' });
-                                                        const url = URL.createObjectURL(blob);
-                                                        const a = document.createElement('a');
-                                                        a.href = url;
-                                                        a.download = 'lead_import_template.csv';
-                                                        a.click();
-                                                    }}
-                                                    className="mt-4 flex items-center gap-2 px-5 py-2.5 bg-white border-2 border-gray-200 rounded-xl text-xs font-black uppercase tracking-widest hover:border-black hover:text-black transition-all shadow-sm"
+                                                <button
+                                                    onClick={handleAddDateOverride}
+                                                    className="ml-4 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700"
                                                 >
-                                                    <DocumentArrowDownIcon className="w-4 h-4 text-gray-400" /> Download Template
+                                                    Save Date Override
                                                 </button>
                                             </div>
-                                            <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-gray-200">
-                                                <div className="relative">
-                                                    <input 
-                                                        type="file" 
-                                                        accept=".csv"
-                                                        onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-                                                        className="hidden" 
-                                                        id="bulk-import-file"
-                                                    />
-                                                    <label 
-                                                        htmlFor="bulk-import-file"
-                                                        className="px-6 py-2.5 bg-gray-200 text-indigo-700 rounded-full text-xs font-black uppercase tracking-widest cursor-pointer hover:bg-gray-300 border-2 border-white transition-all shadow-sm"
+                                        )}
+                                        <div className="mt-2">
+                                            {Object.entries(appointmentTimes[slotConfigRegion]?.overrides.date || {}).map(([date, slots]) => (
+                                                <div key={date} className="inline-flex items-center px-3 py-1 bg-green-100 rounded-full text-sm ml-2 mt-2">
+                                                    {date}: {slots.join(', ')}
+                                                    <button
+                                                        onClick={() => handleRemoveDateOverride(date)}
+                                                        className="ml-2 text-red-600 hover:text-red-800"
                                                     >
-                                                        Choose File
-                                                    </label>
+                                                        ×
+                                                    </button>
                                                 </div>
-                                                <span className="text-[10px] text-gray-400 truncate max-w-[140px] font-bold" title={importFile?.name}>
-                                                    {importFile ? importFile.name : 'No file chosen'}
-                                                </span>
-                                                <button 
-                                                    onClick={async () => {
-                                                        if (!importFile) return;
-                                                        const result = await processImportFile(importFile, allBookings, vendors, bdms, currentUser);
-                                                        setImportPreview(result);
-                                                    }}
-                                                    disabled={!importFile}
-                                                    className="flex items-center gap-2 px-6 py-2.5 bg-slate-400 text-white rounded-xl text-xs font-black uppercase tracking-widest disabled:opacity-30 hover:bg-slate-600 transition-all shadow-md"
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Holiday Management */}
+                                <div className="bg-white rounded-xl shadow p-6">
+                                    <h2 className="text-xl font-bold mb-4">Holiday & Event Management</h2>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Holiday Name</label>
+                                            <input
+                                                type="text"
+                                                value={newHolidayName}
+                                                onChange={e => setNewHolidayName(e.target.value)}
+                                                placeholder="e.g., Christmas Day"
+                                                className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Start Date</label>
+                                            <input
+                                                type="date"
+                                                value={newHolidayStartDate}
+                                                onChange={e => setNewHolidayStartDate(e.target.value)}
+                                                className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">End Date</label>
+                                            <input
+                                                type="date"
+                                                value={newHolidayEndDate}
+                                                onChange={e => setNewHolidayEndDate(e.target.value)}
+                                                className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Regions</label>
+                                            <div className="flex flex-wrap gap-2 mt-1">
+                                                {regions.map(r => (
+                                                    <label key={r} className="inline-flex items-center">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={newHolidayRegions.includes(r)}
+                                                            onChange={() => toggleHolidayRegion(r)}
+                                                            className="rounded border-gray-300"
+                                                        />
+                                                        <span className="ml-1 text-sm">{r}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={handleSaveHoliday}
+                                        className="mt-4 px-6 py-2 bg-black text-white rounded-lg text-sm font-bold hover:bg-gray-800"
+                                    >
+                                        {editingHolidayOriginal ? 'Update Holiday' : 'Add Holiday'}
+                                    </button>
+                                    <div className="mt-6">
+                                        <h4 className="text-lg font-bold mb-4">Configured Holidays</h4>
+                                        <div className="space-y-2">
+                                            {publicHolidays.map(holiday => (
+                                                <div key={holiday.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                                                    <div>
+                                                        <span className="font-bold">{holiday.name}</span>
+                                                        <span className="ml-4 text-sm text-gray-600">
+                                                            {formatToDDMMYY(holiday.startDate)} - {formatToDDMMYY(holiday.endDate)}
+                                                        </span>
+                                                        <span className="ml-4 text-sm text-gray-600">
+                                                            {holiday.regions.join(', ')}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => handleEditHoliday(holiday)}
+                                                            className="text-indigo-600 hover:text-indigo-900"
+                                                        >
+                                                            <PencilSquareIcon className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteHoliday(holiday.id)}
+                                                            className="text-red-600 hover:text-red-900"
+                                                        >
+                                                            <TrashIcon className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Region Management */}
+                                <div className="bg-white rounded-xl shadow p-6">
+                                    <h2 className="text-xl font-bold mb-4">Region Management</h2>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={newRegionName}
+                                            onChange={e => setNewRegionName(e.target.value)}
+                                            placeholder="New Region Name"
+                                            className="block w-full border border-gray-300 rounded-md p-2"
+                                        />
+                                        <button
+                                            onClick={handleAddRegion}
+                                            className="px-6 py-2 bg-black text-white rounded-lg text-sm font-bold hover:bg-gray-800"
+                                        >
+                                            Add Region
+                                        </button>
+                                    </div>
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                        {regions.map(region => (
+                                            <div key={region} className="inline-flex items-center px-3 py-1 bg-gray-100 rounded-full">
+                                                <input
+                                                    type="color"
+                                                    value={regionColors[region] || '#CBD5E1'}
+                                                    onChange={e => handleRegionColorChange(region, e.target.value)}
+                                                    className="w-6 h-6 rounded-full border-0 p-0 mr-2"
+                                                />
+                                                <span className="text-sm">{region}</span>
+                                                <button
+                                                    onClick={() => handleDeleteRegion(region)}
+                                                    className="ml-2 text-red-600 hover:text-red-800"
                                                 >
-                                                    <CloudArrowUpIcon className="w-4 h-4" /> Upload & Preview
+                                                    ×
                                                 </button>
                                             </div>
-                                        </div>
+                                        ))}
+                                    </div>
+                                </div>
 
-                                        <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 flex flex-col justify-between">
-                                            <div>
-                                                <h4 className="text-base font-black text-emerald-900 uppercase tracking-widest mb-1.5">Export Data</h4>
-                                                <p className="text-xs text-emerald-600 font-bold">Download all system data matching the Import format for re-upload.</p>
-                                            </div>
-                                            <button 
-                                                onClick={() => exportBookingsToCSV(allBookings, 'full_database_export')}
-                                                className="mt-6 w-full flex items-center justify-center gap-3 bg-emerald-600 text-white py-4 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-emerald-700 shadow-lg shadow-emerald-100 transition-all active:scale-95"
-                                            >
-                                                <ArrowDownTrayIcon className="w-5 h-5" /> EXPORT FULL DATABASE
-                                            </button>
+                                {/* Branding */}
+                                <div className="bg-white rounded-xl shadow p-6">
+                                    <h2 className="text-xl font-bold mb-4">Branding</h2>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Company Name</label>
+                                            <input
+                                                type="text"
+                                                value={brandingForm.companyName}
+                                                onChange={e => setBrandingForm({ ...brandingForm, companyName: e.target.value })}
+                                                className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                                            />
                                         </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Primary Color</label>
+                                            <input
+                                                type="color"
+                                                value={brandingForm.primaryColor}
+                                                onChange={e => setBrandingForm({ ...brandingForm, primaryColor: e.target.value })}
+                                                className="mt-1 block w-full h-12 border border-gray-300 rounded-md p-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Logo</label>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleLogoUpload}
+                                                className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                                            />
+                                            {brandingForm.logoUrl && (
+                                                <img src={brandingForm.logoUrl} alt="Logo" className="mt-2 h-12 object-contain" />
+                                            )}
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={handleSaveBranding}
+                                        className="mt-4 px-6 py-2 bg-black text-white rounded-lg text-sm font-bold hover:bg-gray-800"
+                                    >
+                                        Save Branding
+                                    </button>
+                                </div>
+
+                                {/* Data Management */}
+                                <div className="bg-white rounded-xl shadow p-6">
+                                    <h2 className="text-xl font-bold mb-4">Data Management</h2>
+                                    <div className="flex flex-wrap gap-4">
+                                        <button
+                                            onClick={() => {
+                                                const input = document.createElement('input');
+                                                input.type = 'file';
+                                                input.accept = '.csv';
+                                                input.onchange = async (e) => {
+                                                    const file = (e.target as HTMLInputElement).files?.[0];
+                                                    if (file) {
+                                                        const result = await processImportFile(file, allBookings, vendors, bdms, currentUser);
+                                                        setImportPreview(result);
+                                                    }
+                                                };
+                                                input.click();
+                                            }}
+                                            className="px-6 py-2 bg-black text-white rounded-lg text-sm font-bold hover:bg-gray-800"
+                                        >
+                                            <CloudArrowUpIcon className="w-4 h-4 inline mr-1" /> Bulk Import
+                                        </button>
+                                        <button
+                                            onClick={() => exportBookingsToCSV(allBookings, 'full_database')}
+                                            className="px-6 py-2 bg-black text-white rounded-lg text-sm font-bold hover:bg-gray-800"
+                                        >
+                                            <DocumentArrowDownIcon className="w-4 h-4 inline mr-1" /> Export Full Database
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                const template = generateImportTemplate();
+                                                const blob = new Blob([template], { type: 'text/csv' });
+                                                const url = URL.createObjectURL(blob);
+                                                const a = document.createElement('a');
+                                                a.href = url;
+                                                a.download = 'import_template.csv';
+                                                a.click();
+                                                URL.revokeObjectURL(url);
+                                            }}
+                                            className="px-6 py-2 bg-gray-600 text-white rounded-lg text-sm font-bold hover:bg-gray-700"
+                                        >
+                                            Download Template
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -1822,41 +2082,91 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                 </div>
             </main>
 
+            {/* Modals */}
             {bookingToManage && (
-                <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-[100] p-4">
-                    <div className="bg-white rounded-lg shadow-2xl w-full max-w-md animate-fadeIn">
-                        <div className="flex justify-between items-center p-4 border-b bg-red-600 text-white rounded-t-lg"><h2 className="text-xl font-normal">Reject Appointment</h2><button onClick={() => setBookingToManage(null)} className="text-red-100 hover:text-white"><XMarkIcon className="w-6 h-6" /></button></div>
-                        <div className="p-6 space-y-4">
-                            <p className="text-sm text-gray-600 font-normal">Rejecting lead for <strong>{bookingToManage.clientName}</strong>.</p>
-                            <div><label className="block text-sm font-normal text-gray-700 mb-1">Reason for Rejection</label><textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} rows={4} required className="w-full border border-gray-300 rounded-md p-3 text-sm focus:ring-red-500 focus:border-red-500" placeholder="Explain the rejection..." /></div>
-                            <div className="flex justify-end gap-3 pt-2"><button onClick={() => setBookingToManage(null)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 font-normal text-sm">Cancel</button><button onClick={handleRejectBooking} disabled={!rejectionReason.trim()} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-normal text-sm disabled:opacity-50">Confirm Rejection</button></div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {requestToReview && <ManagerBookingReviewModal booking={requestToReview} onClose={() => setRequestToReview(null)} onApprove={handleApproveRequest} onReject={handleRejectRequest} appointmentTimes={appointmentTimes} />}
-            {bookingToEdit && <BookingModal slotInfo={null} bookingToEdit={bookingToEdit} allBookings={allBookings} blockedSlotsForEdit={blockedSlotsForEdit} vendor={bookingToEdit.vendor} onClose={() => setBookingToEdit(null)} onConfirmBooking={() => {}} onUpdateBooking={handleUpdateBooking} onEditFromModal={() => {}} salespeopleCount={salespeopleCount} appointmentTimes={appointmentTimes} regions={regions} role="manager" />}
-            {editingUser && <UserEditModal user={editingUser.user} type={editingUser.type} onClose={() => setEditingUser(null)} onSave={handleSaveUser} regions={regions} />}
-            {isManualBookingOpen && (<BdmBookingRequestModal currentUser={currentUser} vendors={vendors} onClose={() => setIsManualBookingOpen(false)} onRequestBooking={handleManualBookingEntry} regions={regions} appointmentTimes={appointmentTimes} allBookings={allBookings} />)}
-            {importPreview && (
-                <ImportPreviewModal 
-                    stats={importPreview.stats} 
-                    newBookings={importPreview.newBookings} 
-                    bdms={bdms}
-                    isSyncing={isSyncing}
-                    onCancel={() => { setImportPreview(null); setImportFile(null); }} 
-                    onConfirm={() => { 
-                        if (importPreview) { 
-                            setAllBookings(prev => [...prev, ...importPreview.newBookings]); 
-                            setImportPreview(null); 
-                            setImportFile(null); 
-                            triggerSystemAlert(`Successfully imported ${importPreview.stats.imported} records.`); 
-                        } 
-                    }} 
+                <ManagerBookingReviewModal
+                    booking={bookingToManage}
+                    onClose={() => setBookingToManage(null)}
+                    onApprove={handleApproveRequest}
+                    onReject={handleRejectRequest}
+                    appointmentTimes={appointmentTimes}
                 />
             )}
-            {smsActionBooking && <ManagerSmsActionModal booking={smsActionBooking} onClose={() => setSmsActionBooking(null)} onMarkAsSent={handleMarkSmsSent} />}
+
+            {requestToReview && (
+                <ManagerBookingReviewModal
+                    booking={requestToReview}
+                    onClose={() => setRequestToReview(null)}
+                    onApprove={handleApproveRequest}
+                    onReject={handleRejectRequest}
+                    appointmentTimes={appointmentTimes}
+                />
+            )}
+
+            {bookingToEdit && (
+                <BookingModal
+                    slotInfo={null}
+                    bookingToEdit={bookingToEdit}
+                    allBookings={allBookings}
+                    blockedSlotsForEdit={blockedSlotsForEdit}
+                    vendor={bookingToEdit.vendor}
+                    onClose={() => setBookingToEdit(null)}
+                    onConfirmBooking={() => {}}
+                    onUpdateBooking={handleUpdateBooking}
+                    onEditFromModal={() => {}}
+                    salespeopleCount={salespeopleCount}
+                    appointmentTimes={appointmentTimes}
+                    role="manager"
+                    regions={regions}
+                />
+            )}
+
+            {isManualBookingOpen && (
+                <BdmBookingRequestModal
+                    currentUser={currentUser}
+                    vendors={vendors}
+                    onClose={() => setIsManualBookingOpen(false)}
+                    onRequestBooking={(bookingDetails) => {
+                        handleManualBookingEntry(bookingDetails, []);
+                    }}
+                    regions={regions}
+                    appointmentTimes={appointmentTimes}
+                    allBookings={allBookings}
+                />
+            )}
+
+            {smsActionBooking && (
+                <ManagerSmsActionModal
+                    booking={smsActionBooking}
+                    onClose={() => setSmsActionBooking(null)}
+                    onSendSms={handleMarkSmsSent}
+                />
+            )}
+
+            {importPreview && (
+                <ImportPreviewModal
+                    onCancel={() => setImportPreview(null)}
+                    onConfirm={() => {
+                        setAllBookings(prev => [...prev, ...importPreview.newBookings]);
+                        setImportPreview(null);
+                        triggerSystemAlert(`Successfully imported ${importPreview.newBookings.length} bookings!`);
+                    }}
+                    stats={importPreview.stats}
+                    newBookings={importPreview.newBookings}
+                    bdms={bdms}
+                    isSyncing={isSyncing}
+                />
+            )}
+
+            {editingUser && (
+                <UserEditModal
+                    user={editingUser.user}
+                    type={editingUser.type}
+                    onClose={() => setEditingUser(null)}
+                    onSave={handleSaveUser}
+                    regions={regions}
+                />
+            )}
         </div>
     );
 };
