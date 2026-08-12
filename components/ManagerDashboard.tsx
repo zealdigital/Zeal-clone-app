@@ -29,6 +29,22 @@ import { DEFAULT_NOTIFICATION_PREFERENCES, MANAGERS, VENDORS, BDMS, PUBLIC_HOLID
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+// Helper function to convert time string to minutes for sorting
+const parseTimeStringToMinutes = (timeStr: string): number => {
+    if (!timeStr) return 0;
+    try {
+        const [t, mod] = timeStr.split(' ');
+        if (!t || !mod) return 0;
+        let [h, m] = t.split(':').map(Number);
+        if (isNaN(h) || isNaN(m)) return 0;
+        if (mod === 'PM' && h !== 12) h += 12;
+        if (mod === 'AM' && h === 12) h = 0;
+        return h * 60 + m;
+    } catch (e) {
+        return 0;
+    }
+};
+
 const normalizeWebsite = (url: string): string => {
     if (!url) return '';
     let cleaned = url.toLowerCase().trim();
@@ -520,14 +536,25 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             b.status.toLowerCase().includes(search)
         );
     }).sort((a, b) => {
-        const pA = getPriority(a.date);
-        const pB = getPriority(b.date);
-
-        if (pA !== pB) return pA - pB;
-
-        const dateDiff = b.date.localeCompare(a.date);
-        if (dateDiff !== 0) return -dateDiff;
-        return b.id - a.id; 
+        // ✅ NEW: Sort by date ascending, then by time ascending
+        // This ensures earliest appointments appear first
+        
+        // 1. Sort by date (earliest first)
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        
+        if (dateA < dateB) return -1;
+        if (dateA > dateB) return 1;
+        
+        // 2. If same date, sort by time (earliest first)
+        const timeA = parseTimeStringToMinutes(a.time);
+        const timeB = parseTimeStringToMinutes(b.time);
+        
+        if (timeA < timeB) return -1;
+        if (timeA > timeB) return 1;
+        
+        // 3. If same date and time, sort by ID as tie-breaker
+        return a.id - b.id;
     });
 }, [visibleBookings, searchTerm, dateRange]);
 
