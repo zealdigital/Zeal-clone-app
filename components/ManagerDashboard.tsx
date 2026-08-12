@@ -536,39 +536,43 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             b.status.toLowerCase().includes(search)
         );
     }).sort((a, b) => {
-        // Safe sorting with null checks
-        try {
-            // Handle null/undefined dates
-            if (!a?.date || !b?.date) {
-                if (!a?.date && !b?.date) return 0;
-                if (!a?.date) return 1;
-                return -1;
-            }
-            
-            // Sort by date ascending
-            const dateA = new Date(a.date);
-            const dateB = new Date(b.date);
-            
-            if (dateA < dateB) return -1;
-            if (dateA > dateB) return 1;
-            
-            // Handle null/undefined times
-            const timeA = a?.time || '12:00 AM';
-            const timeB = b?.time || '12:00 AM';
-            
-            const minutesA = parseTimeStringToMinutes(timeA);
-            const minutesB = parseTimeStringToMinutes(timeB);
-            
-            if (minutesA < minutesB) return -1;
-            if (minutesA > minutesB) return 1;
-            
-            // Tie-breaker by ID
-            return (a.id || 0) - (b.id || 0);
-        } catch (error) {
-            console.error('Sort error:', error);
-            return 0;
+    try {
+        // Handle null/undefined dates
+        if (!a?.date || !b?.date) {
+            if (!a?.date && !b?.date) return 0;
+            if (!a?.date) return 1;
+            return -1;
         }
-    });
+        
+        // Sort by date ascending
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        
+        if (dateA < dateB) return -1;
+        if (dateA > dateB) return 1;
+        
+        // Handle null/undefined times
+        const timeA = a?.time || '12:00 AM';
+        const timeB = b?.time || '12:00 AM';
+        
+        const minutesA = parseTimeStringToMinutes(timeA);
+        const minutesB = parseTimeStringToMinutes(timeB);
+        
+        // DEBUG: Log first 10 comparisons
+        if (Math.random() < 0.01) { // Log about 1% of comparisons
+            console.log(`Comparing: ${timeA} (${minutesA}) vs ${timeB} (${minutesB}) -> ${minutesA - minutesB}`);
+        }
+        
+        if (minutesA < minutesB) return -1;
+        if (minutesA > minutesB) return 1;
+        
+        // Tie-breaker by ID
+        return (a.id || 0) - (b.id || 0);
+    } catch (error) {
+        console.error('Sort error:', error);
+        return 0;
+    }
+});
 }, [visibleBookings, searchTerm, dateRange]);
 
     const totalActiveLeadsPages = Math.max(1, Math.ceil(activeLeads.length / ITEMS_PER_PAGE));
