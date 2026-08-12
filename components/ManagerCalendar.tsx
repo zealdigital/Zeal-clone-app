@@ -354,7 +354,7 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
     );
   };
 
-  // ✅ NEW: Day View - Shows hourly schedule for a single day
+  // ✅ FIXED: Day View - Shows hourly schedule for a single day (no opacity on past slots)
   const renderDayView = () => {
     const dateKey = getDateKey(currentDate);
     const dayItems = mixedItemsByDate.get(dateKey) || [];
@@ -398,19 +398,9 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
         <div className="divide-y divide-gray-100">
           {timeSlots.map(slotTime => {
             const items = itemsByTime[slotTime] || [];
-            const isPast = (() => {
-              const now = new Date();
-              const [time, modifier] = slotTime.split(' ');
-              let [h, m] = time.split(':').map(Number);
-              if (modifier === 'PM' && h !== 12) h += 12;
-              if (modifier === 'AM' && h === 12) h = 0;
-              const slotMinutes = h * 60 + m;
-              const nowMinutes = now.getHours() * 60 + now.getMinutes();
-              return isToday && slotMinutes < nowMinutes;
-            })();
 
             return (
-              <div key={slotTime} className={`flex ${isPast ? 'opacity-50' : ''}`}>
+              <div key={slotTime} className="flex">
                 <div className="w-24 sm:w-32 p-3 text-sm font-bold text-gray-500 border-r border-gray-100 flex-shrink-0">
                   {slotTime}
                 </div>
