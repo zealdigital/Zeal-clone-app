@@ -98,17 +98,47 @@ interface UserEditModalProps {
     regions: Region[];
 }
 // Helper function to convert time string to minutes for sorting
+// Helper function to convert time string to minutes for sorting
 const parseTimeStringToMinutes = (timeStr: string): number => {
     if (!timeStr) return 0;
     try {
-        const [t, mod] = timeStr.split(' ');
-        if (!t || !mod) return 0;
-        let [h, m] = t.split(':').map(Number);
-        if (isNaN(h) || isNaN(m)) return 0;
-        if (mod === 'PM' && h !== 12) h += 12;
-        if (mod === 'AM' && h === 12) h = 0;
-        return h * 60 + m;
+        // Clean up the time string
+        const cleanTime = timeStr.trim().toUpperCase();
+        const [t, mod] = cleanTime.split(' ');
+        
+        // If no AM/PM, try to add it based on hour
+        let hour = 0, minute = 0, modifier = mod;
+        
+        if (!modifier) {
+            // Try to parse as HH:MM without AM/PM
+            const parts = t.split(':');
+            if (parts.length >= 2) {
+                hour = parseInt(parts[0], 10);
+                minute = parseInt(parts[1], 10);
+                modifier = hour >= 12 ? 'PM' : 'AM';
+            } else {
+                return 0;
+            }
+        } else {
+            const parts = t.split(':');
+            if (parts.length >= 2) {
+                hour = parseInt(parts[0], 10);
+                minute = parseInt(parts[1], 10);
+            } else {
+                hour = parseInt(t, 10);
+                minute = 0;
+            }
+        }
+        
+        if (isNaN(hour) || isNaN(minute)) return 0;
+        
+        // Convert to 24-hour format
+        if (modifier === 'PM' && hour < 12) hour += 12;
+        if (modifier === 'AM' && hour === 12) hour = 0;
+        
+        return hour * 60 + minute;
     } catch (e) {
+        console.error('Error parsing time:', timeStr, e);
         return 0;
     }
 };
