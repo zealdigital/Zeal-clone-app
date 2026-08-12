@@ -78,8 +78,8 @@ const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, r
           <tbody className="bg-white divide-y divide-gray-200">
             {sortedDateKeys.map(date => (
               <React.Fragment key={date}>
-                <tr className="bg-gray-50 border-y border-gray-200">
-                  <td colSpan={role === 'manager' ? (onEditBooking ? 8 : 7) : (onEditBooking ? 7 : 6)} className="px-6 py-2 text-sm font-normal text-gray-600 uppercase tracking-tight">
+                <tr className="bg-black border-y border-gray-200">
+                  <td colSpan={role === 'manager' ? (onEditBooking ? 8 : 7) : (onEditBooking ? 7 : 6)} className="px-6 py-2 text-sm font-normal text-white uppercase tracking-tight">
                     <div className="flex items-center gap-2">
                       <CalendarDaysIcon className="w-4 h-4 text-gray-400" />
                       {formatDDMMYY(date)}
