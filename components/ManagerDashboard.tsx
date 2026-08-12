@@ -524,9 +524,6 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
     const activeLeads = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
 
-    console.log('🔍 DEBUG: Starting activeLeads sort...');
-    console.log(`📊 Total visibleBookings: ${visibleBookings.length}`);
-
     // Filter bookings first
     const filteredBookings = visibleBookings.filter(b => {
         const matchesStatus = ['active', 'rescheduled_bdm'].includes(b.status);
@@ -551,16 +548,6 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
             b.status.toLowerCase().includes(search)
         );
     });
-
-    console.log(`📊 Filtered bookings (active/rescheduled_bdm): ${filteredBookings.length}`);
-
-    // Log the filtered bookings BEFORE sorting
-    if (filteredBookings.length > 0) {
-        console.log('📋 BEFORE SORTING (first 5):');
-        filteredBookings.slice(0, 5).forEach((b, i) => {
-            console.log(`  ${i+1}. ${b.date} ${b.time} - ${b.clientName} (minutes: ${parseTimeStringToMinutes(b.time)})`);
-        });
-    }
 
     // Sort the filtered results by TIME ONLY
     const sortedResults = [...filteredBookings].sort((a, b) => {
@@ -587,22 +574,6 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
             return 0;
         }
     });
-
-    // Log the sorted results AFTER sorting
-    if (sortedResults.length > 0) {
-        console.log('📋 AFTER SORTING BY TIME (first 10):');
-        sortedResults.slice(0, 10).forEach((b, i) => {
-            console.log(`  ${i+1}. ${b.date} ${b.time} - ${b.clientName} (minutes: ${parseTimeStringToMinutes(b.time)})`);
-        });
-        
-        // Group by time to verify
-        const timeGroups: Record<string, number> = {};
-        sortedResults.forEach(b => {
-            const t = b.time || '12:00 AM';
-            timeGroups[t] = (timeGroups[t] || 0) + 1;
-        });
-        console.log('📊 Time groups:', timeGroups);
-    }
 
     return sortedResults;
 }, [visibleBookings, searchTerm, dateRange]);
