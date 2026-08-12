@@ -1177,7 +1177,6 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
                                                             <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Address & Phone</th>
                                                             <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Calling Team</th>
                                                             <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Time</th>
-                                                            
                                                             <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Region</th>
                                                             <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Status</th>
                                                             <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Assigned BDM</th>
@@ -1190,7 +1189,7 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
                                                             const displayDate = new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                                                             return (
                                                                 <React.Fragment key={date}>
-                                                                    <tr className="bg-black"><td colSpan={7} className="px-6 py-2 text-xs font-bold text-white uppercase tracking-tighter">{displayDate}</td></tr>
+                                                                    <tr className="bg-black"><td colSpan={8} className="px-6 py-2 text-xs font-bold text-white uppercase tracking-tighter">{displayDate}</td></tr>
                                                                     {groupedActiveLeads[date].map(b => (
                                                                         <tr key={b.id} className={`hover:bg-gray-50 transition-all ${b.isDuplicate && (new Date(b.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'bg-amber-50 border-l-4 border-amber-400' : (b.smsRequest?.status === 'pending' ? 'bg-purple-50 border-l-4 border-purple-400' : '')}`}>
                                                                             <td className="px-6 py-4">
@@ -1238,7 +1237,7 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
                                                                 </React.Fragment>
                                                             );
                                                         })}
-                                                        {activeLeads.length === 0 && <tr><td colSpan={7} className="p-12 text-center text-gray-400 italic">No active leads in current view.</td></tr>}
+                                                        {activeLeads.length === 0 && <tr><td colSpan={8} className="p-12 text-center text-gray-400 italic">No active leads in current view.</td></tr>}
                                                     </tbody>
                                                 </table>
                                             </div>
