@@ -520,22 +520,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     };
 
     const activeLeads = useMemo(() => {
-    const today = new Date(); today.setHours(0,0,0,0);
-    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-    const dayAfter = new Date(today); dayAfter.setDate(today.getDate() + 2);
-
-    const formatDate = (d: Date) => d.toISOString().split('T')[0];
-    const tStr = formatDate(today);
-    const tmStr = formatDate(tomorrow);
-    const daStr = formatDate(dayAfter);
-
-    const getPriority = (date: string) => {
-        if (date === tStr) return 0;
-        if (date === tmStr) return 1;
-        if (date === daStr) return 2;
-        return 3;
-    };
-
     const search = searchTerm.trim().toLowerCase();
 
     // Filter bookings first
@@ -563,8 +547,8 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         );
     });
 
-    // Sort the filtered results by TIME ONLY (regardless of date)
-    const sortedResults = filteredBookings.sort((a, b) => {
+    // Sort the filtered results by TIME ONLY (purely by time, ignoring dates)
+    const sortedResults = [...filteredBookings].sort((a, b) => {
         try {
             // Handle null/undefined times
             const timeA = a?.time || '12:00 AM';
@@ -573,11 +557,11 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             const minutesA = parseTimeStringToMinutes(timeA);
             const minutesB = parseTimeStringToMinutes(timeB);
             
-            // Sort by time first (earliest time first)
+            // Sort by time (earliest time first)
             if (minutesA < minutesB) return -1;
             if (minutesA > minutesB) return 1;
             
-            // If same time, sort by date (earliest date first)
+            // If same time, sort by date (earliest date first) as secondary
             if (a?.date && b?.date) {
                 if (a.date < b.date) return -1;
                 if (a.date > b.date) return 1;
