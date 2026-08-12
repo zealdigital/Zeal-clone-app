@@ -502,6 +502,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                         currentUser={currentUser} 
                         appointments={personalAppointments}
                         setAppointments={setPersonalAppointments}
+                        bdms={bdms}
                       />
                   </div>
               )}
