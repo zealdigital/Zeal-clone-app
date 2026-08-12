@@ -97,46 +97,7 @@ interface UserEditModalProps {
     onSave: (updatedUser: Vendor | BDM | Manager) => void;
     regions: Region[];
 }
-// Helper function to convert time string to minutes for sorting
-const parseTimeStringToMinutes = (timeStr: string): number => {
-    if (!timeStr) return 0;
-    try {
-        const cleanTime = timeStr.trim().toUpperCase();
-        const [t, mod] = cleanTime.split(' ');
-        
-        let hour = 0, minute = 0, modifier = mod;
-        
-        if (!modifier) {
-            const parts = t.split(':');
-            if (parts.length >= 2) {
-                hour = parseInt(parts[0], 10);
-                minute = parseInt(parts[1], 10);
-                modifier = hour >= 12 ? 'PM' : 'AM';
-            } else {
-                return 0;
-            }
-        } else {
-            const parts = t.split(':');
-            if (parts.length >= 2) {
-                hour = parseInt(parts[0], 10);
-                minute = parseInt(parts[1], 10);
-            } else {
-                hour = parseInt(t, 10);
-                minute = 0;
-            }
-        }
-        
-        if (isNaN(hour) || isNaN(minute)) return 0;
-        
-        if (modifier === 'PM' && hour < 12) hour += 12;
-        if (modifier === 'AM' && hour === 12) hour = 0;
-        
-        return hour * 60 + minute;
-    } catch (e) {
-        console.error('Error parsing time:', timeStr, e);
-        return 0;
-    }
-};
+
 const UserEditModal: React.FC<UserEditModalProps> = ({ user, type, onClose, onSave, regions }) => {
     const [formData, setFormData] = useState({
         name: user.name,
@@ -409,6 +370,47 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     currentUser, onLogout, allBookings, setAllBookings, salespeopleCount, publicHolidays, setPublicHolidays,
     appointmentTimes, setAppointmentTimes, leaveDays, setLeaveDays, vendors, setVendors, bdms, setBdms, managers, setManagers, managerAppointments, setManagerAppointments, notifications, setNotifications, branding, setBranding, onUpdateProfile, regions, setRegions, regionColors, setRegionColors, isSyncing
 }) => {
+
+    // Helper function to convert time string to minutes for sorting
+const parseTimeStringToMinutes = (timeStr: string): number => {
+    if (!timeStr) return 0;
+    try {
+        const cleanTime = timeStr.trim().toUpperCase();
+        const [t, mod] = cleanTime.split(' ');
+        
+        let hour = 0, minute = 0, modifier = mod;
+        
+        if (!modifier) {
+            const parts = t.split(':');
+            if (parts.length >= 2) {
+                hour = parseInt(parts[0], 10);
+                minute = parseInt(parts[1], 10);
+                modifier = hour >= 12 ? 'PM' : 'AM';
+            } else {
+                return 0;
+            }
+        } else {
+            const parts = t.split(':');
+            if (parts.length >= 2) {
+                hour = parseInt(parts[0], 10);
+                minute = parseInt(parts[1], 10);
+            } else {
+                hour = parseInt(t, 10);
+                minute = 0;
+            }
+        }
+        
+        if (isNaN(hour) || isNaN(minute)) return 0;
+        
+        if (modifier === 'PM' && hour < 12) hour += 12;
+        if (modifier === 'AM' && hour === 12) hour = 0;
+        
+        return hour * 60 + minute;
+    } catch (e) {
+        console.error('Error parsing time:', timeStr, e);
+        return 0;
+    }
+};
     const [activeTab, setActiveTab] = useState<'bookings' | 'analytics' | 'users' | 'settings' | 'calendar'>('bookings');
     const [searchTerm, setSearchTerm] = useState('');
     const [dateRange, setDateRange] = useState<{ startDate: string | null, endDate: string | null }>({ startDate: null, endDate: null });
