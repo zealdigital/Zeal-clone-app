@@ -139,7 +139,13 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
     setCurrentDate(newDate);
   };
 
-  const handleToday = () => setCurrentDate(new Date());
+  const handleToday = () => {
+    const today = new Date();
+    setCurrentDate(today);
+    // Reset to week view if you want, or keep current view mode
+    // If you want to switch to week view when clicking Today, uncomment:
+    // setViewMode('week');
+};
 
   const openAddModal = (day: Date) => {
     if (!setAppointments) return;
