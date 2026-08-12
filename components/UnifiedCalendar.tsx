@@ -140,10 +140,12 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
     setCurrentDate(newDate);
   };
 
-  // ✅ FIXED: Today button - properly resets to current date
+  // ✅ FIXED: Today button - properly resets to current date and switches to week view
   const handleToday = useCallback(() => {
     const today = new Date();
     setCurrentDate(today);
+    // Switch to week view to show today's schedule clearly
+    setViewMode('week');
   }, []);
 
   const openAddModal = (day: Date) => {
@@ -455,15 +457,16 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
             <div className="flex-shrink-0 bg-gray-100 rounded-xl p-1.5 flex gap-1 border border-gray-200">
                 <button onClick={() => setViewMode('month')} className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode === 'month' ? 'bg-white text-black shadow-md' : 'text-gray-500 hover:text-gray-700'}`}>MONTH</button>
                 <button onClick={() => setViewMode('week')} className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode === 'week' ? 'bg-white text-black shadow-md' : 'text-gray-500 hover:text-gray-700'}`}>WEEK</button>
+                {/* Today button moved here - next to Week button */}
+                <button 
+                    onClick={handleToday} 
+                    className="px-4 py-1.5 text-xs font-black text-white bg-indigo-600 border border-indigo-600 rounded-lg hover:bg-indigo-700 hover:border-indigo-700 shadow-sm uppercase tracking-widest transition-all"
+                >
+                    TODAY
+                </button>
             </div>
             <div className="flex items-center gap-2 justify-center">
                 <button onClick={handlePrev} className="p-2 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 shadow-sm transition-all font-bold">&larr;</button>
-                <button 
-                    onClick={handleToday} 
-                    className="px-4 py-2 text-xs font-black text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 hover:border-indigo-400 shadow-sm uppercase tracking-widest transition-all"
-                >
-                    Today
-                </button>
                 <span className="text-sm font-black text-gray-800 min-w-[140px] text-center uppercase tracking-wider">{getHeaderDateString()}</span>
                 <button onClick={handleNext} className="p-2 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 shadow-sm transition-all font-bold">&rarr;</button>
             </div>
