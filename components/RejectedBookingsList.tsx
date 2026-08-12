@@ -44,15 +44,15 @@ const RejectedBookingsList: React.FC<RejectedBookingsListProps> = ({ bookings, r
       {/* Desktop Table View */}
       <div className="hidden md:block overflow-x-auto">
         <table className="min-w-full">
-          <thead>
+          <thead className="bg-black">
             <tr className="border-b border-gray-100">
-              <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-gray-400 uppercase tracking-widest">Client & Business</th>
-              <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-gray-400 uppercase tracking-widest">Phone</th>
-              <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-gray-400 uppercase tracking-widest">Date & Time</th>
-              <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-gray-400 uppercase tracking-widest">Region</th>
-              {role !== 'bdm' && <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-gray-400 uppercase tracking-widest">Booked By (Calling Team)</th>}
-              <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-gray-400 uppercase tracking-widest">Reason for Rejection</th>
-              <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-gray-400 uppercase tracking-widest">Rejected By</th>
+              <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-white uppercase tracking-widest">Client & Business</th>
+              <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-white uppercase tracking-widest">Phone</th>
+              <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-white uppercase tracking-widest">Date & Time</th>
+              <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-white uppercase tracking-widest">Region</th>
+              {role !== 'bdm' && <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-white uppercase tracking-widest">Booked By (Calling Team)</th>}
+              <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-white uppercase tracking-widest">Reason for Rejection</th>
+              <th scope="col" className="px-6 py-4 text-left text-[10px] font-normal text-white uppercase tracking-widest">Rejected By</th>
             </tr>
           </thead>
           <tbody className="bg-white">
