@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import type { ManagerAppointment, Booking } from '../types';
 import { PlusIcon, BellIcon, TrashIcon, PencilSquareIcon, UserGroupIcon } from './Icons';
@@ -17,7 +16,7 @@ type CalendarItem =
 
 const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppointments, bookings }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'month' | 'week'>('week');
+  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('week');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<ManagerAppointment | null>(null);
@@ -80,20 +79,35 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
   }, [appointments, bookings]);
 
   const handlePrev = () => {
+    const newDate = new Date(currentDate);
     if (viewMode === 'month') {
-      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+      newDate.setMonth(newDate.getMonth() - 1);
+    } else if (viewMode === 'week') {
+      newDate.setDate(newDate.getDate() - 7);
     } else {
-      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - 7));
+      newDate.setDate(newDate.getDate() - 1);
     }
+    setCurrentDate(newDate);
   };
+  
   const handleNext = () => {
+    const newDate = new Date(currentDate);
     if (viewMode === 'month') {
-      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+      newDate.setMonth(newDate.getMonth() + 1);
+    } else if (viewMode === 'week') {
+      newDate.setDate(newDate.getDate() + 7);
     } else {
-       setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 7));
+      newDate.setDate(newDate.getDate() + 1);
     }
+    setCurrentDate(newDate);
   };
-  const handleToday = () => setCurrentDate(new Date());
+  
+  // ✅ FIXED: Today button - resets to today's date and shows hourly schedule view
+  const handleToday = () => {
+    const today = new Date();
+    setCurrentDate(today);
+    setViewMode('day');
+  };
 
   const openAddModal = (day: Date) => {
     setSelectedDay(day);
@@ -339,10 +353,142 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
        </div>
     );
   };
+
+  // ✅ NEW: Day View - Shows hourly schedule for a single day
+  const renderDayView = () => {
+    const dateKey = getDateKey(currentDate);
+    const dayItems = mixedItemsByDate.get(dateKey) || [];
+    const isToday = getDateKey(new Date()) === dateKey;
+
+    // Generate time slots from 8:00 AM to 8:00 PM
+    const timeSlots: string[] = [];
+    for (let hour = 8; hour <= 20; hour++) {
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour > 12 ? hour - 12 : hour;
+      const timeStr = `${displayHour}:00 ${ampm}`;
+      timeSlots.push(timeStr);
+    }
+
+    // Create a map of items by time for quick lookup
+    const itemsByTime: Record<string, CalendarItem[]> = {};
+    dayItems.forEach(item => {
+      const timeKey = item.type === 'booking' ? item.data.time : 
+        new Date(item.data.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      if (!itemsByTime[timeKey]) itemsByTime[timeKey] = [];
+      itemsByTime[timeKey].push(item);
+    });
+
+    return (
+      <div className="border-t border-gray-200">
+        <div className="bg-gray-50 p-3 border-b border-gray-200 flex items-center justify-between">
+          <div>
+            <span className={`text-lg font-bold ${isToday ? 'text-indigo-600' : 'text-gray-800'}`}>
+              {currentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </span>
+            {isToday && (
+              <span className="ml-3 bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Today</span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 text-sm">
+            <span className="text-gray-500">
+              <span className="font-bold text-blue-600">{dayItems.length}</span> appointments
+            </span>
+          </div>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {timeSlots.map(slotTime => {
+            const items = itemsByTime[slotTime] || [];
+            const isPast = (() => {
+              const now = new Date();
+              const [time, modifier] = slotTime.split(' ');
+              let [h, m] = time.split(':').map(Number);
+              if (modifier === 'PM' && h !== 12) h += 12;
+              if (modifier === 'AM' && h === 12) h = 0;
+              const slotMinutes = h * 60 + m;
+              const nowMinutes = now.getHours() * 60 + now.getMinutes();
+              return isToday && slotMinutes < nowMinutes;
+            })();
+
+            return (
+              <div key={slotTime} className={`flex ${isPast ? 'opacity-50' : ''}`}>
+                <div className="w-24 sm:w-32 p-3 text-sm font-bold text-gray-500 border-r border-gray-100 flex-shrink-0">
+                  {slotTime}
+                </div>
+                <div className="flex-1 p-2 min-h-[60px]">
+                  {items.length > 0 ? (
+                    items.map((item, idx) => {
+                      if (item.type === 'booking') {
+                        const booking = item.data;
+                        const styleClass = booking.region === 'NSW' ? 'bg-green-50 text-green-900 border-green-200' : 
+                                          booking.region === 'VIC' ? 'bg-blue-50 text-blue-900 border-blue-200' : 
+                                          'bg-purple-50 text-purple-900 border-purple-200';
+                        return (
+                          <div 
+                            key={`bk-${booking.id}-${idx}`} 
+                            className={`p-2 rounded-lg border ${styleClass} shadow-sm mb-1`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-bold text-sm">{booking.clientName}</span>
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-white/50 border border-black/10">
+                                    {booking.region}
+                                  </span>
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-white/50 border border-black/10">
+                                    {booking.status}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-gray-500">{booking.businessName}</div>
+                                {booking.clientPhone && (
+                                  <a href={`tel:${booking.clientPhone}`} className="text-xs text-indigo-600 hover:underline block">
+                                    {booking.clientPhone}
+                                  </a>
+                                )}
+                              </div>
+                              <div className="text-xs flex items-center gap-1 opacity-60 flex-shrink-0">
+                                <UserGroupIcon className="w-4 h-4" />
+                                <span>{booking.vendor.name}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      } else {
+                        const app = item.data;
+                        return (
+                          <div 
+                            key={`app-${app.id}`} 
+                            onClick={() => openEditModal(app)} 
+                            className="p-2 bg-indigo-100 rounded-lg border border-indigo-200 hover:bg-indigo-200 cursor-pointer shadow-sm mb-1"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-indigo-900">{app.title}</span>
+                              {app.reminder && <BellIcon className="w-4 h-4 text-amber-600" />}
+                            </div>
+                            <p className="text-xs text-indigo-800">{app.description}</p>
+                          </div>
+                        );
+                      }
+                    })
+                  ) : (
+                    <div className="text-xs text-gray-400 italic h-full flex items-center justify-center py-2">
+                      No appointments
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
   
   const getHeaderDateString = () => {
     if (viewMode === 'month') {
         return currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+    if (viewMode === 'day') {
+        return currentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     }
     const startOfWeek = new Date(currentDate);
     startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
@@ -366,10 +512,19 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
             <div className="flex-shrink-0 border border-gray-200 rounded-lg p-1 flex">
                 <button onClick={() => setViewMode('month')} className={`w-full sm:w-auto px-3 py-1 text-sm font-semibold rounded-md ${viewMode === 'month' ? 'bg-indigo-600 text-white' : 'hover:bg-gray-100 text-gray-600'}`}>Month</button>
                 <button onClick={() => setViewMode('week')} className={`w-full sm:w-auto px-3 py-1 text-sm font-semibold rounded-md ${viewMode === 'week' ? 'bg-indigo-600 text-white' : 'hover:bg-gray-100 text-gray-600'}`}>Week</button>
+                <button 
+                    onClick={handleToday} 
+                    className={`w-full sm:w-auto px-3 py-1 text-sm font-semibold rounded-md ${
+                      viewMode === 'day' 
+                        ? 'bg-indigo-600 text-white' 
+                        : 'hover:bg-gray-100 text-gray-600'
+                    }`}
+                >
+                    Today
+                </button>
             </div>
             <div className="flex items-center gap-2 justify-center">
                 <button onClick={handlePrev} className="px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50">&lt;</button>
-                <button onClick={handleToday} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hidden sm:block">Today</button>
                 <span className="text-md font-semibold text-gray-700 w-48 text-center">{getHeaderDateString()}</span>
                 <button onClick={handleNext} className="px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50">&gt;</button>
             </div>
@@ -378,7 +533,9 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
       
       <div className="rounded-xl overflow-hidden border border-gray-200 overflow-x-auto">
         <div className="min-w-[700px] md:min-w-0">
-          {viewMode === 'month' ? renderMonthView() : renderWeekView()}
+          {viewMode === 'month' && renderMonthView()}
+          {viewMode === 'week' && renderWeekView()}
+          {viewMode === 'day' && renderDayView()}
         </div>
       </div>
 
