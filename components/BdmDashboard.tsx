@@ -538,23 +538,34 @@ const BdmDashboard: React.FC<BdmDashboardProps> = ({
                                                 {groupedActiveBookings[dateKey].map(booking => (
                                                     <div key={booking.id} className={`p-4 ${booking.isDuplicate && (new Date(booking.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'bg-amber-50 border-l-4 border-amber-400' : (booking.smsRequest?.status === 'pending' ? 'bg-purple-50 border-l-4 border-purple-400' : '')}`}>
                                                         <div className="flex justify-between items-start mb-2">
-                                                            <div>
-                                                                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                                                    <div className="text-base font-bold text-gray-900">{booking.clientName}</div>
-                                                                    {booking.isDuplicate && (new Date(booking.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) && (
-                                                                        <span className="text-[9px] font-black bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">DUPLICATE</span>
-                                                                    )}
-                                                                    {booking.smsRequest?.status === 'pending' && (
-                                                                        <span className="text-[9px] font-black bg-purple-200 text-purple-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">SMS REQUESTED</span>
-                                                                    )}
-                                                                </div>
-                                                                <div className="text-xs text-gray-500 font-medium mb-1">{booking.businessName}</div>
+                                                        <div>
+                                                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                                <div className="text-base font-bold text-gray-900">{booking.clientName}</div>
+                                                                {booking.isDuplicate && (new Date(booking.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) && (
+                                                                    <span className="text-[9px] font-black bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">DUPLICATE</span>
+                                                                )}
+                                                                {booking.smsRequest?.status === 'pending' && (
+                                                                    <span className="text-[9px] font-black bg-purple-200 text-purple-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">SMS REQUESTED</span>
+                                                                )}
                                                             </div>
-                                                            <div className="text-right">
-                                                                <div className="text-sm font-black text-gray-900">{booking.time}</div>
-                                                                <div className="mt-1">{getStatusPill(booking.status)}</div>
-                                                            </div>
+                                                            <div className="text-xs text-gray-500 font-medium">{booking.businessName}</div>
+                                                            {/* ✅ ADD WEBSITE HERE */}
+                                                            {booking.clientWebsite && (
+                                                                <a 
+                                                                    href={booking.clientWebsite.startsWith('http') ? booking.clientWebsite : `https://${booking.clientWebsite}`} 
+                                                                    target="_blank" 
+                                                                    rel="noopener noreferrer" 
+                                                                    className="text-[10px] text-blue-500 hover:text-blue-700 hover:underline block mt-0.5 truncate max-w-[200px]"
+                                                                >
+                                                                    {booking.clientWebsite}
+                                                                </a>
+                                                            )}
                                                         </div>
+                                                        <div className="text-right">
+                                                            <div className="text-sm font-black text-gray-900">{booking.time}</div>
+                                                            <div className="mt-1">{getStatusPill(booking.status)}</div>
+                                                        </div>
+                                                    </div>
 
                                                         <div className="grid grid-cols-2 gap-3 mb-3">
                                                             <div>
