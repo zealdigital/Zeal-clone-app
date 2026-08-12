@@ -65,14 +65,14 @@ const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, r
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-black">
             <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-500 uppercase tracking-wider">Client & Business</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-500 uppercase tracking-wider">Phone</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-500 uppercase tracking-wider">Time</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-500 uppercase tracking-wider">Region</th>
-              {role === 'manager' && <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-500 uppercase tracking-wider">Booked By</th>}
-              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-500 uppercase tracking-wider">Status</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-500 uppercase tracking-wider">Note</th>
-              {onEditBooking && <th scope="col" className="px-6 py-3 text-right text-xs font-normal text-gray-500 uppercase tracking-wider">Actions</th>}
+              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-white uppercase tracking-wider">Client & Business</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-white uppercase tracking-wider">Phone</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-white uppercase tracking-wider">Time</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-white uppercase tracking-wider">Region</th>
+              {role === 'manager' && <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-white uppercase tracking-wider">Booked By</th>}
+              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-white uppercase tracking-wider">Status</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-white uppercase tracking-wider">Note</th>
+              {onEditBooking && <th scope="col" className="px-6 py-3 text-right text-xs font-normal text-white uppercase tracking-wider">Actions</th>}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
