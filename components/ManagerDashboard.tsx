@@ -568,31 +568,27 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         );
     });
 
-    // Sort the filtered results
+    // Sort the filtered results by TIME ONLY (regardless of date)
     const sortedResults = filteredBookings.sort((a, b) => {
         try {
-            // Handle null/undefined dates
-            if (!a?.date || !b?.date) {
-                if (!a?.date && !b?.date) return 0;
-                if (!a?.date) return 1;
-                return -1;
-            }
-            
-            // Sort by date using string comparison (YYYY-MM-DD works lexicographically)
-            if (a.date < b.date) return -1;
-            if (a.date > b.date) return 1;
-            
-            // Sort by time using minutes conversion
+            // Handle null/undefined times
             const timeA = a?.time || '12:00 AM';
             const timeB = b?.time || '12:00 AM';
             
             const minutesA = parseTimeStringToMinutes(timeA);
             const minutesB = parseTimeStringToMinutes(timeB);
             
+            // Sort by time first (earliest time first)
             if (minutesA < minutesB) return -1;
             if (minutesA > minutesB) return 1;
             
-            // Tie-breaker by ID (earlier created first)
+            // If same time, sort by date (earliest date first)
+            if (a?.date && b?.date) {
+                if (a.date < b.date) return -1;
+                if (a.date > b.date) return 1;
+            }
+            
+            // Tie-breaker by ID
             return (a.id || 0) - (b.id || 0);
         } catch (error) {
             console.error('Sort error:', error);
