@@ -153,24 +153,24 @@ const MyBookingsList: React.FC<MyBookingsListProps> = ({ bookings, onEditBooking
       {/* Desktop Table View */}
       <div className="hidden md:block overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+          <thead className="bg-black">
             <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-400 uppercase tracking-wider">Client & Business</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-400 uppercase tracking-wider">Phone</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-400 uppercase tracking-wider">Caller</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-400 uppercase tracking-wider">Time</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-400 uppercase tracking-wider">Region</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-400 uppercase tracking-wider">Notes</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-400 uppercase tracking-wider">Status & Lead Cycle</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-gray-400 uppercase tracking-wider">Address</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-white uppercase tracking-wider">Client & Business</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-white uppercase tracking-wider">Phone</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-white uppercase tracking-wider">Caller</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-white uppercase tracking-wider">Time</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-white uppercase tracking-wider">Region</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-white uppercase tracking-wider">Notes</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-white uppercase tracking-wider">Status & Lead Cycle</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-normal text-white uppercase tracking-wider">Address</th>
               <th scope="col" className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {sortedGroupKeys.map(date => (
               <React.Fragment key={date}>
-                <tr className="bg-gray-50 border-y border-gray-200">
-                    <td colSpan={9} className="px-6 py-2 text-sm font-normal text-gray-600">
+                <tr className="bg-black border-y border-gray-200">
+                    <td colSpan={9} className="px-6 py-2 text-sm font-normal text-white">
                         <div className="flex items-center gap-2">
                             <CalendarDaysIcon className="w-4 h-4 text-gray-400"/>
                             {formatDDMMYY(date)}
