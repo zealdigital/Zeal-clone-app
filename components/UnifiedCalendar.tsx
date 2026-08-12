@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import type { Booking, User, ManagerAppointment, Region, PublicHoliday, LeaveDay, AppointmentSlotsConfig } from '../types';
+import type { Booking, User, ManagerAppointment, Region, PublicHoliday, LeaveDay, AppointmentSlotsConfig, BDM } from '../types';
 import { PlusIcon, UserGroupIcon, BellIcon, TrashIcon, ClockIcon } from './Icons';
 import ManagerAppointmentModal from './ManagerAppointmentModal';
 import { formatDateForStorage } from '../utils/dateUtils';
@@ -18,6 +18,7 @@ interface UnifiedCalendarProps {
   appointmentTimes?: Record<Region, AppointmentSlotsConfig>;
   leaveDays?: LeaveDay[];
   region?: Region;
+  bdms?: BDM[]; // Add BDMs prop
 }
 
 type CalendarItem = 
@@ -30,6 +31,13 @@ const isWeekend = (date: Date): boolean => {
   return day === 0 || day === 6;
 };
 
+// Helper to get BDM name from ID
+const getBdmName = (bdmId: number | undefined, bdms: BDM[] | undefined): string => {
+  if (!bdmId || !bdms || bdms.length === 0) return '—';
+  const found = bdms.find(b => b.id === bdmId);
+  return found ? found.name : '—';
+};
+
 const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({ 
   bookings, 
   currentUser, 
@@ -40,7 +48,8 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
   publicHolidays = [],
   appointmentTimes = {},
   leaveDays = [],
-  region
+  region,
+  bdms = []
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('week');
@@ -282,6 +291,8 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                     if (item.type === 'booking') {
                       const booking = item.data;
                       const styleClass = booking.region === 'NSW' ? 'bg-green-50 text-green-900 border-green-200' : booking.region === 'VIC' ? 'bg-blue-50 text-blue-900 border-blue-200' : 'bg-purple-50 text-purple-900 border-purple-200';
+                      const bdmName = getBdmName(booking.bdmId, bdms);
+                      
                       return (
                         <div 
                           key={`bk-${booking.id}-${idx}`} 
@@ -301,6 +312,15 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                               {normalizeWebsite(booking.clientWebsite) || booking.clientName}
                             </a>
                             <span className="text-[8px] uppercase font-bold opacity-60 flex-shrink-0">{booking.status === 'rescheduled_bdm' ? 'RESCHED' : booking.status}</span>
+                          </div>
+                          <div className="text-[8px] text-gray-400 mt-0.5 flex items-center gap-1 truncate">
+                            <span className="font-medium">{booking.vendor.name}</span>
+                            {booking.bdmId && (
+                              <>
+                                <span className="text-gray-300">•</span>
+                                <span className="text-indigo-500">BDM: {bdmName}</span>
+                              </>
+                            )}
                           </div>
                         </div>
                       );
@@ -326,7 +346,7 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
         })}
       </div>
     );
-  }, [currentDate, mixedItemsByDate, getDayAvailability, setAppointments, getDateKey]);
+  }, [currentDate, mixedItemsByDate, getDayAvailability, setAppointments, getDateKey, bdms]);
 
   const renderWeekView = useCallback(() => {
     const startOfWeek = new Date(currentDate);
@@ -381,6 +401,8 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                                     const isNsw = booking.region === 'NSW';
                                     const isVic = booking.region === 'VIC';
                                     const styleClass = isNsw ? 'bg-green-50 text-green-900 border-green-200' : isVic ? 'bg-blue-50 text-blue-900 border-blue-200' : 'bg-purple-50 text-purple-900 border-purple-200';
+                                    const bdmName = getBdmName(booking.bdmId, bdms);
+                                    
                                     return (
                                         <div 
                                             key={`bk-${booking.id}-${idx}`} 
@@ -406,6 +428,15 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                                                         {normalizeWebsite(booking.clientWebsite) || booking.clientName}
                                                     </a>
                                                     <p className="text-xs opacity-75">{booking.businessName}</p>
+                                                    <div className="text-[10px] text-gray-400 mt-1 flex items-center gap-1 truncate">
+                                                        <span className="font-medium">{booking.vendor.name}</span>
+                                                        {booking.bdmId && (
+                                                            <>
+                                                                <span className="text-gray-300">•</span>
+                                                                <span className="text-indigo-500">BDM: {bdmName}</span>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 <div className="text-xs flex items-center gap-1 opacity-60"><UserGroupIcon className="w-4 h-4" /></div>
                                             </div>
@@ -440,9 +471,9 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
             })}
        </div>
     );
-  }, [currentDate, mixedItemsByDate, getDayAvailability, setAppointments, getDateKey]);
+  }, [currentDate, mixedItemsByDate, getDayAvailability, setAppointments, getDateKey, bdms]);
 
-  // ✅ FIXED: Day View - Shows hourly schedule for a single day (no opacity on past slots)
+  // ✅ FIXED: Day View - Shows hourly schedule for a single day with BDM details
   const renderDayView = useCallback(() => {
     const dateKey = getDateKey(currentDate);
     const dayItems = mixedItemsByDate.get(dateKey) || [];
@@ -500,6 +531,8 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                         const styleClass = booking.region === 'NSW' ? 'bg-green-50 text-green-900 border-green-200' : 
                                           booking.region === 'VIC' ? 'bg-blue-50 text-blue-900 border-blue-200' : 
                                           'bg-purple-50 text-purple-900 border-purple-200';
+                        const bdmName = getBdmName(booking.bdmId, bdms);
+
                         return (
                           <div 
                             key={`bk-${booking.id}-${idx}`} 
@@ -517,6 +550,15 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
                                   </span>
                                 </div>
                                 <div className="text-xs text-gray-500">{booking.businessName}</div>
+                                <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1 truncate">
+                                  <span className="font-medium">{booking.vendor.name}</span>
+                                  {booking.bdmId && (
+                                    <>
+                                      <span className="text-gray-300">•</span>
+                                      <span className="text-indigo-500">BDM: {bdmName}</span>
+                                    </>
+                                  )}
+                                </div>
                                 {booking.clientPhone && (
                                   <a href={`tel:${booking.clientPhone}`} className="text-xs text-indigo-600 hover:underline block">
                                     {booking.clientPhone}
@@ -559,7 +601,7 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
         </div>
       </div>
     );
-  }, [currentDate, mixedItemsByDate, getDateKey, openEditModal]);
+  }, [currentDate, mixedItemsByDate, getDateKey, openEditModal, bdms]);
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-xl border border-gray-100 relative overflow-hidden">
