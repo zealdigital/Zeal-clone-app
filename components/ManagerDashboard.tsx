@@ -520,23 +520,14 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             b.status.toLowerCase().includes(search)
         );
     }).sort((a, b) => {
-        // FIX: Sort by date ascending, then by time ascending
-        // Primary: Date (earliest first)
-        const dateA = new Date(a.date);
-        const dateB = new Date(b.date);
-        
-        if (dateA < dateB) return -1;
-        if (dateA > dateB) return 1;
-        
-        // Secondary: Time (earliest first) when same date
-        const timeA = parseTimeStringToMinutes(a.time);
-        const timeB = parseTimeStringToMinutes(b.time);
-        
-        if (timeA < timeB) return -1;
-        if (timeA > timeB) return 1;
-        
-        // Tertiary: ID (as tie-breaker)
-        return a.id - b.id;
+        const pA = getPriority(a.date);
+        const pB = getPriority(b.date);
+
+        if (pA !== pB) return pA - pB;
+
+        const dateDiff = b.date.localeCompare(a.date);
+        if (dateDiff !== 0) return -dateDiff;
+        return b.id - a.id; 
     });
 }, [visibleBookings, searchTerm, dateRange]);
 
