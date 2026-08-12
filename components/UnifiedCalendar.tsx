@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import type { Booking, User, ManagerAppointment, Region, PublicHoliday, LeaveDay, AppointmentSlotsConfig } from '../types';
 import { PlusIcon, UserGroupIcon, BellIcon, TrashIcon, ClockIcon } from './Icons';
 import ManagerAppointmentModal from './ManagerAppointmentModal';
@@ -12,7 +12,6 @@ interface UnifiedCalendarProps {
   onUpdateStatus?: (booking: Booking) => void;
   appointments?: ManagerAppointment[];
   setAppointments?: React.Dispatch<React.SetStateAction<ManagerAppointment[]>>;
-  // Availability Props
   allBookingsForAvailability?: Booking[];
   salespeopleCount?: Record<Region, number>;
   publicHolidays?: PublicHoliday[];
@@ -50,12 +49,12 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
   const [selectedAppointment, setSelectedAppointment] = useState<ManagerAppointment | null>(null);
 
   // Helper to get YYYY-MM-DD string from a Date object
-  const getDateKey = (date: Date) => {
+  const getDateKey = useCallback((date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
-  };
+  }, []);
 
   const parseTimeStringToMinutes = (timeStr: string) => {
     try {
@@ -89,7 +88,7 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
 
     map.forEach(list => list.sort((a, b) => a.sortTime - b.sortTime));
     return map;
-  }, [bookings, appointments]);
+  }, [bookings, appointments, getDateKey]);
 
   const getDayAvailability = (date: Date) => {
     if (!region || !appointmentTimes[region]) return null;
@@ -142,12 +141,10 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
   };
 
   // ✅ FIXED: Today button - properly resets to current date
-  const handleToday = () => {
+  const handleToday = useCallback(() => {
     const today = new Date();
     setCurrentDate(today);
-    // Optional: Also switch to week view when clicking today
-    // if (viewMode !== 'week') setViewMode('week');
-  };
+  }, []);
 
   const openAddModal = (day: Date) => {
     if (!setAppointments) return;
@@ -180,7 +177,7 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
     setIsModalOpen(false);
   };
 
-  const getHeaderDateString = () => {
+  const getHeaderDateString = useCallback(() => {
     if (viewMode === 'month') return currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     const startOfWeek = new Date(currentDate);
     startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + 1);
@@ -190,9 +187,9 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 4);
     return `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${endOfWeek.getFullYear()}`;
-  };
+  }, [currentDate, viewMode]);
 
-  const renderMonthView = () => {
+  const renderMonthView = useCallback(() => {
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
     const startDay = startOfMonth.getDay();
@@ -231,7 +228,8 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
           
           const dateStr = getDateKey(fullDate);
           const dayItems = mixedItemsByDate.get(dateStr) || [];
-          const isToday = getDateKey(new Date()) === dateStr;
+          const today = new Date();
+          const isToday = getDateKey(today) === dateStr;
           const dayNum = fullDate.getDate();
           const isWeekendDay = isWeekendDate(fullDate);
           const availability = isWeekendDay ? null : getDayAvailability(fullDate);
@@ -325,9 +323,9 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
         })}
       </div>
     );
-  };
+  }, [currentDate, mixedItemsByDate, getDayAvailability, setAppointments, getDateKey]);
 
-  const renderWeekView = () => {
+  const renderWeekView = useCallback(() => {
     const startOfWeek = new Date(currentDate);
     const currentDay = startOfWeek.getDay();
     const daysToMonday = currentDay === 0 ? 6 : currentDay - 1;
@@ -345,7 +343,8 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
             {weekDays.map(day => {
                 const dateKey = getDateKey(day);
                 const dayItems = mixedItemsByDate.get(dateKey) || [];
-                const isToday = getDateKey(new Date()) === dateKey;
+                const today = new Date();
+                const isToday = getDateKey(today) === dateKey;
                 const availability = getDayAvailability(day);
 
                 return (
@@ -438,7 +437,7 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
             })}
        </div>
     );
-  };
+  }, [currentDate, mixedItemsByDate, getDayAvailability, setAppointments, getDateKey]);
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-xl border border-gray-100 relative overflow-hidden">
