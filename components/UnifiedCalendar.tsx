@@ -142,7 +142,6 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
     setCurrentDate(newDate);
   };
 
-  // ✅ FIXED: Today button - resets to today's date and shows hourly schedule view
   const handleToday = useCallback(() => {
     const today = new Date();
     setCurrentDate(today);
@@ -443,12 +442,11 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
     );
   }, [currentDate, mixedItemsByDate, getDayAvailability, setAppointments, getDateKey]);
 
-  // ✅ NEW: Day View - Shows hourly schedule for a single day
+  // ✅ FIXED: Day View - Shows hourly schedule for a single day (no opacity on past slots)
   const renderDayView = useCallback(() => {
     const dateKey = getDateKey(currentDate);
     const dayItems = mixedItemsByDate.get(dateKey) || [];
     const isToday = getDateKey(new Date()) === dateKey;
-    const availability = getDayAvailability(currentDate);
 
     // Generate time slots from 8:00 AM to 8:00 PM
     const timeSlots: string[] = [];
@@ -459,13 +457,13 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
       timeSlots.push(timeStr);
     }
 
-    // Create a map of bookings by time for quick lookup
-    const bookingsByTime: Record<string, CalendarItem[]> = {};
+    // Create a map of items by time for quick lookup
+    const itemsByTime: Record<string, CalendarItem[]> = {};
     dayItems.forEach(item => {
       const timeKey = item.type === 'booking' ? item.data.time : 
         new Date(item.data.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      if (!bookingsByTime[timeKey]) bookingsByTime[timeKey] = [];
-      bookingsByTime[timeKey].push(item);
+      if (!itemsByTime[timeKey]) itemsByTime[timeKey] = [];
+      itemsByTime[timeKey].push(item);
     });
 
     return (
@@ -479,34 +477,18 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
               <span className="ml-3 bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Today</span>
             )}
           </div>
-          {availability && (
-            <div className="flex items-center gap-3 text-sm">
-              <span className="text-gray-500">
-                <span className="font-bold text-green-600">{availability.free}</span> slots available
-              </span>
-              <span className="text-gray-300">|</span>
-              <span className="text-gray-500">
-                <span className="font-bold text-blue-600">{dayItems.length}</span> appointments
-              </span>
-            </div>
-          )}
+          <div className="flex items-center gap-3 text-sm">
+            <span className="text-gray-500">
+              <span className="font-bold text-blue-600">{dayItems.length}</span> appointments
+            </span>
+          </div>
         </div>
         <div className="divide-y divide-gray-100">
           {timeSlots.map(slotTime => {
-            const items = bookingsByTime[slotTime] || [];
-            const isPast = (() => {
-              const now = new Date();
-              const [time, modifier] = slotTime.split(' ');
-              let [h, m] = time.split(':').map(Number);
-              if (modifier === 'PM' && h !== 12) h += 12;
-              if (modifier === 'AM' && h === 12) h = 0;
-              const slotMinutes = h * 60 + m;
-              const nowMinutes = now.getHours() * 60 + now.getMinutes();
-              return isToday && slotMinutes < nowMinutes;
-            })();
+            const items = itemsByTime[slotTime] || [];
 
             return (
-              <div key={slotTime} className={`flex ${isPast ? 'opacity-50' : ''}`}>
+              <div key={slotTime} className="flex">
                 <div className="w-24 sm:w-32 p-3 text-sm font-bold text-gray-500 border-r border-gray-100 flex-shrink-0">
                   {slotTime}
                 </div>
@@ -577,7 +559,7 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
         </div>
       </div>
     );
-  }, [currentDate, mixedItemsByDate, getDayAvailability, getDateKey, openEditModal]);
+  }, [currentDate, mixedItemsByDate, getDateKey, openEditModal]);
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-xl border border-gray-100 relative overflow-hidden">
