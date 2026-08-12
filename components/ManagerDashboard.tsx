@@ -29,21 +29,7 @@ import { DEFAULT_NOTIFICATION_PREFERENCES, MANAGERS, VENDORS, BDMS, PUBLIC_HOLID
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-// Helper function to convert time string to minutes for sorting
-const parseTimeStringToMinutes = (timeStr: string): number => {
-    if (!timeStr) return 0;
-    try {
-        const [t, mod] = timeStr.split(' ');
-        if (!t || !mod) return 0;
-        let [h, m] = t.split(':').map(Number);
-        if (isNaN(h) || isNaN(m)) return 0;
-        if (mod === 'PM' && h !== 12) h += 12;
-        if (mod === 'AM' && h === 12) h = 0;
-        return h * 60 + m;
-    } catch (e) {
-        return 0;
-    }
-};
+
 
 const normalizeWebsite = (url: string): string => {
     if (!url) return '';
@@ -111,7 +97,21 @@ interface UserEditModalProps {
     onSave: (updatedUser: Vendor | BDM | Manager) => void;
     regions: Region[];
 }
-
+// Helper function to convert time string to minutes for sorting
+const parseTimeStringToMinutes = (timeStr: string): number => {
+    if (!timeStr) return 0;
+    try {
+        const [t, mod] = timeStr.split(' ');
+        if (!t || !mod) return 0;
+        let [h, m] = t.split(':').map(Number);
+        if (isNaN(h) || isNaN(m)) return 0;
+        if (mod === 'PM' && h !== 12) h += 12;
+        if (mod === 'AM' && h === 12) h = 0;
+        return h * 60 + m;
+    } catch (e) {
+        return 0;
+    }
+};
 const UserEditModal: React.FC<UserEditModalProps> = ({ user, type, onClose, onSave, regions }) => {
     const [formData, setFormData] = useState({
         name: user.name,
