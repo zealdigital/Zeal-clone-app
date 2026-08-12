@@ -600,6 +600,22 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         }
     });
 
+    // 🔍 DEBUG: Log the first 5 sorted results to verify sorting
+    if (sortedResults.length > 0) {
+        console.log(`📊 Sorted ${sortedResults.length} active leads. First 5:`);
+        sortedResults.slice(0, 5).forEach((booking, index) => {
+            console.log(`  ${index + 1}. ${booking.date} ${booking.time} - ${booking.clientName} (${booking.businessName})`);
+        });
+        
+        // Also log the last 3 to verify the end of the list
+        if (sortedResults.length > 5) {
+            console.log(`  ... Last 3:`);
+            sortedResults.slice(-3).forEach((booking, index) => {
+                console.log(`  ${sortedResults.length - 3 + index + 1}. ${booking.date} ${booking.time} - ${booking.clientName} (${booking.businessName})`);
+            });
+        }
+    }
+
     return sortedResults;
 }, [visibleBookings, searchTerm, dateRange]);
 
