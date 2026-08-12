@@ -446,42 +446,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const [showProfileSuccess, setShowProfileSuccess] = useState(false);
     const [emailInput, setEmailInput] = useState('');
 
-    useEffect(() => {
-        if (newVendorRegions.length === 0 && regions.length > 0) setNewVendorRegions(regions);
-    }, [regions]);
-
-    const dashboardBackground = useMemo(() => {
-        if (activeTab === 'users' && userMgmtTab === 'bdms') return getRegionBackgroundColor(newBdmRegion, regionColors);
-        if (activeTab === 'settings') return getRegionBackgroundColor(slotConfigRegion, regionColors);
-        return '#CFE59C'; 
-    }, [activeTab, userMgmtTab, newBdmRegion, slotConfigRegion, regionColors]);
-
-    const myNotifications = useMemo(() => (notifications || []).filter(n => n.vendorId === 0), [notifications]);
-
-    const visibleBookings = useMemo(() => {
-        return (allBookings || []).filter(b => !b.isBlocker);
-    }, [allBookings]);
-
-    const matchesGlobalSearch = (b: Booking, term: string) => {
-        if (!term) return true;
-        const s = term.trim().toLowerCase();
-        return (
-            b.clientName.toLowerCase().includes(s) ||
-            b.businessName.toLowerCase().includes(s) ||
-            b.clientPhone.toLowerCase().includes(s) ||
-            b.clientWebsite.toLowerCase().includes(s) ||
-            b.address.toLowerCase().includes(s) ||
-            b.callerName.toLowerCase().includes(s) ||
-            b.vendor.name.toLowerCase().includes(s) ||
-            (b.notes?.toLowerCase().includes(s)) ||
-            (b.bdmNote?.toLowerCase().includes(s)) ||
-            b.date.includes(s) ||
-            b.time.toLowerCase().includes(s) ||
-            b.region.toLowerCase().includes(s) ||
-            b.status.toLowerCase().includes(s)
-        );
-    };
-     // Helper function to convert time string to minutes for sorting
+    // Helper function to convert time string to minutes for sorting
         const parseTimeStringToMinutes = (timeStr: string): number => {
             if (!timeStr) return 0;
             try {
@@ -522,6 +487,43 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             }
         };
 
+    
+    useEffect(() => {
+        if (newVendorRegions.length === 0 && regions.length > 0) setNewVendorRegions(regions);
+    }, [regions]);
+
+    const dashboardBackground = useMemo(() => {
+        if (activeTab === 'users' && userMgmtTab === 'bdms') return getRegionBackgroundColor(newBdmRegion, regionColors);
+        if (activeTab === 'settings') return getRegionBackgroundColor(slotConfigRegion, regionColors);
+        return '#CFE59C'; 
+    }, [activeTab, userMgmtTab, newBdmRegion, slotConfigRegion, regionColors]);
+
+    const myNotifications = useMemo(() => (notifications || []).filter(n => n.vendorId === 0), [notifications]);
+
+    const visibleBookings = useMemo(() => {
+        return (allBookings || []).filter(b => !b.isBlocker);
+    }, [allBookings]);
+
+    const matchesGlobalSearch = (b: Booking, term: string) => {
+        if (!term) return true;
+        const s = term.trim().toLowerCase();
+        return (
+            b.clientName.toLowerCase().includes(s) ||
+            b.businessName.toLowerCase().includes(s) ||
+            b.clientPhone.toLowerCase().includes(s) ||
+            b.clientWebsite.toLowerCase().includes(s) ||
+            b.address.toLowerCase().includes(s) ||
+            b.callerName.toLowerCase().includes(s) ||
+            b.vendor.name.toLowerCase().includes(s) ||
+            (b.notes?.toLowerCase().includes(s)) ||
+            (b.bdmNote?.toLowerCase().includes(s)) ||
+            b.date.includes(s) ||
+            b.time.toLowerCase().includes(s) ||
+            b.region.toLowerCase().includes(s) ||
+            b.status.toLowerCase().includes(s)
+        );
+    };
+     
     const activeLeads = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
 
@@ -551,32 +553,28 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     });
 
     // Sort the filtered results by TIME ONLY
-    const sortedResults = [...filteredBookings].sort((a, b) => {
+    return [...filteredBookings].sort((a, b) => {
         try {
-            const timeA = a?.time || '12:00 AM';
-            const timeB = b?.time || '12:00 AM';
+            const minutesA = parseTimeStringToMinutes(a?.time || '12:00 AM');
+            const minutesB = parseTimeStringToMinutes(b?.time || '12:00 AM');
             
-            const minutesA = parseTimeStringToMinutes(timeA);
-            const minutesB = parseTimeStringToMinutes(timeB);
-            
-            // Sort by time (earliest time first)
+            // Primary: Sort by time (earliest first)
             if (minutesA < minutesB) return -1;
             if (minutesA > minutesB) return 1;
             
-            // If same time, sort by date (earliest date first) as secondary
+            // Secondary: If same time, sort by date (earliest first)
             if (a?.date && b?.date) {
                 if (a.date < b.date) return -1;
                 if (a.date > b.date) return 1;
             }
             
+            // Tertiary: Tie-breaker by ID
             return (a.id || 0) - (b.id || 0);
         } catch (error) {
             console.error('Sort error:', error);
             return 0;
         }
     });
-
-    return sortedResults;
 }, [visibleBookings, searchTerm, dateRange]);
 
     const totalActiveLeadsPages = Math.max(1, Math.ceil(activeLeads.length / ITEMS_PER_PAGE));
