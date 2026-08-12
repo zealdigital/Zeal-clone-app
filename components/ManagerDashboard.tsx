@@ -494,7 +494,82 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         );
     };
 
-    const activeLeads = useMemo(() 
+    const activeLeads = useMemo(() => {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+    const dayAfter = new Date(today); dayAfter.setDate(today.getDate() + 2);
+
+    const formatDate = (d: Date) => d.toISOString().split('T')[0];
+    const tStr = formatDate(today);
+    const tmStr = formatDate(tomorrow);
+    const daStr = formatDate(dayAfter);
+
+    const getPriority = (date: string) => {
+        if (date === tStr) return 0;
+        if (date === tmStr) return 1;
+        if (date === daStr) return 2;
+        return 3;
+    };
+
+    const search = searchTerm.trim().toLowerCase();
+
+    return visibleBookings.filter(b => {
+        const matchesStatus = ['active', 'rescheduled_bdm'].includes(b.status);
+        if (!matchesStatus) return false;
+        if (dateRange.startDate && b.date < dateRange.startDate) return false;
+        if (dateRange.endDate && b.date > dateRange.endDate) return false;
+        
+        if (!search) return true;
+        return (
+            b.clientName.toLowerCase().includes(search) ||
+            b.businessName.toLowerCase().includes(search) ||
+            b.clientPhone.toLowerCase().includes(search) ||
+            b.clientWebsite.toLowerCase().includes(search) ||
+            b.address.toLowerCase().includes(search) ||
+            b.callerName.toLowerCase().includes(search) ||
+            b.vendor.name.toLowerCase().includes(search) ||
+            (b.notes?.toLowerCase() || '').includes(search) ||
+            (b.bdmNote?.toLowerCase() || '').includes(search) ||
+            b.date.includes(search) ||
+            b.time.toLowerCase().includes(search) ||
+            b.region.toLowerCase().includes(search) ||
+            b.status.toLowerCase().includes(search)
+        );
+    }).sort((a, b) => {
+        // Safe sorting with null checks
+        try {
+            // Handle null/undefined dates
+            if (!a?.date || !b?.date) {
+                if (!a?.date && !b?.date) return 0;
+                if (!a?.date) return 1;
+                return -1;
+            }
+            
+            // Sort by date ascending
+            const dateA = new Date(a.date);
+            const dateB = new Date(b.date);
+            
+            if (dateA < dateB) return -1;
+            if (dateA > dateB) return 1;
+            
+            // Handle null/undefined times
+            const timeA = a?.time || '12:00 AM';
+            const timeB = b?.time || '12:00 AM';
+            
+            const minutesA = parseTimeStringToMinutes(timeA);
+            const minutesB = parseTimeStringToMinutes(timeB);
+            
+            if (minutesA < minutesB) return -1;
+            if (minutesA > minutesB) return 1;
+            
+            // Tie-breaker by ID
+            return (a.id || 0) - (b.id || 0);
+        } catch (error) {
+            console.error('Sort error:', error);
+            return 0;
+        }
+    });
+}, [visibleBookings, searchTerm, dateRange]);
 
     const totalActiveLeadsPages = Math.max(1, Math.ceil(activeLeads.length / ITEMS_PER_PAGE));
     const paginatedActiveLeads = useMemo(() => {
