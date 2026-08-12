@@ -446,9 +446,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const [isEditingPassword, setIsEditingPassword] = useState(false);
     const [showProfileSuccess, setShowProfileSuccess] = useState(false);
     const [emailInput, setEmailInput] = useState('');
-// ===== SORT STATE =====
-const [sortField, setSortField] = useState<'time' | 'region' | 'vendor' | 'status'>('time');
-const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
     // ✅ KEEP THIS VERSION (lines 365-389)
 const parseTimeStringToMinutes = (timeStr: string): number => {
     if (!timeStr) return 0;
@@ -555,56 +553,30 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
         );
     });
 
-    // Sort the filtered results based on the selected field
+    // Sort the filtered results by TIME ONLY
     return [...filteredBookings].sort((a, b) => {
         try {
-            let comparison = 0;
+            const minutesA = parseTimeStringToMinutes(a?.time || '12:00 AM');
+            const minutesB = parseTimeStringToMinutes(b?.time || '12:00 AM');
             
-            switch (sortField) {
-                case 'time': {
-                    const minutesA = parseTimeStringToMinutes(a?.time || '12:00 AM');
-                    const minutesB = parseTimeStringToMinutes(b?.time || '12:00 AM');
-                    comparison = minutesA - minutesB;
-                    break;
-                }
-                case 'region': {
-                    const regionA = a?.region || '';
-                    const regionB = b?.region || '';
-                    comparison = regionA.localeCompare(regionB);
-                    break;
-                }
-                case 'vendor': {
-                    const vendorA = a?.vendor?.name || '';
-                    const vendorB = b?.vendor?.name || '';
-                    comparison = vendorA.localeCompare(vendorB);
-                    break;
-                }
-                case 'status': {
-                    const statusA = a?.status || '';
-                    const statusB = b?.status || '';
-                    comparison = statusA.localeCompare(statusB);
-                    break;
-                }
-                default: {
-                    comparison = 0;
-                }
+            // Primary: Sort by time (earliest first)
+            if (minutesA < minutesB) return -1;
+            if (minutesA > minutesB) return 1;
+            
+            // Secondary: If same time, sort by date (earliest first)
+            if (a?.date && b?.date) {
+                if (a.date < b.date) return -1;
+                if (a.date > b.date) return 1;
             }
             
-            // If comparison is 0 (equal values), fall back to time sort as secondary
-            if (comparison === 0) {
-                const minutesA = parseTimeStringToMinutes(a?.time || '12:00 AM');
-                const minutesB = parseTimeStringToMinutes(b?.time || '12:00 AM');
-                comparison = minutesA - minutesB;
-            }
-            
-            // Apply sort direction
-            return sortDirection === 'asc' ? comparison : -comparison;
+            // Tertiary: Tie-breaker by ID
+            return (a.id || 0) - (b.id || 0);
         } catch (error) {
             console.error('Sort error:', error);
             return 0;
         }
     });
-}, [visibleBookings, searchTerm, dateRange, sortField, sortDirection]);
+}, [visibleBookings, searchTerm, dateRange]);
 
     const totalActiveLeadsPages = Math.max(1, Math.ceil(activeLeads.length / ITEMS_PER_PAGE));
     const paginatedActiveLeads = useMemo(() => {
@@ -1201,108 +1173,13 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
                                                 <table className="min-w-full divide-y divide-gray-200">
                                                     <thead className="bg-black">
                                                         <tr>
-                                                            {/* Client & Business - Not sortable */}
-                                                            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">
-                                                                Client & Business
-                                                            </th>
-                                                            
-                                                            {/* Calling Team - Sortable */}
-                                                            <th 
-                                                                className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest cursor-pointer hover:text-gray-300 transition-colors select-none"
-                                                                onClick={() => {
-                                                                    if (sortField === 'vendor') {
-                                                                        setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-                                                                    } else {
-                                                                        setSortField('vendor');
-                                                                        setSortDirection('asc');
-                                                                    }
-                                                                }}
-                                                            >
-                                                                <div className="flex items-center gap-1">
-                                                                    Calling Team
-                                                                    {sortField === 'vendor' && (
-                                                                        sortDirection === 'asc' 
-                                                                            ? <ChevronUpIcon className="w-3 h-3 text-white" />
-                                                                            : <ChevronDownIcon className="w-3 h-3 text-white" />
-                                                                    )}
-                                                                </div>
-                                                            </th>
-                                                            
-                                                            {/* Time - Sortable (default) */}
-                                                            <th 
-                                                                className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest cursor-pointer hover:text-gray-300 transition-colors select-none"
-                                                                onClick={() => {
-                                                                    if (sortField === 'time') {
-                                                                        setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-                                                                    } else {
-                                                                        setSortField('time');
-                                                                        setSortDirection('asc');
-                                                                    }
-                                                                }}
-                                                            >
-                                                                <div className="flex items-center gap-1">
-                                                                    Time
-                                                                    {sortField === 'time' && (
-                                                                        sortDirection === 'asc' 
-                                                                            ? <ChevronUpIcon className="w-3 h-3 text-white" />
-                                                                            : <ChevronDownIcon className="w-3 h-3 text-white" />
-                                                                    )}
-                                                                </div>
-                                                            </th>
-                                                            
-                                                            {/* Status - Sortable */}
-                                                            <th 
-                                                                className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest cursor-pointer hover:text-gray-300 transition-colors select-none"
-                                                                onClick={() => {
-                                                                    if (sortField === 'status') {
-                                                                        setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-                                                                    } else {
-                                                                        setSortField('status');
-                                                                        setSortDirection('asc');
-                                                                    }
-                                                                }}
-                                                            >
-                                                                <div className="flex items-center gap-1">
-                                                                    Status
-                                                                    {sortField === 'status' && (
-                                                                        sortDirection === 'asc' 
-                                                                            ? <ChevronUpIcon className="w-3 h-3 text-white" />
-                                                                            : <ChevronDownIcon className="w-3 h-3 text-white" />
-                                                                    )}
-                                                                </div>
-                                                            </th>
-                                                            
-                                                            {/* Region - Sortable */}
-                                                            <th 
-                                                                className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest cursor-pointer hover:text-gray-300 transition-colors select-none"
-                                                                onClick={() => {
-                                                                    if (sortField === 'region') {
-                                                                        setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-                                                                    } else {
-                                                                        setSortField('region');
-                                                                        setSortDirection('asc');
-                                                                    }
-                                                                }}
-                                                            >
-                                                                <div className="flex items-center gap-1">
-                                                                    Region
-                                                                    {sortField === 'region' && (
-                                                                        sortDirection === 'asc' 
-                                                                            ? <ChevronUpIcon className="w-3 h-3 text-white" />
-                                                                            : <ChevronDownIcon className="w-3 h-3 text-white" />
-                                                                    )}
-                                                                </div>
-                                                            </th>
-                                                            
-                                                            {/* Notes - Not sortable */}
-                                                            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">
-                                                                Notes
-                                                            </th>
-                                                            
-                                                            {/* Actions - Not sortable */}
-                                                            <th className="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-widest">
-                                                                Actions
-                                                            </th>
+                                                            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Client & Business</th>
+                                                            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Calling Team</th>
+                                                            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Time</th>
+                                                            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Status</th>
+                                                            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Region</th>
+                                                            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Notes</th>
+                                                            <th className="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-widest">Actions</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-100">
