@@ -1174,11 +1174,13 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
                                                     <thead className="bg-black">
                                                         <tr>
                                                             <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Client & Business</th>
+                                                            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Address & Phone</th>
                                                             <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Calling Team</th>
                                                             <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Time</th>
-                                                            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Status</th>
+                                                            
                                                             <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Region</th>
-                                                            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Notes</th>
+                                                            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Status</th>
+                                                            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Assigned BDM</th>
                                                             <th className="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-widest">Actions</th>
                                                         </tr>
                                                     </thead>
