@@ -446,7 +446,46 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const [showProfileSuccess, setShowProfileSuccess] = useState(false);
     const [emailInput, setEmailInput] = useState('');
 
-    
+    // ✅ KEEP THIS VERSION (lines 365-389)
+const parseTimeStringToMinutes = (timeStr: string): number => {
+    if (!timeStr) return 0;
+    try {
+        const cleanTime = timeStr.trim().toUpperCase();
+        const [t, mod] = cleanTime.split(' ');
+        
+        let hour = 0, minute = 0, modifier = mod;
+        
+        if (!modifier) {
+            const parts = t.split(':');
+            if (parts.length >= 2) {
+                hour = parseInt(parts[0], 10);
+                minute = parseInt(parts[1], 10);
+                modifier = hour >= 12 ? 'PM' : 'AM';
+            } else {
+                return 0;
+            }
+        } else {
+            const parts = t.split(':');
+            if (parts.length >= 2) {
+                hour = parseInt(parts[0], 10);
+                minute = parseInt(parts[1], 10);
+            } else {
+                hour = parseInt(t, 10);
+                minute = 0;
+            }
+        }
+        
+        if (isNaN(hour) || isNaN(minute)) return 0;
+        
+        if (modifier === 'PM' && hour < 12) hour += 12;
+        if (modifier === 'AM' && hour === 12) hour = 0;
+        
+        return hour * 60 + minute;
+    } catch (e) {
+        console.error('Error parsing time:', timeStr, e);
+        return 0;
+    }
+};
 
     
     useEffect(() => {
@@ -888,15 +927,15 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         setSelectedBdmIds([]); setLeaveStartDate(''); setLeaveEndDate(''); setLeaveReason(''); setLeaveType('allDay'); setLeaveSlots([]);
     };
 
-    const parseTimeStringToMinutes = (timeStr: string) => {
-        try {
-            const [t, mod] = timeStr.split(' ');
-            let [h, m] = t.split(':').map(Number);
-            if (mod === 'PM' && h !== 12) h += 12;
-            if (mod === 'AM' && h === 12) h = 0;
-            return h * 60 + m;
-        } catch (e) { return 0; }
-    };
+    // const parseTimeStringToMinutes = (timeStr: string) => {
+    //     try {
+    //         const [t, mod] = timeStr.split(' ');
+    //         let [h, m] = t.split(':').map(Number);
+    //         if (mod === 'PM' && h !== 12) h += 12;
+    //         if (mod === 'AM' && h === 12) h = 0;
+    //         return h * 60 + m;
+    //     } catch (e) { return 0; }
+    // };
 
     const handleDeleteLeave = (id: number) => { setLeaveDays(prev => prev.filter(l => l.id !== id)); };
 
