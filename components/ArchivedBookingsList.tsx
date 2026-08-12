@@ -169,17 +169,27 @@ const ArchivedBookingsList: React.FC<ArchivedBookingsListProps> = ({ bookings, r
               {groupedBookings[date].map((booking) => (
                 <div key={booking.id} className="p-4 space-y-3">
                   <div className="flex justify-between items-start">
-                    <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0">
                       <h4 className="text-sm font-bold text-gray-900 truncate">{booking.businessName}</h4>
                       <p className="text-xs text-gray-500">{booking.clientName}</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
+                      {booking.clientWebsite && (
+                          <a 
+                              href={booking.clientWebsite.startsWith('http') ? booking.clientWebsite : `https://${booking.clientWebsite}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="text-[10px] text-indigo-500 hover:text-indigo-700 hover:underline truncate max-w-[180px] block mt-0.5"
+                          >
+                              {booking.clientWebsite}
+                          </a>
+                      )}
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
                       {role === 'vendor' ? getVendorStatusPill(booking.status) : getStatusPill(booking.status)}
                       <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-gray-100 text-gray-600 uppercase">
-                        {booking.region}
+                          {booking.region}
                       </span>
-                    </div>
                   </div>
+              </div>
 
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div className="space-y-1">
