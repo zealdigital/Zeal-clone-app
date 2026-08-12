@@ -522,6 +522,9 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const activeLeads = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
 
+    console.log('🔍 DEBUG: Starting activeLeads sort...');
+    console.log(`📊 Total visibleBookings: ${visibleBookings.length}`);
+
     // Filter bookings first
     const filteredBookings = visibleBookings.filter(b => {
         const matchesStatus = ['active', 'rescheduled_bdm'].includes(b.status);
@@ -547,10 +550,19 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         );
     });
 
-    // Sort the filtered results by TIME ONLY (purely by time, ignoring dates)
+    console.log(`📊 Filtered bookings (active/rescheduled_bdm): ${filteredBookings.length}`);
+
+    // Log the filtered bookings BEFORE sorting
+    if (filteredBookings.length > 0) {
+        console.log('📋 BEFORE SORTING (first 5):');
+        filteredBookings.slice(0, 5).forEach((b, i) => {
+            console.log(`  ${i+1}. ${b.date} ${b.time} - ${b.clientName} (minutes: ${parseTimeStringToMinutes(b.time)})`);
+        });
+    }
+
+    // Sort the filtered results by TIME ONLY
     const sortedResults = [...filteredBookings].sort((a, b) => {
         try {
-            // Handle null/undefined times
             const timeA = a?.time || '12:00 AM';
             const timeB = b?.time || '12:00 AM';
             
@@ -567,13 +579,28 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                 if (a.date > b.date) return 1;
             }
             
-            // Tie-breaker by ID
             return (a.id || 0) - (b.id || 0);
         } catch (error) {
             console.error('Sort error:', error);
             return 0;
         }
     });
+
+    // Log the sorted results AFTER sorting
+    if (sortedResults.length > 0) {
+        console.log('📋 AFTER SORTING BY TIME (first 10):');
+        sortedResults.slice(0, 10).forEach((b, i) => {
+            console.log(`  ${i+1}. ${b.date} ${b.time} - ${b.clientName} (minutes: ${parseTimeStringToMinutes(b.time)})`);
+        });
+        
+        // Group by time to verify
+        const timeGroups: Record<string, number> = {};
+        sortedResults.forEach(b => {
+            const t = b.time || '12:00 AM';
+            timeGroups[t] = (timeGroups[t] || 0) + 1;
+        });
+        console.log('📊 Time groups:', timeGroups);
+    }
 
     return sortedResults;
 }, [visibleBookings, searchTerm, dateRange]);
