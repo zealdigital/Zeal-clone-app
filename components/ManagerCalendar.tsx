@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { ManagerAppointment, Booking } from '../types';
+import type { ManagerAppointment, Booking, BDM } from '../types';
 import { PlusIcon, BellIcon, TrashIcon, PencilSquareIcon, UserGroupIcon } from './Icons';
 import ManagerAppointmentModal from './ManagerAppointmentModal';
 import { normalizeWebsite, getFullUrl } from '../utils/urlUtils';
@@ -8,13 +8,26 @@ interface ManagerCalendarProps {
   appointments: ManagerAppointment[];
   setAppointments: React.Dispatch<React.SetStateAction<ManagerAppointment[]>>;
   bookings: Booking[];
+  bdms?: BDM[]; // Add BDMs prop
 }
 
 type CalendarItem = 
   | { type: 'appointment'; data: ManagerAppointment; sortTime: number }
   | { type: 'booking'; data: Booking; sortTime: number };
 
-const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppointments, bookings }) => {
+// Helper to get BDM name from ID
+const getBdmName = (bdmId: number | undefined, bdms: BDM[] | undefined): string => {
+  if (!bdmId || !bdms || bdms.length === 0) return '—';
+  const found = bdms.find(b => b.id === bdmId);
+  return found ? found.name : '—';
+};
+
+const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ 
+  appointments, 
+  setAppointments, 
+  bookings,
+  bdms = [] 
+}) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('week');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -207,6 +220,8 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
                             ? 'bg-blue-50 text-blue-900 border-blue-200'
                             : 'bg-purple-50 text-purple-900 border-purple-200';
 
+                      const bdmName = getBdmName(booking.bdmId, bdms);
+
                       return (
                           <div 
                             key={`bk-${booking.id}`}
@@ -226,6 +241,15 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
                                     {normalizeWebsite(booking.clientWebsite) || booking.clientName}
                                   </a>
                                   <span className="text-[8px] uppercase font-bold opacity-60 flex-shrink-0">{booking.status === 'rescheduled_bdm' ? 'RESCHED' : booking.status}</span>
+                              </div>
+                              <div className="text-[8px] text-gray-400 mt-0.5 flex items-center gap-1">
+                                  <span className="font-medium">{booking.vendor.name}</span>
+                                  {booking.bdmId && (
+                                      <>
+                                          <span className="text-gray-300">•</span>
+                                          <span className="text-indigo-500">BDM: {bdmName}</span>
+                                      </>
+                                  )}
                               </div>
                           </div>
                       );
@@ -308,6 +332,8 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
                                             ? 'bg-blue-50 text-blue-900 border-blue-200'
                                             : 'bg-purple-50 text-purple-900 border-purple-200';
                                     
+                                    const bdmName = getBdmName(booking.bdmId, bdms);
+
                                     return (
                                         <div 
                                             key={`bk-${booking.id}`}
@@ -332,6 +358,15 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
                                                         {normalizeWebsite(booking.clientWebsite) || booking.clientName}
                                                     </a>
                                                     <p className="text-xs opacity-75">{booking.businessName}</p>
+                                                    <div className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+                                                        <span className="font-medium">{booking.vendor.name}</span>
+                                                        {booking.bdmId && (
+                                                            <>
+                                                                <span className="text-gray-300">•</span>
+                                                                <span className="text-indigo-500">BDM: {bdmName}</span>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 <div className="text-xs flex items-center gap-1 opacity-60" title="Client Booking">
                                                     <UserGroupIcon className="w-4 h-4" />
@@ -354,7 +389,7 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
     );
   };
 
-  // ✅ FIXED: Day View - Shows hourly schedule for a single day (no opacity on past slots)
+  // ✅ FIXED: Day View - Shows hourly schedule for a single day with BDM details
   const renderDayView = () => {
     const dateKey = getDateKey(currentDate);
     const dayItems = mixedItemsByDate.get(dateKey) || [];
@@ -412,6 +447,8 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
                         const styleClass = booking.region === 'NSW' ? 'bg-green-50 text-green-900 border-green-200' : 
                                           booking.region === 'VIC' ? 'bg-blue-50 text-blue-900 border-blue-200' : 
                                           'bg-purple-50 text-purple-900 border-purple-200';
+                        const bdmName = getBdmName(booking.bdmId, bdms);
+
                         return (
                           <div 
                             key={`bk-${booking.id}-${idx}`} 
@@ -429,6 +466,15 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({ appointments, setAppo
                                   </span>
                                 </div>
                                 <div className="text-xs text-gray-500">{booking.businessName}</div>
+                                <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+                                  <span className="font-medium">{booking.vendor.name}</span>
+                                  {booking.bdmId && (
+                                    <>
+                                      <span className="text-gray-300">•</span>
+                                      <span className="text-indigo-500">BDM: {bdmName}</span>
+                                    </>
+                                  )}
+                                </div>
                                 {booking.clientPhone && (
                                   <a href={`tel:${booking.clientPhone}`} className="text-xs text-indigo-600 hover:underline block">
                                     {booking.clientPhone}
