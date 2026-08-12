@@ -15,7 +15,7 @@ const statusLabels: Record<typeof BDM_STATUSES[number], string> = {
   sold: 'Sold - Sale Confirmed',
   seen: 'Seen - Met with Prospect',
   rescheduled_bdm: 'Reschedule with BDM (BDM ownership)',
-  rescheduled: 'Rescheduled (General)',
+  rescheduled: 'Reschedule (Calling Team)',
   cancelled: 'Cancelled by Prospect',
   dq: 'DQ - Disqualified',
 };
