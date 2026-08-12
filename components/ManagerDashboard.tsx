@@ -98,19 +98,15 @@ interface UserEditModalProps {
     regions: Region[];
 }
 // Helper function to convert time string to minutes for sorting
-// Helper function to convert time string to minutes for sorting
 const parseTimeStringToMinutes = (timeStr: string): number => {
     if (!timeStr) return 0;
     try {
-        // Clean up the time string
         const cleanTime = timeStr.trim().toUpperCase();
         const [t, mod] = cleanTime.split(' ');
         
-        // If no AM/PM, try to add it based on hour
         let hour = 0, minute = 0, modifier = mod;
         
         if (!modifier) {
-            // Try to parse as HH:MM without AM/PM
             const parts = t.split(':');
             if (parts.length >= 2) {
                 hour = parseInt(parts[0], 10);
@@ -132,7 +128,6 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
         
         if (isNaN(hour) || isNaN(minute)) return 0;
         
-        // Convert to 24-hour format
         if (modifier === 'PM' && hour < 12) hour += 12;
         if (modifier === 'AM' && hour === 12) hour = 0;
         
