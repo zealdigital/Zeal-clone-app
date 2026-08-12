@@ -43,7 +43,7 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
   region
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'month' | 'week'>('week');
+  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('week');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<ManagerAppointment | null>(null);
@@ -129,23 +129,24 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
   const handlePrev = () => {
     const newDate = new Date(currentDate);
     if (viewMode === 'month') newDate.setMonth(newDate.getMonth() - 1);
-    else newDate.setDate(newDate.getDate() - 5);
+    else if (viewMode === 'week') newDate.setDate(newDate.getDate() - 5);
+    else newDate.setDate(newDate.getDate() - 1);
     setCurrentDate(newDate);
   };
 
   const handleNext = () => {
     const newDate = new Date(currentDate);
     if (viewMode === 'month') newDate.setMonth(newDate.getMonth() + 1);
-    else newDate.setDate(newDate.getDate() + 5);
+    else if (viewMode === 'week') newDate.setDate(newDate.getDate() + 5);
+    else newDate.setDate(newDate.getDate() + 1);
     setCurrentDate(newDate);
   };
 
-  // ✅ FIXED: Today button - properly resets to current date and switches to week view
+  // ✅ FIXED: Today button - resets to today's date and shows hourly schedule view
   const handleToday = useCallback(() => {
     const today = new Date();
     setCurrentDate(today);
-    // Switch to week view to show today's schedule clearly
-    setViewMode('week');
+    setViewMode('day');
   }, []);
 
   const openAddModal = (day: Date) => {
@@ -181,6 +182,7 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
 
   const getHeaderDateString = useCallback(() => {
     if (viewMode === 'month') return currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    if (viewMode === 'day') return currentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const startOfWeek = new Date(currentDate);
     startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + 1);
     if (isWeekend(startOfWeek)) {
@@ -441,6 +443,142 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
     );
   }, [currentDate, mixedItemsByDate, getDayAvailability, setAppointments, getDateKey]);
 
+  // ✅ NEW: Day View - Shows hourly schedule for a single day
+  const renderDayView = useCallback(() => {
+    const dateKey = getDateKey(currentDate);
+    const dayItems = mixedItemsByDate.get(dateKey) || [];
+    const isToday = getDateKey(new Date()) === dateKey;
+    const availability = getDayAvailability(currentDate);
+
+    // Generate time slots from 8:00 AM to 8:00 PM
+    const timeSlots: string[] = [];
+    for (let hour = 8; hour <= 20; hour++) {
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour > 12 ? hour - 12 : hour;
+      const timeStr = `${displayHour}:00 ${ampm}`;
+      timeSlots.push(timeStr);
+    }
+
+    // Create a map of bookings by time for quick lookup
+    const bookingsByTime: Record<string, CalendarItem[]> = {};
+    dayItems.forEach(item => {
+      const timeKey = item.type === 'booking' ? item.data.time : 
+        new Date(item.data.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      if (!bookingsByTime[timeKey]) bookingsByTime[timeKey] = [];
+      bookingsByTime[timeKey].push(item);
+    });
+
+    return (
+      <div className="border-t border-gray-200">
+        <div className="bg-gray-50 p-3 border-b border-gray-200 flex items-center justify-between">
+          <div>
+            <span className={`text-lg font-bold ${isToday ? 'text-indigo-600' : 'text-gray-800'}`}>
+              {currentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </span>
+            {isToday && (
+              <span className="ml-3 bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Today</span>
+            )}
+          </div>
+          {availability && (
+            <div className="flex items-center gap-3 text-sm">
+              <span className="text-gray-500">
+                <span className="font-bold text-green-600">{availability.free}</span> slots available
+              </span>
+              <span className="text-gray-300">|</span>
+              <span className="text-gray-500">
+                <span className="font-bold text-blue-600">{dayItems.length}</span> appointments
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="divide-y divide-gray-100">
+          {timeSlots.map(slotTime => {
+            const items = bookingsByTime[slotTime] || [];
+            const isPast = (() => {
+              const now = new Date();
+              const [time, modifier] = slotTime.split(' ');
+              let [h, m] = time.split(':').map(Number);
+              if (modifier === 'PM' && h !== 12) h += 12;
+              if (modifier === 'AM' && h === 12) h = 0;
+              const slotMinutes = h * 60 + m;
+              const nowMinutes = now.getHours() * 60 + now.getMinutes();
+              return isToday && slotMinutes < nowMinutes;
+            })();
+
+            return (
+              <div key={slotTime} className={`flex ${isPast ? 'opacity-50' : ''}`}>
+                <div className="w-24 sm:w-32 p-3 text-sm font-bold text-gray-500 border-r border-gray-100 flex-shrink-0">
+                  {slotTime}
+                </div>
+                <div className="flex-1 p-2 min-h-[60px]">
+                  {items.length > 0 ? (
+                    items.map((item, idx) => {
+                      if (item.type === 'booking') {
+                        const booking = item.data;
+                        const styleClass = booking.region === 'NSW' ? 'bg-green-50 text-green-900 border-green-200' : 
+                                          booking.region === 'VIC' ? 'bg-blue-50 text-blue-900 border-blue-200' : 
+                                          'bg-purple-50 text-purple-900 border-purple-200';
+                        return (
+                          <div 
+                            key={`bk-${booking.id}-${idx}`} 
+                            className={`p-2 rounded-lg border ${styleClass} shadow-sm mb-1`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-bold text-sm">{booking.clientName}</span>
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-white/50 border border-black/10">
+                                    {booking.region}
+                                  </span>
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-white/50 border border-black/10">
+                                    {booking.status}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-gray-500">{booking.businessName}</div>
+                                {booking.clientPhone && (
+                                  <a href={`tel:${booking.clientPhone}`} className="text-xs text-indigo-600 hover:underline block">
+                                    {booking.clientPhone}
+                                  </a>
+                                )}
+                              </div>
+                              <div className="text-xs flex items-center gap-1 opacity-60 flex-shrink-0">
+                                <UserGroupIcon className="w-4 h-4" />
+                                <span>{booking.vendor.name}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      } else {
+                        const app = item.data;
+                        return (
+                          <div 
+                            key={`app-${app.id}`} 
+                            onClick={() => openEditModal(app)} 
+                            className="p-2 bg-indigo-100 rounded-lg border border-indigo-200 hover:bg-indigo-200 cursor-pointer shadow-sm mb-1"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-indigo-900">{app.title}</span>
+                              {app.reminder && <BellIcon className="w-4 h-4 text-amber-600" />}
+                            </div>
+                            <p className="text-xs text-indigo-800">{app.description}</p>
+                          </div>
+                        );
+                      }
+                    })
+                  ) : (
+                    <div className="text-xs text-gray-400 italic h-full flex items-center justify-center py-2">
+                      No appointments
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }, [currentDate, mixedItemsByDate, getDayAvailability, getDateKey, openEditModal]);
+
   return (
     <div className="bg-white p-6 rounded-lg shadow-xl border border-gray-100 relative overflow-hidden">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
@@ -457,10 +595,13 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
             <div className="flex-shrink-0 bg-gray-100 rounded-xl p-1.5 flex gap-1 border border-gray-200">
                 <button onClick={() => setViewMode('month')} className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode === 'month' ? 'bg-white text-black shadow-md' : 'text-gray-500 hover:text-gray-700'}`}>MONTH</button>
                 <button onClick={() => setViewMode('week')} className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode === 'week' ? 'bg-white text-black shadow-md' : 'text-gray-500 hover:text-gray-700'}`}>WEEK</button>
-                {/* Today button moved here - next to Week button */}
                 <button 
                     onClick={handleToday} 
-                    className="px-4 py-1.5 text-xs font-black text-white bg-indigo-600 border border-indigo-600 rounded-lg hover:bg-indigo-700 hover:border-indigo-700 shadow-sm uppercase tracking-widest transition-all"
+                    className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                      viewMode === 'day' 
+                        ? 'bg-indigo-600 text-white shadow-md' 
+                        : 'bg-white text-black shadow-md hover:bg-gray-50'
+                    }`}
                 >
                     TODAY
                 </button>
@@ -475,7 +616,9 @@ const UnifiedCalendar: React.FC<UnifiedCalendarProps> = ({
       
       <div className="rounded-xl overflow-hidden border border-gray-200 overflow-x-auto">
         <div className="min-w-[700px] md:min-w-0">
-          {viewMode === 'month' ? renderMonthView() : renderWeekView()}
+          {viewMode === 'month' && renderMonthView()}
+          {viewMode === 'week' && renderWeekView()}
+          {viewMode === 'day' && renderDayView()}
         </div>
       </div>
 
