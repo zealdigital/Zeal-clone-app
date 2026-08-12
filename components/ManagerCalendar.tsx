@@ -8,7 +8,7 @@ interface ManagerCalendarProps {
   appointments: ManagerAppointment[];
   setAppointments: React.Dispatch<React.SetStateAction<ManagerAppointment[]>>;
   bookings: Booking[];
-  bdms?: BDM[]; // Add BDMs prop
+  bdms?: BDM[];
 }
 
 type CalendarItem = 
@@ -115,7 +115,6 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({
     setCurrentDate(newDate);
   };
   
-  // ✅ FIXED: Today button - resets to today's date and shows hourly schedule view
   const handleToday = () => {
     const today = new Date();
     setCurrentDate(today);
@@ -228,28 +227,30 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({
                             className={`w-full text-left text-xs p-1 rounded border ${styleClass} select-none shadow-sm`}
                             title={`${booking.clientName} (${booking.businessName}) - ${booking.region} [${booking.status}]`}
                           >
-                              <div className="flex items-center gap-1 overflow-hidden">
-                                  <UserGroupIcon className="w-3 h-3 opacity-50 flex-shrink-0" />
-                                  <span className="font-mono font-bold text-[10px] flex-shrink-0">{booking.time.split(' ')[0]}</span>
-                                  <a 
-                                    href={getFullUrl(booking.clientWebsite)} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer" 
-                                    className="truncate font-medium flex-grow hover:underline text-blue-600"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {normalizeWebsite(booking.clientWebsite) || booking.clientName}
-                                  </a>
-                                  <span className="text-[8px] uppercase font-bold opacity-60 flex-shrink-0">{booking.status === 'rescheduled_bdm' ? 'RESCHED' : booking.status}</span>
-                              </div>
-                              <div className="text-[8px] text-gray-400 mt-0.5 flex items-center gap-1">
-                                  <span className="font-medium">{booking.vendor.name}</span>
-                                  {booking.bdmId && (
-                                      <>
-                                          <span className="text-gray-300">•</span>
-                                          <span className="text-indigo-500">BDM: {bdmName}</span>
-                                      </>
-                                  )}
+                              <div className="flex items-center justify-between gap-1 overflow-hidden">
+                                  <div className="flex items-center gap-1 truncate flex-1 min-w-0">
+                                      <UserGroupIcon className="w-3 h-3 opacity-50 flex-shrink-0" />
+                                      <span className="font-mono font-bold text-[10px] flex-shrink-0">{booking.time.split(' ')[0]}</span>
+                                      <a 
+                                        href={getFullUrl(booking.clientWebsite)} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className="truncate font-medium flex-grow hover:underline text-blue-600"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        {normalizeWebsite(booking.clientWebsite) || booking.clientName}
+                                      </a>
+                                      <span className="text-[8px] uppercase font-bold opacity-60 flex-shrink-0">{booking.status === 'rescheduled_bdm' ? 'RESCHED' : booking.status}</span>
+                                  </div>
+                                  <div className="text-[8px] text-gray-400 flex-shrink-0 flex items-center gap-1 ml-auto">
+                                      <span className="font-medium">{booking.vendor.name}</span>
+                                      {booking.bdmId && bdmName !== '—' && (
+                                          <>
+                                              <span className="text-gray-300">•</span>
+                                              <span className="text-indigo-500">BDM: {bdmName}</span>
+                                          </>
+                                      )}
+                                  </div>
                               </div>
                           </div>
                       );
@@ -358,19 +359,16 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({
                                                         {normalizeWebsite(booking.clientWebsite) || booking.clientName}
                                                     </a>
                                                     <p className="text-xs opacity-75">{booking.businessName}</p>
-                                                    <div className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
-                                                        <span className="font-medium">{booking.vendor.name}</span>
-                                                        {booking.bdmId && (
-                                                            <>
-                                                                <span className="text-gray-300">•</span>
-                                                                <span className="text-indigo-500">BDM: {bdmName}</span>
-                                                            </>
-                                                        )}
-                                                    </div>
                                                 </div>
                                                 <div className="text-xs flex items-center gap-1 opacity-60" title="Client Booking">
                                                     <UserGroupIcon className="w-4 h-4" />
                                                 </div>
+                                            </div>
+                                            <div className="text-[10px] text-gray-400 mt-1 flex items-center gap-1 justify-between">
+                                                <span className="font-medium">{booking.vendor.name}</span>
+                                                {booking.bdmId && bdmName !== '—' && (
+                                                    <span className="text-indigo-500 flex-shrink-0">BDM: {bdmName}</span>
+                                                )}
                                             </div>
                                         </div>
                                     );
@@ -389,7 +387,7 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({
     );
   };
 
-  // ✅ FIXED: Day View - Shows hourly schedule for a single day with BDM details
+  // ✅ Day View with BDM on the right
   const renderDayView = () => {
     const dateKey = getDateKey(currentDate);
     const dayItems = mixedItemsByDate.get(dateKey) || [];
@@ -466,24 +464,17 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({
                                   </span>
                                 </div>
                                 <div className="text-xs text-gray-500">{booking.businessName}</div>
-                                <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
-                                  <span className="font-medium">{booking.vendor.name}</span>
-                                  {booking.bdmId && (
-                                    <>
-                                      <span className="text-gray-300">•</span>
-                                      <span className="text-indigo-500">BDM: {bdmName}</span>
-                                    </>
-                                  )}
-                                </div>
                                 {booking.clientPhone && (
                                   <a href={`tel:${booking.clientPhone}`} className="text-xs text-indigo-600 hover:underline block">
                                     {booking.clientPhone}
                                   </a>
                                 )}
                               </div>
-                              <div className="text-xs flex items-center gap-1 opacity-60 flex-shrink-0">
-                                <UserGroupIcon className="w-4 h-4" />
-                                <span>{booking.vendor.name}</span>
+                              <div className="text-xs flex items-center gap-2 flex-shrink-0">
+                                <span className="text-gray-400 text-[10px]">{booking.vendor.name}</span>
+                                {booking.bdmId && bdmName !== '—' && (
+                                  <span className="text-indigo-500 text-[10px] font-medium">BDM: {bdmName}</span>
+                                )}
                               </div>
                             </div>
                           </div>
