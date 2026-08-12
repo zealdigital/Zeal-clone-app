@@ -1356,76 +1356,7 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
     </tbody>
 </table>
                                                 
-                                                {/* <table className="min-w-full divide-y divide-gray-200">
-                                                    <thead className="bg-black">
-                                                        <tr>
-                                                            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Client & Business</th>
-                                                            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Address & Phone</th>
-                                                            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Calling Team</th>
-                                                            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Time</th>
-                                                            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Region</th>
-                                                            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Status</th>
-                                                            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">BDM</th>
-                                                            <th className="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-widest">Actions</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-100">
-                                                        {sortedActiveDates.map(date => {
-                                                            const [y, m, d] = date.split('-').map(Number);
-                                                            const displayDate = new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                                                            return (
-                                                                <React.Fragment key={date}>
-                                                                    <tr className="bg-black"><td colSpan={8} className="px-6 py-2 text-xs font-bold text-white uppercase tracking-tighter">{displayDate}</td></tr>
-                                                                    {groupedActiveLeads[date].map(b => (
-                                                                        <tr key={b.id} className={`hover:bg-gray-50 transition-all ${b.isDuplicate && (new Date(b.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'bg-amber-50 border-l-4 border-amber-400' : (b.smsRequest?.status === 'pending' ? 'bg-purple-50 border-l-4 border-purple-400' : '')}`}>
-                                                                            <td className="px-6 py-4">
-                                                                                <div className="flex flex-col">
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <span className="text-sm font-bold text-gray-900">{b.clientName}</span>
-                                                                                        {b.isDuplicate && (new Date(b.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) && (
-                                                                                            <span className="text-[9px] font-black bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">DUPLICATE</span>
-                                                                                        )}
-                                                                                        {b.smsRequest?.status === 'pending' && (
-                                                                                            <span className="text-[9px] font-black bg-purple-200 text-purple-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">SMS REQUESTED</span>
-                                                                                        )}
-                                                                                    </div>
-                                                                                    <div className="text-xs text-gray-400">{b.businessName}</div>
-                                                                                    {b.clientWebsite && (<a href={b.clientWebsite.startsWith('http') ? b.clientWebsite : `https://${b.clientWebsite}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-500 hover:text-indigo-700 hover:underline truncate max-w-[150px] block transition-colors mt-0.5">{b.clientWebsite}</a>)}
-                                                                                    {b.clientEmail && (<span className="text-[10px] text-gray-400 mt-0.5">{b.clientEmail}</span>)}
-                                                                                </div>
-                                                                            </td>
-                                                                            <td className="px-6 py-4"><div className="flex items-center gap-1.5 text-xs text-gray-900 font-bold mb-1"><PhoneIcon className="w-3.5 h-3.5 text-indigo-400" /><a href={`tel:${b.clientPhone}`} className="hover:text-indigo-600 transition-colors">{b.clientPhone}</a></div>{b.address && (<div className="mt-1 flex items-start gap-1.5"><MapPinIcon className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" /><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.address)}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-600 hover:text-indigo-800 hover:underline font-medium leading-tight break-words max-w-[180px] transition-colors">{b.address}</a></div>)}</td>
-                                                                            <td className="px-6 py-4 text-xs text-gray-500 font-bold">{b.vendor.name}</td>
-                                                                            <td className="px-6 py-4 text-sm font-bold text-gray-900">{b.time}</td>
-                                                                            <td className="px-6 py-4"><span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-gray-100 text-gray-600 uppercase">{b.region}</span></td>
-                                                                            <td className="px-6 py-4">{getStatusPill(b.status)}</td>
-                                                                            <td className="px-6 py-4 text-right">
-                                                                              <div className="flex items-center justify-end gap-2">
-                                                                                  <button 
-                                                                                      onClick={() => setSmsActionBooking(b)} 
-                                                                                      className={`flex items-center gap-1 transition-all ${
-                                                                                          b.smsRequest?.status === 'pending'
-                                                                                          ? 'p-1.5 bg-orange-100 text-orange-600 rounded-full border border-orange-200 animate-pulse'
-                                                                                          : b.smsRequest?.status === 'sent'
-                                                                                          ? 'text-green-600 font-bold'
-                                                                                          : 'text-gray-300'
-                                                                                      }`}
-                                                                                      title={b.smsRequest ? (b.smsRequest.status === 'pending' ? 'Pending SMS Action' : 'SMS Sent') : 'No SMS Requested'}
-                                                                                  >
-                                                                                      <ChatBubbleLeftRightIcon className="w-4 h-4" />
-                                                                                      {b.smsRequest?.status === 'sent' && <span className="text-[10px] uppercase">Sent</span>}
-                                                                                  </button>
-                                                                                  <select className="text-[10px] border-gray-200 rounded-lg p-1 font-bold outline-none" value={b.bdmId || ''} onChange={(e) => handleAssignBdm(b.id, Number(e.target.value))}><option value="">Assign BDM</option>{bdmsByRegion[b.region]?.map(bdm => (<option key={bdm.id} value={bdm.id}>{bdm.name}</option>))}</select><button onClick={() => setBookingToManage(b)} className="text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-all" title="Reject"><XMarkIcon className="w-4 h-4" /></button><button onClick={() => setBookingToEdit(b)} className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-all" title="Edit"><PencilSquareIcon className="w-4 h-4" /></button><button onClick={() => handleDeleteBooking(b.id)} className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg transition-all" title="Delete"><TrashIcon className="w-4 h-4" /></button>
-                                                                              </div>
-                                                                            </td>
-                                                                        </tr>
-                                                                    ))}
-                                                                </React.Fragment>
-                                                            );
-                                                        })}
-                                                        {activeLeads.length === 0 && <tr><td colSpan={8} className="p-12 text-center text-gray-400 italic">No active leads in current view.</td></tr>}
-                                                    </tbody>
-                                                </table> */}
+                                                
 
                                                 
                                             </div>
