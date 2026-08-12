@@ -543,7 +543,8 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
 
     const search = searchTerm.trim().toLowerCase();
 
-    return visibleBookings.filter(b => {
+    // Filter bookings first
+    const filteredBookings = visibleBookings.filter(b => {
         const matchesStatus = ['active', 'rescheduled_bdm'].includes(b.status);
         if (!matchesStatus) return false;
         if (dateRange.startDate && b.date < dateRange.startDate) return false;
@@ -565,44 +566,41 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             b.region.toLowerCase().includes(search) ||
             b.status.toLowerCase().includes(search)
         );
-    }).sort((a, b) => {
-    try {
-        // Handle null/undefined dates
-        if (!a?.date || !b?.date) {
-            if (!a?.date && !b?.date) return 0;
-            if (!a?.date) return 1;
-            return -1;
+    });
+
+    // Sort the filtered results
+    const sortedResults = filteredBookings.sort((a, b) => {
+        try {
+            // Handle null/undefined dates
+            if (!a?.date || !b?.date) {
+                if (!a?.date && !b?.date) return 0;
+                if (!a?.date) return 1;
+                return -1;
+            }
+            
+            // Sort by date using string comparison (YYYY-MM-DD works lexicographically)
+            if (a.date < b.date) return -1;
+            if (a.date > b.date) return 1;
+            
+            // Sort by time using minutes conversion
+            const timeA = a?.time || '12:00 AM';
+            const timeB = b?.time || '12:00 AM';
+            
+            const minutesA = parseTimeStringToMinutes(timeA);
+            const minutesB = parseTimeStringToMinutes(timeB);
+            
+            if (minutesA < minutesB) return -1;
+            if (minutesA > minutesB) return 1;
+            
+            // Tie-breaker by ID (earlier created first)
+            return (a.id || 0) - (b.id || 0);
+        } catch (error) {
+            console.error('Sort error:', error);
+            return 0;
         }
-        
-        // Sort by date ascending
-        const dateA = new Date(a.date);
-        const dateB = new Date(b.date);
-        
-        if (dateA < dateB) return -1;
-        if (dateA > dateB) return 1;
-        
-        // Handle null/undefined times
-        const timeA = a?.time || '12:00 AM';
-        const timeB = b?.time || '12:00 AM';
-        
-        const minutesA = parseTimeStringToMinutes(timeA);
-        const minutesB = parseTimeStringToMinutes(timeB);
-        
-        // DEBUG: Log first 10 comparisons
-        if (Math.random() < 0.01) { // Log about 1% of comparisons
-            console.log(`Comparing: ${timeA} (${minutesA}) vs ${timeB} (${minutesB}) -> ${minutesA - minutesB}`);
-        }
-        
-        if (minutesA < minutesB) return -1;
-        if (minutesA > minutesB) return 1;
-        
-        // Tie-breaker by ID
-        return (a.id || 0) - (b.id || 0);
-    } catch (error) {
-        console.error('Sort error:', error);
-        return 0;
-    }
-});
+    });
+
+    return sortedResults;
 }, [visibleBookings, searchTerm, dateRange]);
 
     const totalActiveLeadsPages = Math.max(1, Math.ceil(activeLeads.length / ITEMS_PER_PAGE));
