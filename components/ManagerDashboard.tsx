@@ -278,22 +278,22 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
                     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200 text-left text-xs">
-                                <thead className="bg-gray-50">
+                                <thead className="bg-black">
                                     <tr>
-                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Business</th>
-                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Client</th>
-                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Phone</th>
-                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Email</th>
-                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Website</th>
-                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Date</th>
-                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Region</th>
-                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Team</th>
-                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">BDM</th>
-                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Caller</th>
-                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Address</th>
-                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Notes</th>
-                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Status</th>
-                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Duplicate</th>
+                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Business</th>
+                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Client</th>
+                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Phone</th>
+                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Email</th>
+                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Website</th>
+                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Date</th>
+                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Region</th>
+                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Team</th>
+                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">BDM</th>
+                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Caller</th>
+                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Address</th>
+                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Notes</th>
+                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Status</th>
+                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Duplicate</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-100">
@@ -1124,15 +1124,15 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                         <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
                                             <div className="overflow-x-auto">
                                                 <table className="min-w-full divide-y divide-gray-200">
-                                                    <thead className="bg-gray-50">
+                                                    <thead className="bg-black">
                                                         <tr>
-                                                            <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Client & Business</th>
-                                                            <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Contact & Address</th>
-                                                            <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Team</th>
-                                                            <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Time</th>
-                                                            <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Region</th>
-                                                            <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
-                                                            <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
+                                                            <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Client & Business</th>
+                                                            <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Contact & Address</th>
+                                                            <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Team</th>
+                                                            <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Time</th>
+                                                            <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Region</th>
+                                                            <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Status</th>
+                                                            <th className="px-6 py-4 text-right text-[10px] font-black text-white uppercase tracking-widest">Actions</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-100">
@@ -1141,7 +1141,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                                             const displayDate = new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                                                             return (
                                                                 <React.Fragment key={date}>
-                                                                    <tr className="bg-gray-50/50"><td colSpan={7} className="px-6 py-2 text-xs font-bold text-gray-500 uppercase tracking-tighter">{displayDate}</td></tr>
+                                                                    <tr className="bg-black"><td colSpan={7} className="px-6 py-2 text-xs font-bold text-white uppercase tracking-tighter">{displayDate}</td></tr>
                                                                     {groupedActiveLeads[date].map(b => (
                                                                         <tr key={b.id} className={`hover:bg-gray-50 transition-all ${b.isDuplicate && (new Date(b.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'bg-amber-50 border-l-4 border-amber-400' : (b.smsRequest?.status === 'pending' ? 'bg-purple-50 border-l-4 border-purple-400' : '')}`}>
                                                                             <td className="px-6 py-4">
@@ -1247,14 +1247,14 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                         <div className="bg-white p-6 rounded-xl shadow border border-gray-200"><h4 className="font-bold mb-4 uppercase tracking-widest text-xs text-gray-400">Add New Calling Team</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4"><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Name</label><input type="text" value={newVendorName} onChange={e => setNewVendorName(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/></div><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Username</label><input type="text" value={newVendorUsername} onChange={e => setNewVendorUsername(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/></div></div><div className="mb-4"><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Password</label><div className="flex gap-2"><input type="text" value={newVendorPassword} onChange={e => setNewVendorPassword(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/><button onClick={() => setNewVendorPassword(generateSecurePassword())} className="bg-gray-100 border px-3 rounded hover:bg-gray-200 text-xs font-bold transition-colors">Generate</button></div></div></div><div className="mb-4"><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-2">Allowed Regions</label><div className="flex flex-wrap gap-3">{regions.map(r => (<label key={r} className="inline-flex items-center bg-gray-50 px-3 py-1.5 rounded border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"><input type="checkbox" checked={newVendorRegions.includes(r)} onChange={() => setNewVendorRegions(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r])} className="rounded text-indigo-600 focus:ring-indigo-500 mr-2"/><span className="text-sm font-medium text-gray-700">{r}</span></label>))}</div></div><button onClick={handleAddVendor} className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 uppercase tracking-widest text-xs">Register Calling Team</button></div>
                                         <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
                                             <table className="min-w-full divide-y divide-gray-200">
-                                                <thead className="bg-gray-50 border-b border-gray-200">
+                                                <thead className="bg-black border-b border-gray-200">
                                                     <tr>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Name</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Username</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Password</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Regions</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
-                                                        <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Name</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Username</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Password</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Regions</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Status</th>
+                                                        <th className="px-6 py-4 text-right text-[10px] font-black text-white uppercase tracking-widest">Actions</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="bg-white divide-y divide-100">
@@ -1281,14 +1281,14 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                         <div className="bg-white p-6 rounded-xl shadow border border-gray-200"><h4 className="font-bold mb-4 uppercase tracking-widest text-xs text-gray-400">Add New BDM</h4><div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end"><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Name</label><input type="text" value={newBdmName} onChange={e => setNewBdmName(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/></div><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Region</label><select value={newBdmRegion} onChange={e => setNewBdmRegion(e.target.value as any)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none">{regions.map(r => <option key={r} value={r}>{r}</option>)}</select></div><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Username</label><input type="text" value={newBdmUsername} onChange={e => setNewBdmUsername(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/></div><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Password</label><div className="flex gap-2"><input type="text" value={newBdmPassword} onChange={e => setNewBdmPassword(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/><button onClick={() => setNewBdmPassword(generateSecurePassword())} className="bg-gray-100 border px-3 rounded hover:bg-gray-200 text-xs font-bold">Gen</button></div></div></div><button onClick={handleAddBdm} className="w-full mt-6 bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 uppercase tracking-widest text-xs shadow-md shadow-indigo-100">Register BDM Account</button></div>
                                         <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
                                             <table className="min-w-full divide-y divide-gray-200">
-                                                <thead className="bg-gray-50 border-b border-gray-200">
+                                                <thead className="bg-black border-b border-gray-200">
                                                     <tr>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Name</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Region</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Username</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Password</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
-                                                        <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Name</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Region</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Username</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Password</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Status</th>
+                                                        <th className="px-6 py-4 text-right text-[10px] font-black text-white uppercase tracking-widest">Actions</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="bg-white divide-y divide-100">
@@ -1335,7 +1335,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                                         </div>
                                         <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
                                             <table className="min-w-full divide-y divide-gray-200">
-                                                <thead className="bg-gray-50 border-b border-gray-200">
+                                                <thead className="bg-black border-b border-gray-200">
                                                     <tr>
                                                         <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Name</th>
                                                         <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Username</th>
