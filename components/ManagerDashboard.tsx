@@ -1584,7 +1584,7 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
                                 )}
                             </>
                         )}
-                        {activeTab === 'calendar' && <ManagerCalendar appointments={managerAppointments} setAppointments={setManagerAppointments} bookings={allBookingsForCalendar} />}
+                        {activeTab === 'calendar' && <ManagerCalendar appointments={managerAppointments} setAppointments={setManagerAppointments} bookings={allBookingsForCalendar} bdms={bdms} />}
                         {activeTab === 'settings' && (
                             <div className="space-y-8 pb-20">
                                 {/* 1. My Profile (Top) */}
