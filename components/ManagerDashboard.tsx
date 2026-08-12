@@ -479,57 +479,66 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     };
 
     const activeLeads = useMemo(() => {
-        const today = new Date(); today.setHours(0,0,0,0);
-        const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-        const dayAfter = new Date(today); dayAfter.setDate(today.getDate() + 2);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+    const dayAfter = new Date(today); dayAfter.setDate(today.getDate() + 2);
 
-        const formatDate = (d: Date) => d.toISOString().split('T')[0];
-        const tStr = formatDate(today);
-        const tmStr = formatDate(tomorrow);
-        const daStr = formatDate(dayAfter);
+    const formatDate = (d: Date) => d.toISOString().split('T')[0];
+    const tStr = formatDate(today);
+    const tmStr = formatDate(tomorrow);
+    const daStr = formatDate(dayAfter);
 
-        const getPriority = (date: string) => {
-            if (date === tStr) return 0;
-            if (date === tmStr) return 1;
-            if (date === daStr) return 2;
-            return 3;
-        };
+    const getPriority = (date: string) => {
+        if (date === tStr) return 0;
+        if (date === tmStr) return 1;
+        if (date === daStr) return 2;
+        return 3;
+    };
 
-        const search = searchTerm.trim().toLowerCase();
+    const search = searchTerm.trim().toLowerCase();
 
-        return visibleBookings.filter(b => {
-            const matchesStatus = ['active', 'rescheduled_bdm'].includes(b.status);
-            if (!matchesStatus) return false;
-            if (dateRange.startDate && b.date < dateRange.startDate) return false;
-            if (dateRange.endDate && b.date > dateRange.endDate) return false;
-            
-            if (!search) return true;
-            return (
-                b.clientName.toLowerCase().includes(search) ||
-                b.businessName.toLowerCase().includes(search) ||
-                b.clientPhone.toLowerCase().includes(search) ||
-                b.clientWebsite.toLowerCase().includes(search) ||
-                b.address.toLowerCase().includes(search) ||
-                b.callerName.toLowerCase().includes(search) ||
-                b.vendor.name.toLowerCase().includes(search) ||
-                (b.notes?.toLowerCase() || '').includes(search) ||
-                (b.bdmNote?.toLowerCase() || '').includes(search) ||
-                b.date.includes(search) ||
-                b.time.toLowerCase().includes(search) ||
-                b.region.toLowerCase().includes(search) ||
-                b.status.toLowerCase().includes(search)
-            );
-        }).sort((a, b) => {
-            const pA = getPriority(a.date);
-            const pB = getPriority(b.date);
-
-            if (pA !== pB) return pA - pB;
-
-            const dateDiff = b.date.localeCompare(a.date);
-            if (dateDiff !== 0) return -dateDiff;
-            return b.id - a.id; 
-        });
-    }, [visibleBookings, searchTerm, dateRange]);
+    return visibleBookings.filter(b => {
+        const matchesStatus = ['active', 'rescheduled_bdm'].includes(b.status);
+        if (!matchesStatus) return false;
+        if (dateRange.startDate && b.date < dateRange.startDate) return false;
+        if (dateRange.endDate && b.date > dateRange.endDate) return false;
+        
+        if (!search) return true;
+        return (
+            b.clientName.toLowerCase().includes(search) ||
+            b.businessName.toLowerCase().includes(search) ||
+            b.clientPhone.toLowerCase().includes(search) ||
+            b.clientWebsite.toLowerCase().includes(search) ||
+            b.address.toLowerCase().includes(search) ||
+            b.callerName.toLowerCase().includes(search) ||
+            b.vendor.name.toLowerCase().includes(search) ||
+            (b.notes?.toLowerCase() || '').includes(search) ||
+            (b.bdmNote?.toLowerCase() || '').includes(search) ||
+            b.date.includes(search) ||
+            b.time.toLowerCase().includes(search) ||
+            b.region.toLowerCase().includes(search) ||
+            b.status.toLowerCase().includes(search)
+        );
+    }).sort((a, b) => {
+        // FIX: Sort by date ascending, then by time ascending
+        // Primary: Date (earliest first)
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        
+        if (dateA < dateB) return -1;
+        if (dateA > dateB) return 1;
+        
+        // Secondary: Time (earliest first) when same date
+        const timeA = parseTimeStringToMinutes(a.time);
+        const timeB = parseTimeStringToMinutes(b.time);
+        
+        if (timeA < timeB) return -1;
+        if (timeA > timeB) return 1;
+        
+        // Tertiary: ID (as tie-breaker)
+        return a.id - b.id;
+    });
+}, [visibleBookings, searchTerm, dateRange]);
 
     const totalActiveLeadsPages = Math.max(1, Math.ceil(activeLeads.length / ITEMS_PER_PAGE));
     const paginatedActiveLeads = useMemo(() => {
