@@ -387,128 +387,137 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({
     );
   };
 
-  // ✅ Day View with BDM on the right
-  const renderDayView = () => {
-    const dateKey = getDateKey(currentDate);
-    const dayItems = mixedItemsByDate.get(dateKey) || [];
-    const isToday = getDateKey(new Date()) === dateKey;
+ // ✅ FIXED: Day View - Shows ALL hourly schedule for a single day
+const renderDayView = () => {
+  const dateKey = getDateKey(currentDate);
+  const dayItems = mixedItemsByDate.get(dateKey) || [];
+  const isToday = getDateKey(new Date()) === dateKey;
 
-    // Generate time slots from 8:00 AM to 8:00 PM
-    const timeSlots: string[] = [];
-    for (let hour = 8; hour <= 20; hour++) {
-      const ampm = hour >= 12 ? 'PM' : 'AM';
-      const displayHour = hour > 12 ? hour - 12 : hour;
-      const timeStr = `${displayHour}:00 ${ampm}`;
-      timeSlots.push(timeStr);
-    }
+  // Generate time slots from 8:00 AM to 8:00 PM
+  const timeSlots: string[] = [];
+  for (let hour = 8; hour <= 20; hour++) {
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour > 12 ? hour - 12 : hour;
+    const timeStr = `${displayHour}:00 ${ampm}`;
+    timeSlots.push(timeStr);
+  }
 
-    // Create a map of items by time for quick lookup
-    const itemsByTime: Record<string, CalendarItem[]> = {};
-    dayItems.forEach(item => {
-      const timeKey = item.type === 'booking' ? item.data.time : 
-        new Date(item.data.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      if (!itemsByTime[timeKey]) itemsByTime[timeKey] = [];
-      itemsByTime[timeKey].push(item);
-    });
+  // Create a map of items by time for quick lookup
+  // ✅ FIX: Store arrays of items for each time slot
+  const itemsByTime: Record<string, CalendarItem[]> = {};
+  dayItems.forEach(item => {
+    const timeKey = item.type === 'booking' ? item.data.time : 
+      new Date(item.data.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (!itemsByTime[timeKey]) itemsByTime[timeKey] = [];
+    itemsByTime[timeKey].push(item); // ✅ Push to array instead of overwriting
+  });
 
-    return (
-      <div className="border-t border-gray-200">
-        <div className="bg-gray-50 p-3 border-b border-gray-200 flex items-center justify-between">
-          <div>
-            <span className={`text-lg font-bold ${isToday ? 'text-indigo-600' : 'text-gray-800'}`}>
-              {currentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-            </span>
-            {isToday && (
-              <span className="ml-3 bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Today</span>
-            )}
-          </div>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="text-gray-500">
-              <span className="font-bold text-blue-600">{dayItems.length}</span> appointments
-            </span>
-          </div>
+  return (
+    <div className="border-t border-gray-200">
+      <div className="bg-gray-50 p-3 border-b border-gray-200 flex items-center justify-between">
+        <div>
+          <span className={`text-lg font-bold ${isToday ? 'text-indigo-600' : 'text-gray-800'}`}>
+            {currentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </span>
+          {isToday && (
+            <span className="ml-3 bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Today</span>
+          )}
         </div>
-        <div className="divide-y divide-gray-100">
-          {timeSlots.map(slotTime => {
-            const items = itemsByTime[slotTime] || [];
-
-            return (
-              <div key={slotTime} className="flex">
-                <div className="w-24 sm:w-32 p-3 text-sm font-bold text-gray-500 border-r border-gray-100 flex-shrink-0">
-                  {slotTime}
-                </div>
-                <div className="flex-1 p-2 min-h-[60px]">
-                  {items.length > 0 ? (
-                    items.map((item, idx) => {
-                      if (item.type === 'booking') {
-                        const booking = item.data;
-                        const styleClass = booking.region === 'NSW' ? 'bg-green-50 text-green-900 border-green-200' : 
-                                          booking.region === 'VIC' ? 'bg-blue-50 text-blue-900 border-blue-200' : 
-                                          'bg-purple-50 text-purple-900 border-purple-200';
-                        const bdmName = getBdmName(booking.bdmId, bdms);
-
-                        return (
-                          <div 
-                            key={`bk-${booking.id}-${idx}`} 
-                            className={`p-2 rounded-lg border ${styleClass} shadow-sm mb-1`}
-                          >
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-bold text-sm">{booking.clientName}</span>
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-white/50 border border-black/10">
-                                    {booking.region}
-                                  </span>
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-white/50 border border-black/10">
-                                    {booking.status}
-                                  </span>
-                                </div>
-                                <div className="text-xs text-gray-500">{booking.businessName}</div>
-                                {booking.clientPhone && (
-                                  <a href={`tel:${booking.clientPhone}`} className="text-xs text-indigo-600 hover:underline block">
-                                    {booking.clientPhone}
-                                  </a>
-                                )}
-                              </div>
-                              <div className="text-xs flex items-center gap-2 flex-shrink-0">
-                                <span className="text-gray-400 text-[10px]">{booking.vendor.name}</span>
-                                {booking.bdmId && bdmName !== '—' && (
-                                  <span className="text-indigo-500 text-[10px] font-medium">BDM: {bdmName}</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      } else {
-                        const app = item.data;
-                        return (
-                          <div 
-                            key={`app-${app.id}`} 
-                            onClick={() => openEditModal(app)} 
-                            className="p-2 bg-indigo-100 rounded-lg border border-indigo-200 hover:bg-indigo-200 cursor-pointer shadow-sm mb-1"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold text-indigo-900">{app.title}</span>
-                              {app.reminder && <BellIcon className="w-4 h-4 text-amber-600" />}
-                            </div>
-                            <p className="text-xs text-indigo-800">{app.description}</p>
-                          </div>
-                        );
-                      }
-                    })
-                  ) : (
-                    <div className="text-xs text-gray-400 italic h-full flex items-center justify-center py-2">
-                      No appointments
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+        <div className="flex items-center gap-3 text-sm">
+          <span className="text-gray-500">
+            <span className="font-bold text-blue-600">{dayItems.length}</span> appointments
+          </span>
         </div>
       </div>
-    );
-  };
+      <div className="divide-y divide-gray-100">
+        {timeSlots.map(slotTime => {
+          const items = itemsByTime[slotTime] || [];
+
+          return (
+            <div key={slotTime} className="flex">
+              <div className="w-24 sm:w-32 p-3 text-sm font-bold text-gray-500 border-r border-gray-100 flex-shrink-0">
+                {slotTime}
+              </div>
+              <div className="flex-1 p-2 min-h-[60px]">
+                {items.length > 0 ? (
+                  // ✅ Show ALL items in this time slot
+                  items.map((item, idx) => {
+                    if (item.type === 'booking') {
+                      const booking = item.data;
+                      const styleClass = booking.region === 'NSW' ? 'bg-green-50 text-green-900 border-green-200' : 
+                                        booking.region === 'VIC' ? 'bg-blue-50 text-blue-900 border-blue-200' : 
+                                        'bg-purple-50 text-purple-900 border-purple-200';
+                      const bdmName = getBdmName(booking.bdmId, bdms);
+
+                      return (
+                        <div 
+                          key={`bk-${booking.id}-${idx}`} 
+                          className={`p-2 rounded-lg border ${styleClass} shadow-sm mb-1`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-sm">{booking.clientName}</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-white/50 border border-black/10">
+                                  {booking.region}
+                                </span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-white/50 border border-black/10">
+                                  {booking.status}
+                                </span>
+                              </div>
+                              <div className="text-xs text-gray-500">{booking.businessName}</div>
+                              <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1 truncate">
+                                <span className="font-medium">{booking.vendor.name}</span>
+                                {booking.bdmId && bdmName !== '—' && (
+                                  <>
+                                    <span className="text-gray-300">•</span>
+                                    <span className="text-indigo-500">BDM: {bdmName}</span>
+                                  </>
+                                )}
+                              </div>
+                              {booking.clientPhone && (
+                                <a href={`tel:${booking.clientPhone}`} className="text-xs text-indigo-600 hover:underline block">
+                                  {booking.clientPhone}
+                                </a>
+                              )}
+                            </div>
+                            <div className="text-xs flex items-center gap-1 opacity-60 flex-shrink-0">
+                              <UserGroupIcon className="w-4 h-4" />
+                              <span>{booking.vendor.name}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    } else {
+                      const app = item.data;
+                      return (
+                        <div 
+                          key={`app-${app.id}`} 
+                          onClick={() => openEditModal(app)} 
+                          className="p-2 bg-indigo-100 rounded-lg border border-indigo-200 hover:bg-indigo-200 cursor-pointer shadow-sm mb-1"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-indigo-900">{app.title}</span>
+                            {app.reminder && <BellIcon className="w-4 h-4 text-amber-600" />}
+                          </div>
+                          <p className="text-xs text-indigo-800">{app.description}</p>
+                        </div>
+                      );
+                    }
+                  })
+                ) : (
+                  <div className="text-xs text-gray-400 italic h-full flex items-center justify-center py-2">
+                    No appointments
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
   
   const getHeaderDateString = () => {
     if (viewMode === 'month') {
