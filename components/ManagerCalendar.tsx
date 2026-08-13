@@ -228,21 +228,15 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({
                             title={`${booking.clientName} (${booking.businessName}) - ${booking.region} [${booking.status}]`}
                           >
                               <div className="flex items-center justify-between gap-1 overflow-hidden">
-                                  <div className="flex items-center gap-1 truncate flex-1 min-w-0">
+                                  <div className="flex items-center gap-1 overflow-hidden">
                                       <UserGroupIcon className="w-3 h-3 opacity-50 flex-shrink-0" />
                                       <span className="font-mono font-bold text-[10px] flex-shrink-0">{booking.time.split(' ')[0]}</span>
-                                      <a 
-                                        href={getFullUrl(booking.clientWebsite)} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer" 
-                                        className="truncate font-medium flex-grow hover:underline text-blue-600"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        {normalizeWebsite(booking.clientWebsite) || booking.clientName}
-                                      </a>
+                                      <span className="truncate font-bold flex-grow text-gray-900 text-[10px]">{booking.businessName}</span>
                                       <span className="text-[8px] uppercase font-bold opacity-60 flex-shrink-0">{booking.status === 'rescheduled_bdm' ? 'RESCHED' : booking.status}</span>
                                   </div>
-                                  <div className="text-[8px] text-gray-400 flex-shrink-0 flex items-center gap-1 ml-auto">
+                                  <div className="text-[8px] text-gray-400 mt-0.5 flex items-center gap-1 truncate">
+                                      <span className="font-medium">Client: {booking.clientName}</span>
+                                      <span className="text-gray-300">•</span>
                                       <span className="font-medium">{booking.vendor.name}</span>
                                       {booking.bdmId && bdmName !== '—' && (
                                           <>
@@ -342,35 +336,34 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({
                                         >
                                             <div className="flex justify-between items-start">
                                                 <div>
-                                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                                        <span className="font-bold text-sm">{booking.time}</span>
-                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${isNsw ? 'bg-green-200 text-green-800' : isVic ? 'bg-blue-200 text-blue-800' : 'bg-purple-200 text-purple-800'}`}>{booking.region}</span>
-                                                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-white/50 border border-black/10 text-black/70">
-                                                            {booking.status === 'rescheduled_bdm' ? 'RESCHED (BDM)' : booking.status.toUpperCase()}
-                                                        </span>
-                                                    </div>
-                                                    <a 
-                                                        href={getFullUrl(booking.clientWebsite)} 
-                                                        target="_blank" 
-                                                        rel="noopener noreferrer" 
-                                                        className="font-semibold text-sm hover:underline text-blue-600 block"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                    >
-                                                        {normalizeWebsite(booking.clientWebsite) || booking.clientName}
-                                                    </a>
-                                                    <p className="text-xs opacity-75">{booking.businessName}</p>
-                                                </div>
-                                                <div className="text-xs flex items-center gap-1 opacity-60" title="Client Booking">
-                                                    <UserGroupIcon className="w-4 h-4" />
-                                                </div>
-                                            </div>
-                                            <div className="text-[10px] text-gray-400 mt-1 flex items-center gap-1 justify-between">
-                                                <span className="font-medium">{booking.vendor.name}</span>
-                                                {booking.bdmId && bdmName !== '—' && (
-                                                    <span className="text-indigo-500 flex-shrink-0">BDM: {bdmName}</span>
-                                                )}
-                                            </div>
-                                        </div>
+                                                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                      <span className="font-bold text-sm text-gray-900">{booking.businessName}</span>
+                                                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${isNsw ? 'bg-green-200 text-green-800' : isVic ? 'bg-blue-200 text-blue-800' : 'bg-purple-200 text-purple-800'}`}>{booking.region}</span>
+                                                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-white/50 border border-black/10 text-black/70">
+                                                          {booking.status === 'rescheduled_bdm' ? 'RESCHED (BDM)' : booking.status.toUpperCase()}
+                                                      </span>
+                                                  </div>
+                                                  {booking.clientWebsite ? (
+                                                      <a 
+                                                          href={booking.clientWebsite.startsWith('http') ? booking.clientWebsite : `https://${booking.clientWebsite}`} 
+                                                          target="_blank" 
+                                                          rel="noopener noreferrer" 
+                                                          className="font-semibold text-sm hover:underline text-blue-600 block truncate max-w-[200px]"
+                                                          onClick={(e) => e.stopPropagation()}
+                                                      >
+                                                          {normalizeWebsite(booking.clientWebsite) || booking.clientWebsite}
+                                                      </a>
+                                                  ) : (
+                                                      <span className="text-xs text-gray-400">No website</span>
+                                                  )}
+                                                  <p className="text-xs text-gray-500">Client: {booking.clientName}</p>
+                                                  <div className="text-[10px] text-gray-400 mt-1 flex items-center gap-1 justify-between">
+                                                      <span className="font-medium">{booking.vendor.name}</span>
+                                                      {booking.bdmId && bdmName !== '—' && (
+                                                          <span className="text-indigo-500 flex-shrink-0">BDM: {bdmName}</span>
+                                                      )}
+                                                  </div>
+                                              </div>
                                     );
                                 }
                             }) : (
@@ -387,7 +380,7 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({
     );
   };
 
-// ✅ FIXED: Day View - Shows ALL appointments grouped by hour
+// ✅ FIXED: Day View - Shows business name/website as primary, client name as secondary, website instead of phone
 const renderDayView = () => {
   const dateKey = getDateKey(currentDate);
   const dayItems = mixedItemsByDate.get(dateKey) || [];
@@ -408,15 +401,12 @@ const renderDayView = () => {
     const timeKey = item.type === 'booking' ? item.data.time : 
       new Date(item.data.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     
-    // Extract just the hour (e.g., "02:00 PM" becomes "2 PM")
     const hourMatch = timeKey.match(/(\d{1,2}):\d{2}\s*(AM|PM)/);
     let hourGroup = timeKey;
     if (hourMatch) {
       const hour = parseInt(hourMatch[1], 10);
       const ampm = hourMatch[2];
-      // Find the matching slot time (e.g., "2:00 PM" for 2 PM)
       const slotTime = `${hour}:00 ${ampm}`;
-      // Use the slot time as the group key (this matches the timeSlots array)
       hourGroup = slotTime;
     }
     
@@ -467,21 +457,33 @@ const renderDayView = () => {
                         >
                           <div className="flex justify-between items-start">
                             <div className="flex-1 min-w-0">
+                              {/* ✅ Business Name as primary (bold and larger) */}
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-bold text-sm">{booking.clientName}</span>
+                                <span className="font-bold text-sm text-gray-900">
+                                  {booking.businessName}
+                                </span>
                                 <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-white/50 border border-black/10">
                                   {booking.region}
                                 </span>
                                 <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-white/50 border border-black/10">
                                   {booking.status}
                                 </span>
-                                {booking.time && booking.time !== slotTime && (
-                                  <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
-                                    {booking.time}
-                                  </span>
-                                )}
                               </div>
-                              <div className="text-xs text-gray-500">{booking.businessName}</div>
+                              {/* ✅ Client Name as secondary (smaller) */}
+                              <div className="text-xs text-gray-500">
+                                Client: {booking.clientName}
+                              </div>
+                              {/* ✅ Website URL instead of phone */}
+                              {booking.clientWebsite && (
+                                <a 
+                                  href={booking.clientWebsite.startsWith('http') ? booking.clientWebsite : `https://${booking.clientWebsite}`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="text-xs text-blue-600 hover:text-blue-800 hover:underline block truncate max-w-[200px]"
+                                >
+                                  {booking.clientWebsite}
+                                </a>
+                              )}
                               <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1 truncate">
                                 <span className="font-medium">{booking.vendor.name}</span>
                                 {booking.bdmId && bdmName !== '—' && (
@@ -491,10 +493,10 @@ const renderDayView = () => {
                                   </>
                                 )}
                               </div>
-                              {booking.clientPhone && (
-                                <a href={`tel:${booking.clientPhone}`} className="text-xs text-indigo-600 hover:underline block">
-                                  {booking.clientPhone}
-                                </a>
+                              {booking.time && booking.time !== slotTime && (
+                                <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded inline-block mt-0.5">
+                                  {booking.time}
+                                </span>
                               )}
                             </div>
                             <div className="text-xs flex items-center gap-1 opacity-60 flex-shrink-0">
