@@ -387,7 +387,7 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({
     );
   };
 
-// ✅ FIXED: Day View - Shows full hourly schedule with ALL appointments
+// ✅ FIXED: Day View - Shows ALL appointments grouped by hour
 const renderDayView = () => {
   const dateKey = getDateKey(currentDate);
   const dayItems = mixedItemsByDate.get(dateKey) || [];
@@ -402,27 +402,26 @@ const renderDayView = () => {
     timeSlots.push(timeStr);
   }
 
-  // Create a map of items by their exact time (for exact matches)
-  const itemsByExactTime: Record<string, CalendarItem[]> = {};
-  dayItems.forEach(item => {
-    const timeKey = item.type === 'booking' ? item.data.time : 
-      new Date(item.data.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    if (!itemsByExactTime[timeKey]) itemsByExactTime[timeKey] = [];
-    itemsByExactTime[timeKey].push(item);
-  });
-
-  // Create a map of items grouped by hour (for times that don't match exactly)
+  // Group ALL items by the hour they belong to
   const itemsByHour: Record<string, CalendarItem[]> = {};
   dayItems.forEach(item => {
     const timeKey = item.type === 'booking' ? item.data.time : 
       new Date(item.data.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    // Extract just the hour for grouping
-    const hourKey = timeKey.replace(/:00/, '').replace(/:15/, '').replace(/:30/, '').replace(/:45/, '');
-    if (!itemsByHour[hourKey]) itemsByHour[hourKey] = [];
-    // Only add if it doesn't exactly match a slot
-    if (!timeSlots.includes(timeKey)) {
-      itemsByHour[hourKey].push(item);
+    
+    // Extract just the hour (e.g., "02:00 PM" becomes "2 PM")
+    const hourMatch = timeKey.match(/(\d{1,2}):\d{2}\s*(AM|PM)/);
+    let hourGroup = timeKey;
+    if (hourMatch) {
+      const hour = parseInt(hourMatch[1], 10);
+      const ampm = hourMatch[2];
+      // Find the matching slot time (e.g., "2:00 PM" for 2 PM)
+      const slotTime = `${hour}:00 ${ampm}`;
+      // Use the slot time as the group key (this matches the timeSlots array)
+      hourGroup = slotTime;
     }
+    
+    if (!itemsByHour[hourGroup]) itemsByHour[hourGroup] = [];
+    itemsByHour[hourGroup].push(item);
   });
 
   return (
@@ -444,15 +443,7 @@ const renderDayView = () => {
       </div>
       <div className="divide-y divide-gray-100">
         {timeSlots.map(slotTime => {
-          // Get exact matches for this slot
-          const exactItems = itemsByExactTime[slotTime] || [];
-          
-          // Get all items for this hour (including times like 10:15, 10:30, 10:45)
-          const hourKey = slotTime.replace(/:00/, '');
-          const hourItems = itemsByHour[hourKey] || [];
-
-          // Combine: exact matches first, then other items in the hour
-          const allItems = [...exactItems, ...hourItems];
+          const items = itemsByHour[slotTime] || [];
 
           return (
             <div key={slotTime} className="flex">
@@ -460,8 +451,8 @@ const renderDayView = () => {
                 {slotTime}
               </div>
               <div className="flex-1 p-2 min-h-[60px]">
-                {allItems.length > 0 ? (
-                  allItems.map((item, idx) => {
+                {items.length > 0 ? (
+                  items.map((item, idx) => {
                     if (item.type === 'booking') {
                       const booking = item.data;
                       const styleClass = booking.region === 'NSW' ? 'bg-green-50 text-green-900 border-green-200' : 
@@ -484,10 +475,9 @@ const renderDayView = () => {
                                 <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-white/50 border border-black/10">
                                   {booking.status}
                                 </span>
-                                {/* Show exact time if it's different from the slot time */}
-                                {booking.time !== slotTime && (
-                                  <span className="text-[10px] font-bold text-gray-500">
-                                    @ {booking.time}
+                                {booking.time && booking.time !== slotTime && (
+                                  <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                                    {booking.time}
                                   </span>
                                 )}
                               </div>
