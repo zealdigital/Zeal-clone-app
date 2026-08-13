@@ -387,30 +387,26 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({
     );
   };
 
- // ✅ FIXED: Day View - Shows ALL hourly schedule for a single day
+// ✅ FIXED: Day View - Shows ALL appointments for the day
 const renderDayView = () => {
   const dateKey = getDateKey(currentDate);
   const dayItems = mixedItemsByDate.get(dateKey) || [];
   const isToday = getDateKey(new Date()) === dateKey;
 
-  // Generate time slots from 8:00 AM to 8:00 PM
-  const timeSlots: string[] = [];
-  for (let hour = 8; hour <= 20; hour++) {
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour > 12 ? hour - 12 : hour;
-    const timeStr = `${displayHour}:00 ${ampm}`;
-    timeSlots.push(timeStr);
-  }
+  // First, sort all items by time
+  const sortedItems = [...dayItems].sort((a, b) => a.sortTime - b.sortTime);
 
-  // Create a map of items by time for quick lookup
-  // ✅ FIX: Store arrays of items for each time slot
-  const itemsByTime: Record<string, CalendarItem[]> = {};
-  dayItems.forEach(item => {
+  // Group items by hour for display (optional)
+  const itemsByHour: Record<string, CalendarItem[]> = {};
+  sortedItems.forEach(item => {
     const timeKey = item.type === 'booking' ? item.data.time : 
       new Date(item.data.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    if (!itemsByTime[timeKey]) itemsByTime[timeKey] = [];
-    itemsByTime[timeKey].push(item); // ✅ Push to array instead of overwriting
+    if (!itemsByHour[timeKey]) itemsByHour[timeKey] = [];
+    itemsByHour[timeKey].push(item);
   });
+
+  // Get all unique times from appointments
+  const appointmentTimes = Object.keys(itemsByHour).sort();
 
   return (
     <div className="border-t border-gray-200">
@@ -430,18 +426,18 @@ const renderDayView = () => {
         </div>
       </div>
       <div className="divide-y divide-gray-100">
-        {timeSlots.map(slotTime => {
-          const items = itemsByTime[slotTime] || [];
+        {appointmentTimes.length > 0 ? (
+          // ✅ Show ALL appointment times that have items
+          appointmentTimes.map(timeKey => {
+            const items = itemsByHour[timeKey] || [];
 
-          return (
-            <div key={slotTime} className="flex">
-              <div className="w-24 sm:w-32 p-3 text-sm font-bold text-gray-500 border-r border-gray-100 flex-shrink-0">
-                {slotTime}
-              </div>
-              <div className="flex-1 p-2 min-h-[60px]">
-                {items.length > 0 ? (
-                  // ✅ Show ALL items in this time slot
-                  items.map((item, idx) => {
+            return (
+              <div key={timeKey} className="flex">
+                <div className="w-24 sm:w-32 p-3 text-sm font-bold text-gray-500 border-r border-gray-100 flex-shrink-0">
+                  {timeKey}
+                </div>
+                <div className="flex-1 p-2 min-h-[60px]">
+                  {items.map((item, idx) => {
                     if (item.type === 'booking') {
                       const booking = item.data;
                       const styleClass = booking.region === 'NSW' ? 'bg-green-50 text-green-900 border-green-200' : 
@@ -504,16 +500,22 @@ const renderDayView = () => {
                         </div>
                       );
                     }
-                  })
-                ) : (
-                  <div className="text-xs text-gray-400 italic h-full flex items-center justify-center py-2">
-                    No appointments
-                  </div>
-                )}
+                  })}
+                </div>
               </div>
+            );
+          })
+        ) : (
+          // ✅ Show "No appointments" message if no items
+          <div className="flex p-6 text-center text-gray-400 italic">
+            <div className="w-24 sm:w-32 p-3 text-sm font-bold text-gray-400 border-r border-gray-100 flex-shrink-0">
+              —
             </div>
-          );
-        })}
+            <div className="flex-1 p-2 min-h-[60px] flex items-center justify-center">
+              No appointments scheduled for this day.
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
