@@ -380,7 +380,7 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({
     );
   };
 
-// ✅ FIXED: Day View - Shows business name/website as primary, client name as secondary, website instead of phone
+// ✅ FIXED: Day View - Matches Week view format: Business name primary, Client name secondary, Website instead of phone
 const renderDayView = () => {
   const dateKey = getDateKey(currentDate);
   const dayItems = mixedItemsByDate.get(dateKey) || [];
@@ -457,40 +457,35 @@ const renderDayView = () => {
                         >
                           <div className="flex justify-between items-start">
                             <div className="flex-1 min-w-0">
-                              {/* ✅ Business Name as primary (bold and larger) */}
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-bold text-sm text-gray-900">
-                                  {booking.businessName}
-                                </span>
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-white/50 border border-black/10">
-                                  {booking.region}
-                                </span>
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-white/50 border border-black/10">
-                                  {booking.status}
+                              {/* Business Name as primary */}
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <span className="font-bold text-sm text-gray-900">{booking.businessName}</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${booking.region === 'NSW' ? 'bg-green-200 text-green-800' : booking.region === 'VIC' ? 'bg-blue-200 text-blue-800' : 'bg-purple-200 text-purple-800'}`}>{booking.region}</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-white/50 border border-black/10 text-black/70">
+                                  {booking.status === 'rescheduled_bdm' ? 'RESCHED (BDM)' : booking.status.toUpperCase()}
                                 </span>
                               </div>
-                              {/* ✅ Client Name as secondary (smaller) */}
-                              <div className="text-xs text-gray-500">
-                                Client: {booking.clientName}
-                              </div>
-                              {/* ✅ Website URL instead of phone */}
-                              {booking.clientWebsite && (
+                              {/* Website URL instead of client name */}
+                              {booking.clientWebsite ? (
                                 <a 
                                   href={booking.clientWebsite.startsWith('http') ? booking.clientWebsite : `https://${booking.clientWebsite}`} 
                                   target="_blank" 
                                   rel="noopener noreferrer" 
-                                  className="text-xs text-blue-600 hover:text-blue-800 hover:underline block truncate max-w-[200px]"
+                                  className="font-semibold text-sm hover:underline text-blue-600 block truncate max-w-[200px]"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
-                                  {booking.clientWebsite}
+                                  {normalizeWebsite(booking.clientWebsite) || booking.clientWebsite}
                                 </a>
+                              ) : (
+                                <span className="text-xs text-gray-400">No website</span>
                               )}
-                              <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1 truncate">
+                              {/* Client Name as secondary */}
+                              <p className="text-xs text-gray-500">Client: {booking.clientName}</p>
+                              {/* Vendor and BDM info */}
+                              <div className="text-[10px] text-gray-400 mt-1 flex items-center gap-1 justify-between">
                                 <span className="font-medium">{booking.vendor.name}</span>
                                 {booking.bdmId && bdmName !== '—' && (
-                                  <>
-                                    <span className="text-gray-300">•</span>
-                                    <span className="text-indigo-500">BDM: {bdmName}</span>
-                                  </>
+                                  <span className="text-indigo-500 flex-shrink-0">BDM: {bdmName}</span>
                                 )}
                               </div>
                               {booking.time && booking.time !== slotTime && (
