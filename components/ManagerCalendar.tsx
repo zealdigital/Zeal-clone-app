@@ -387,26 +387,43 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({
     );
   };
 
-// ✅ FIXED: Day View - Shows ALL appointments for the day
+// ✅ FIXED: Day View - Shows full hourly schedule with ALL appointments
 const renderDayView = () => {
   const dateKey = getDateKey(currentDate);
   const dayItems = mixedItemsByDate.get(dateKey) || [];
   const isToday = getDateKey(new Date()) === dateKey;
 
-  // First, sort all items by time
-  const sortedItems = [...dayItems].sort((a, b) => a.sortTime - b.sortTime);
+  // Generate time slots from 8:00 AM to 8:00 PM
+  const timeSlots: string[] = [];
+  for (let hour = 8; hour <= 20; hour++) {
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour > 12 ? hour - 12 : hour;
+    const timeStr = `${displayHour}:00 ${ampm}`;
+    timeSlots.push(timeStr);
+  }
 
-  // Group items by hour for display (optional)
-  const itemsByHour: Record<string, CalendarItem[]> = {};
-  sortedItems.forEach(item => {
+  // Create a map of items by their exact time (for exact matches)
+  const itemsByExactTime: Record<string, CalendarItem[]> = {};
+  dayItems.forEach(item => {
     const timeKey = item.type === 'booking' ? item.data.time : 
       new Date(item.data.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    if (!itemsByHour[timeKey]) itemsByHour[timeKey] = [];
-    itemsByHour[timeKey].push(item);
+    if (!itemsByExactTime[timeKey]) itemsByExactTime[timeKey] = [];
+    itemsByExactTime[timeKey].push(item);
   });
 
-  // Get all unique times from appointments
-  const appointmentTimes = Object.keys(itemsByHour).sort();
+  // Create a map of items grouped by hour (for times that don't match exactly)
+  const itemsByHour: Record<string, CalendarItem[]> = {};
+  dayItems.forEach(item => {
+    const timeKey = item.type === 'booking' ? item.data.time : 
+      new Date(item.data.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    // Extract just the hour for grouping
+    const hourKey = timeKey.replace(/:00/, '').replace(/:15/, '').replace(/:30/, '').replace(/:45/, '');
+    if (!itemsByHour[hourKey]) itemsByHour[hourKey] = [];
+    // Only add if it doesn't exactly match a slot
+    if (!timeSlots.includes(timeKey)) {
+      itemsByHour[hourKey].push(item);
+    }
+  });
 
   return (
     <div className="border-t border-gray-200">
@@ -426,18 +443,25 @@ const renderDayView = () => {
         </div>
       </div>
       <div className="divide-y divide-gray-100">
-        {appointmentTimes.length > 0 ? (
-          // ✅ Show ALL appointment times that have items
-          appointmentTimes.map(timeKey => {
-            const items = itemsByHour[timeKey] || [];
+        {timeSlots.map(slotTime => {
+          // Get exact matches for this slot
+          const exactItems = itemsByExactTime[slotTime] || [];
+          
+          // Get all items for this hour (including times like 10:15, 10:30, 10:45)
+          const hourKey = slotTime.replace(/:00/, '');
+          const hourItems = itemsByHour[hourKey] || [];
 
-            return (
-              <div key={timeKey} className="flex">
-                <div className="w-24 sm:w-32 p-3 text-sm font-bold text-gray-500 border-r border-gray-100 flex-shrink-0">
-                  {timeKey}
-                </div>
-                <div className="flex-1 p-2 min-h-[60px]">
-                  {items.map((item, idx) => {
+          // Combine: exact matches first, then other items in the hour
+          const allItems = [...exactItems, ...hourItems];
+
+          return (
+            <div key={slotTime} className="flex">
+              <div className="w-24 sm:w-32 p-3 text-sm font-bold text-gray-500 border-r border-gray-100 flex-shrink-0">
+                {slotTime}
+              </div>
+              <div className="flex-1 p-2 min-h-[60px]">
+                {allItems.length > 0 ? (
+                  allItems.map((item, idx) => {
                     if (item.type === 'booking') {
                       const booking = item.data;
                       const styleClass = booking.region === 'NSW' ? 'bg-green-50 text-green-900 border-green-200' : 
@@ -460,6 +484,12 @@ const renderDayView = () => {
                                 <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-white/50 border border-black/10">
                                   {booking.status}
                                 </span>
+                                {/* Show exact time if it's different from the slot time */}
+                                {booking.time !== slotTime && (
+                                  <span className="text-[10px] font-bold text-gray-500">
+                                    @ {booking.time}
+                                  </span>
+                                )}
                               </div>
                               <div className="text-xs text-gray-500">{booking.businessName}</div>
                               <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1 truncate">
@@ -500,22 +530,16 @@ const renderDayView = () => {
                         </div>
                       );
                     }
-                  })}
-                </div>
+                  })
+                ) : (
+                  <div className="text-xs text-gray-400 italic h-full flex items-center justify-center py-2">
+                    No appointments
+                  </div>
+                )}
               </div>
-            );
-          })
-        ) : (
-          // ✅ Show "No appointments" message if no items
-          <div className="flex p-6 text-center text-gray-400 italic">
-            <div className="w-24 sm:w-32 p-3 text-sm font-bold text-gray-400 border-r border-gray-100 flex-shrink-0">
-              —
             </div>
-            <div className="flex-1 p-2 min-h-[60px] flex items-center justify-center">
-              No appointments scheduled for this day.
-            </div>
-          </div>
-        )}
+          );
+        })}
       </div>
     </div>
   );
