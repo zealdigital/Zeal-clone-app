@@ -26,11 +26,8 @@ import BdmBookingRequestModal from './BdmBookingRequestModal';
 import BdmOutcomePerformance from './BdmOutcomePerformance';
 import { sendEmailNotification } from '../utils/emailService';
 import { DEFAULT_NOTIFICATION_PREFERENCES, MANAGERS, VENDORS, BDMS, PUBLIC_HOLIDAYS, APPOINTMENT_TIMES, DEFAULT_BRANDING, DEFAULT_REGION_COLORS } from '../constants';
-import { ChevronUpIcon, ChevronDownIcon } from './Icons';
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-
 
 const normalizeWebsite = (url: string): string => {
     if (!url) return '';
@@ -281,22 +278,22 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
                     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200 text-left text-xs">
-                                <thead className="bg-black">
+                                <thead className="bg-gray-50">
                                     <tr>
-                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Business</th>
-                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Client</th>
-                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Phone</th>
-                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Email</th>
-                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Website</th>
-                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Date</th>
-                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Region</th>
-                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Team</th>
-                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">BDM</th>
-                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Caller</th>
-                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Address</th>
-                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Notes</th>
-                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Status</th>
-                                        <th className="p-3 text-white font-bold uppercase tracking-tighter">Duplicate</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Business</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Client</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Phone</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Email</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Website</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Date</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Region</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Team</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">BDM</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Caller</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Address</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Notes</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Status</th>
+                                        <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Duplicate</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-100">
@@ -355,10 +352,10 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
                         <button onClick={onCancel} className="flex-1 sm:flex-none px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-bold text-sm shadow-sm transition-all">Cancel</button>
                         <button 
                             onClick={onConfirm} 
-                            disabled={newBookings.length === 0 || isSyncing} 
+                            disabled={newBookings.length === 0} 
                             className="flex-1 sm:flex-none px-10 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 font-black text-sm shadow-md shadow-green-100 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {isSyncing ? 'SYNCING...' : 'CONFIRM BULK IMPORT'}
+                            CONFIRM BULK IMPORT
                         </button>
                     </div>
                 </div>
@@ -371,8 +368,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     currentUser, onLogout, allBookings, setAllBookings, salespeopleCount, publicHolidays, setPublicHolidays,
     appointmentTimes, setAppointmentTimes, leaveDays, setLeaveDays, vendors, setVendors, bdms, setBdms, managers, setManagers, managerAppointments, setManagerAppointments, notifications, setNotifications, branding, setBranding, onUpdateProfile, regions, setRegions, regionColors, setRegionColors, isSyncing
 }) => {
-
-   
     const [activeTab, setActiveTab] = useState<'bookings' | 'analytics' | 'users' | 'settings' | 'calendar'>('bookings');
     const [searchTerm, setSearchTerm] = useState('');
     const [dateRange, setDateRange] = useState<{ startDate: string | null, endDate: string | null }>({ startDate: null, endDate: null });
@@ -447,48 +442,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     const [showProfileSuccess, setShowProfileSuccess] = useState(false);
     const [emailInput, setEmailInput] = useState('');
 
-    // ✅ KEEP THIS VERSION (lines 365-389)
-const parseTimeStringToMinutes = (timeStr: string): number => {
-    if (!timeStr) return 0;
-    try {
-        const cleanTime = timeStr.trim().toUpperCase();
-        const [t, mod] = cleanTime.split(' ');
-        
-        let hour = 0, minute = 0, modifier = mod;
-        
-        if (!modifier) {
-            const parts = t.split(':');
-            if (parts.length >= 2) {
-                hour = parseInt(parts[0], 10);
-                minute = parseInt(parts[1], 10);
-                modifier = hour >= 12 ? 'PM' : 'AM';
-            } else {
-                return 0;
-            }
-        } else {
-            const parts = t.split(':');
-            if (parts.length >= 2) {
-                hour = parseInt(parts[0], 10);
-                minute = parseInt(parts[1], 10);
-            } else {
-                hour = parseInt(t, 10);
-                minute = 0;
-            }
-        }
-        
-        if (isNaN(hour) || isNaN(minute)) return 0;
-        
-        if (modifier === 'PM' && hour < 12) hour += 12;
-        if (modifier === 'AM' && hour === 12) hour = 0;
-        
-        return hour * 60 + minute;
-    } catch (e) {
-        console.error('Error parsing time:', timeStr, e);
-        return 0;
-    }
-};
-
-    
     useEffect(() => {
         if (newVendorRegions.length === 0 && regions.length > 0) setNewVendorRegions(regions);
     }, [regions]);
@@ -524,59 +477,59 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
             b.status.toLowerCase().includes(s)
         );
     };
-     
+
     const activeLeads = useMemo(() => {
-    const search = searchTerm.trim().toLowerCase();
+        const today = new Date(); today.setHours(0,0,0,0);
+        const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+        const dayAfter = new Date(today); dayAfter.setDate(today.getDate() + 2);
 
-    // Filter bookings first
-    const filteredBookings = visibleBookings.filter(b => {
-        const matchesStatus = ['active', 'rescheduled_bdm'].includes(b.status);
-        if (!matchesStatus) return false;
-        if (dateRange.startDate && b.date < dateRange.startDate) return false;
-        if (dateRange.endDate && b.date > dateRange.endDate) return false;
-        
-        if (!search) return true;
-        return (
-            b.clientName.toLowerCase().includes(search) ||
-            b.businessName.toLowerCase().includes(search) ||
-            b.clientPhone.toLowerCase().includes(search) ||
-            b.clientWebsite.toLowerCase().includes(search) ||
-            b.address.toLowerCase().includes(search) ||
-            b.callerName.toLowerCase().includes(search) ||
-            b.vendor.name.toLowerCase().includes(search) ||
-            (b.notes?.toLowerCase() || '').includes(search) ||
-            (b.bdmNote?.toLowerCase() || '').includes(search) ||
-            b.date.includes(search) ||
-            b.time.toLowerCase().includes(search) ||
-            b.region.toLowerCase().includes(search) ||
-            b.status.toLowerCase().includes(search)
-        );
-    });
+        const formatDate = (d: Date) => d.toISOString().split('T')[0];
+        const tStr = formatDate(today);
+        const tmStr = formatDate(tomorrow);
+        const daStr = formatDate(dayAfter);
 
-    // Sort the filtered results by TIME ONLY
-    return [...filteredBookings].sort((a, b) => {
-        try {
-            const minutesA = parseTimeStringToMinutes(a?.time || '12:00 AM');
-            const minutesB = parseTimeStringToMinutes(b?.time || '12:00 AM');
+        const getPriority = (date: string) => {
+            if (date === tStr) return 0;
+            if (date === tmStr) return 1;
+            if (date === daStr) return 2;
+            return 3;
+        };
+
+        const search = searchTerm.trim().toLowerCase();
+
+        return visibleBookings.filter(b => {
+            const matchesStatus = ['active', 'rescheduled_bdm'].includes(b.status);
+            if (!matchesStatus) return false;
+            if (dateRange.startDate && b.date < dateRange.startDate) return false;
+            if (dateRange.endDate && b.date > dateRange.endDate) return false;
             
-            // Primary: Sort by time (earliest first)
-            if (minutesA < minutesB) return -1;
-            if (minutesA > minutesB) return 1;
-            
-            // Secondary: If same time, sort by date (earliest first)
-            if (a?.date && b?.date) {
-                if (a.date < b.date) return -1;
-                if (a.date > b.date) return 1;
-            }
-            
-            // Tertiary: Tie-breaker by ID
-            return (a.id || 0) - (b.id || 0);
-        } catch (error) {
-            console.error('Sort error:', error);
-            return 0;
-        }
-    });
-}, [visibleBookings, searchTerm, dateRange]);
+            if (!search) return true;
+            return (
+                b.clientName.toLowerCase().includes(search) ||
+                b.businessName.toLowerCase().includes(search) ||
+                b.clientPhone.toLowerCase().includes(search) ||
+                b.clientWebsite.toLowerCase().includes(search) ||
+                b.address.toLowerCase().includes(search) ||
+                b.callerName.toLowerCase().includes(search) ||
+                b.vendor.name.toLowerCase().includes(search) ||
+                (b.notes?.toLowerCase() || '').includes(search) ||
+                (b.bdmNote?.toLowerCase() || '').includes(search) ||
+                b.date.includes(search) ||
+                b.time.toLowerCase().includes(search) ||
+                b.region.toLowerCase().includes(search) ||
+                b.status.toLowerCase().includes(search)
+            );
+        }).sort((a, b) => {
+            const pA = getPriority(a.date);
+            const pB = getPriority(b.date);
+
+            if (pA !== pB) return pA - pB;
+
+            const dateDiff = b.date.localeCompare(a.date);
+            if (dateDiff !== 0) return -dateDiff;
+            return b.id - a.id; 
+        });
+    }, [visibleBookings, searchTerm, dateRange]);
 
     const totalActiveLeadsPages = Math.max(1, Math.ceil(activeLeads.length / ITEMS_PER_PAGE));
     const paginatedActiveLeads = useMemo(() => {
@@ -928,15 +881,15 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
         setSelectedBdmIds([]); setLeaveStartDate(''); setLeaveEndDate(''); setLeaveReason(''); setLeaveType('allDay'); setLeaveSlots([]);
     };
 
-    // const parseTimeStringToMinutes = (timeStr: string) => {
-    //     try {
-    //         const [t, mod] = timeStr.split(' ');
-    //         let [h, m] = t.split(':').map(Number);
-    //         if (mod === 'PM' && h !== 12) h += 12;
-    //         if (mod === 'AM' && h === 12) h = 0;
-    //         return h * 60 + m;
-    //     } catch (e) { return 0; }
-    // };
+    const parseTimeStringToMinutes = (timeStr: string) => {
+        try {
+            const [t, mod] = timeStr.split(' ');
+            let [h, m] = t.split(':').map(Number);
+            if (mod === 'PM' && h !== 12) h += 12;
+            if (mod === 'AM' && h === 12) h = 0;
+            return h * 60 + m;
+        } catch (e) { return 0; }
+    };
 
     const handleDeleteLeave = (id: number) => { setLeaveDays(prev => prev.filter(l => l.id !== id)); };
 
@@ -1083,29 +1036,29 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
             <main className="p-4 sm:p-6 lg:p-8">
                 <div className="max-w-7xl mx-auto">
                     <div className="border-b border-gray-300">
-    <nav className="flex flex-wrap gap-x-4 gap-y-1 -mb-px px-2 sm:px-0">
-        {[
-            { id: 'bookings', label: 'Bookings', icon: DocumentTextIcon },
-            { id: 'analytics', label: 'Analytics', icon: PresentationChartLineIcon },
-            { id: 'users', label: 'Users', icon: UserGroupIcon },
-            { id: 'calendar', label: 'Calendar', icon: CalendarDaysIcon },
-            { id: 'settings', label: 'Settings', icon: Cog6ToothIcon }
-        ].map(item => (
-            <button 
-                key={item.id} 
-                onClick={() => setActiveTab(item.id as any)} 
-                className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-bold text-sm flex items-center gap-1.5 sm:gap-2 transition-all whitespace-nowrap ${
-                    activeTab === item.id 
-                        ? 'border-black text-black' 
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-            >
-                <item.icon className="w-4 h-4 sm:w-5 sm:h-5" /> 
-                <span className="text-xs sm:text-sm">{item.label}</span>
-            </button>
-        ))}
-    </nav>
-</div>
+                        <nav className="flex flex-wrap gap-x-4 gap-y-1 -mb-px px-2 sm:px-0">
+                            {[
+                                { id: 'bookings', label: 'Bookings', icon: DocumentTextIcon },
+                                { id: 'analytics', label: 'Analytics', icon: PresentationChartLineIcon },
+                                { id: 'users', label: 'Users', icon: UserGroupIcon },
+                                { id: 'calendar', label: 'Calendar', icon: CalendarDaysIcon },
+                                { id: 'settings', label: 'Settings', icon: Cog6ToothIcon }
+                            ].map(item => (
+                                <button 
+                                    key={item.id} 
+                                    onClick={() => setActiveTab(item.id as any)} 
+                                    className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-bold text-sm flex items-center gap-1.5 sm:gap-2 transition-all whitespace-nowrap ${
+                                        activeTab === item.id 
+                                            ? 'border-black text-black' 
+                                            : 'border-transparent text-gray-500 hover:text-gray-700'
+                                    }`}
+                                >
+                                    <item.icon className="w-4 h-4 sm:w-5 sm:h-5" /> 
+                                    <span className="text-xs sm:text-sm">{item.label}</span>
+                                </button>
+                            ))}
+                        </nav>
+                    </div>
 
                     <div className="mt-6">
                         {activeTab === 'bookings' && (
@@ -1170,10 +1123,9 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
                                         <div className="flex gap-2 w-full sm:w-auto items-end">
                                             <button 
                                                 onClick={() => setIsManualBookingOpen(true)} 
-                                                disabled={isSyncing}
                                                 className="px-6 py-3 bg-black text-white rounded-xl hover:bg-gray-800 shadow-md transition-all font-bold uppercase text-xs tracking-widest flex items-center gap-2 h-[46px] disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
-                                                <PlusIcon className="w-4 h-4" /> {isSyncing ? 'Syncing...' : 'Book Lead'}
+                                                <PlusIcon className="w-4 h-4" /> Book Lead
                                             </button>
                                         </div>
                                     </div>
@@ -1182,204 +1134,276 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
                                 <div className="mt-8 space-y-12 pb-20">
                                     {/* 1. ACTIVE LEADS */}
                                     <div>
-                                        <div className="flex items-center justify-between mb-4 border-b pb-2">
-                                            <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-2"><ClockIcon className="w-5 h-5 text-indigo-600" /> Active Leads</h2>
-                                        </div>
-                                        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-                                            <div className="overflow-x-auto">
-                                                <table className="min-w-full divide-y divide-gray-200">
-    <thead className="bg-black">
-        <tr>
-            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Client & Business</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Address & Phone</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Calling Team</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Time</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Region</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Status</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-widest">Assigned BDM</th>
-            <th className="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-widest">Actions</th>
-        </tr>
-    </thead>
-    <tbody className="divide-y divide-100">
-        {sortedActiveDates.map(date => {
-            const [y, m, d] = date.split('-').map(Number);
-            const displayDate = new Date(y, m - 1, d).toLocaleDateString(undefined, { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            });
-            return (
-                <React.Fragment key={date}>
-                    <tr className="bg-black">
-                        <td colSpan={8} className="px-6 py-2 text-xs font-bold text-white uppercase tracking-tighter">
-                            {displayDate}
-                        </td>
+    <div className="flex items-center justify-between mb-4 border-b pb-2">
+        <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
+            <ClockIcon className="w-5 h-5 text-indigo-600" /> Active Leads
+        </h2>
+    </div>
+    <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+        {/* ✅ Desktop Table View - hidden on mobile */}
+        <div className="hidden md:block overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                    <tr>
+                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Client & Business</th>
+                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Contact & Address</th>
+                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Team</th>
+                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Time</th>
+                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Region</th>
+                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                        <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
                     </tr>
-                    {groupedActiveLeads[date].map(b => (
-                        <tr 
-                            key={b.id} 
-                            className={`hover:bg-gray-50 transition-all ${
-                                b.isDuplicate && (new Date(b.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) 
-                                    ? 'bg-amber-50 border-l-4 border-amber-400' 
-                                    : (b.smsRequest?.status === 'pending' 
-                                        ? 'bg-purple-50 border-l-4 border-purple-400' 
-                                        : '')
-                            }`}
-                        >
-                            {/* 1. Client & Business */}
-                            <td className="px-6 py-4">
-                                <div className="flex flex-col">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm font-bold text-gray-900">{b.clientName}</span>
-                                        {b.isDuplicate && (new Date(b.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) && (
-                                            <span className="text-[9px] font-black bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">DUPLICATE</span>
-                                        )}
-                                        {b.smsRequest?.status === 'pending' && (
-                                            <span className="text-[9px] font-black bg-purple-200 text-purple-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">SMS REQUESTED</span>
-                                        )}
-                                    </div>
-                                    <div className="text-xs text-gray-400">{b.businessName}</div>
-                                    {b.clientWebsite && (
-                                        <a 
-                                            href={b.clientWebsite.startsWith('http') ? b.clientWebsite : `https://${b.clientWebsite}`} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer" 
-                                            className="text-[10px] text-indigo-500 hover:text-indigo-700 hover:underline truncate max-w-[150px] block transition-colors mt-0.5"
-                                        >
-                                            {b.clientWebsite}
-                                        </a>
-                                    )}
-                                    {b.clientEmail && (
-                                        <span className="text-[10px] text-gray-400 mt-0.5">{b.clientEmail}</span>
-                                    )}
-                                </div>
-                            </td>
-
-                            {/* 2. Address & Phone */}
-                            <td className="px-6 py-4">
-                                <div className="flex items-center gap-1.5 text-xs text-gray-900 font-bold mb-1">
-                                    <PhoneIcon className="w-3.5 h-3.5 text-indigo-400" />
-                                    <a 
-                                        href={`tel:${b.clientPhone}`} 
-                                        className="hover:text-indigo-600 transition-colors"
-                                    >
-                                        {b.clientPhone}
-                                    </a>
-                                </div>
-                                {b.address && (
-                                    <div className="mt-1 flex items-start gap-1.5">
-                                        <MapPinIcon className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
-                                        <a 
-                                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.address)}`} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer" 
-                                            className="text-[10px] text-indigo-600 hover:text-indigo-800 hover:underline font-medium leading-tight break-words max-w-[180px] transition-colors"
-                                        >
-                                            {b.address}
-                                        </a>
-                                    </div>
-                                )}
-                            </td>
-
-                            {/* 3. Calling Team */}
-                            <td className="px-6 py-4 text-xs text-gray-500 font-bold">
-                                {b.vendor.name}
-                            </td>
-
-                            {/* 4. Time */}
-                            <td className="px-6 py-4 text-sm font-bold text-gray-900">
-                                {b.time}
-                            </td>
-
-                            {/* 5. Region */}
-                            <td className="px-6 py-4">
-                                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-gray-100 text-gray-600 uppercase">
-                                    {b.region}
-                                </span>
-                            </td>
-
-                            {/* 6. Status */}
-                            <td className="px-6 py-4">
-                                {getStatusPill(b.status)}
-                            </td>
-
-                            {/* 7. Assigned BDM */}
-                            <td className="px-6 py-4">
-                                <select 
-                                    className="text-[10px] border-gray-200 rounded-lg p-1 font-bold outline-none" 
-                                    value={b.bdmId || ''} 
-                                    onChange={(e) => handleAssignBdm(b.id, Number(e.target.value))}
-                                >
-                                    <option value="">Assign BDM</option>
-                                    {bdmsByRegion[b.region]?.map(bdm => (
-                                        <option key={bdm.id} value={bdm.id}>{bdm.name}</option>
-                                    ))}
-                                </select>
-                            </td>
-
-                            {/* 8. Actions */}
-                            <td className="px-6 py-4 text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                    <button 
-                                        onClick={() => setSmsActionBooking(b)} 
-                                        className={`flex items-center gap-1 transition-all ${
-                                            b.smsRequest?.status === 'pending'
-                                            ? 'p-1.5 bg-orange-100 text-orange-600 rounded-full border border-orange-200 animate-pulse'
-                                            : b.smsRequest?.status === 'sent'
-                                            ? 'text-green-600 font-bold'
-                                            : 'text-gray-300'
-                                        }`}
-                                        title={b.smsRequest ? (b.smsRequest.status === 'pending' ? 'Pending SMS Action' : 'SMS Sent') : 'No SMS Requested'}
-                                    >
-                                        <ChatBubbleLeftRightIcon className="w-4 h-4" />
-                                        {b.smsRequest?.status === 'sent' && <span className="text-[10px] uppercase">Sent</span>}
-                                    </button>
-                                    <button 
-                                        onClick={() => setBookingToManage(b)} 
-                                        className="text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-all" 
-                                        title="Reject"
-                                    >
-                                        <XMarkIcon className="w-4 h-4" />
-                                    </button>
-                                    <button 
-                                        onClick={() => setBookingToEdit(b)} 
-                                        className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-all" 
-                                        title="Edit"
-                                    >
-                                        <PencilSquareIcon className="w-4 h-4" />
-                                    </button>
-                                    <button 
-                                        onClick={() => handleDeleteBooking(b.id)} 
-                                        className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg transition-all" 
-                                        title="Delete"
-                                    >
-                                        <TrashIcon className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    ))}
-                </React.Fragment>
-            );
-        })}
-        {activeLeads.length === 0 && (
-            <tr>
-                <td colSpan={8} className="p-12 text-center text-gray-400 italic">
-                    No active leads in current view.
-                </td>
-            </tr>
-        )}
-    </tbody>
-</table>
-                                                
-                                                
-
-                                                
+                </thead>
+                <tbody className="divide-y divide-100">
+                    {sortedActiveDates.map(date => {
+                        const [y, m, d] = date.split('-').map(Number);
+                        const displayDate = new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                        return (
+                            <React.Fragment key={date}>
+                                <tr className="bg-gray-50/50">
+                                    <td colSpan={7} className="px-6 py-2 text-xs font-bold text-gray-500 uppercase tracking-tighter">{displayDate}</td>
+                                </tr>
+                                {groupedActiveLeads[date].map(b => (
+                                    <tr key={b.id} className={`hover:bg-gray-50 transition-all ${b.isDuplicate && (new Date(b.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'bg-amber-50 border-l-4 border-amber-400' : (b.smsRequest?.status === 'pending' ? 'bg-purple-50 border-l-4 border-purple-400' : '')}`}>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-bold text-gray-900">{b.clientName}</span>
+                                                    {b.isDuplicate && (new Date(b.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) && (
+                                                        <span className="text-[9px] font-black bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">DUPLICATE</span>
+                                                    )}
+                                                    {b.smsRequest?.status === 'pending' && (
+                                                        <span className="text-[9px] font-black bg-purple-200 text-purple-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">SMS REQUESTED</span>
+                                                    )}
+                                                </div>
+                                                <div className="text-xs text-gray-400">{b.businessName}</div>
+                                                {b.clientWebsite && (<a href={b.clientWebsite.startsWith('http') ? b.clientWebsite : `https://${b.clientWebsite}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-500 hover:text-indigo-700 hover:underline truncate max-w-[150px] block transition-colors mt-0.5">{b.clientWebsite}</a>)}
+                                                {b.clientEmail && (<span className="text-[10px] text-gray-400 mt-0.5">{b.clientEmail}</span>)}
                                             </div>
-                                            <Pagination totalPages={totalActiveLeadsPages} currentPage={activeLeadsPage} onPageChange={setActiveLeadsPage} totalItems={activeLeads.length} label="Active Leads" />
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-1.5 text-xs text-gray-900 font-bold mb-1">
+                                                <PhoneIcon className="w-3.5 h-3.5 text-indigo-400" />
+                                                <a href={`tel:${b.clientPhone}`} className="hover:text-indigo-600 transition-colors">{b.clientPhone}</a>
+                                            </div>
+                                            {b.address && (
+                                                <div className="mt-1 flex items-start gap-1.5">
+                                                    <MapPinIcon className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                                                    <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.address)}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-600 hover:text-indigo-800 hover:underline font-medium leading-tight break-words max-w-[180px] transition-colors">{b.address}</a>
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-xs text-gray-500 font-bold">{b.vendor.name}</td>
+                                        <td className="px-6 py-4 text-sm font-bold text-gray-900">{b.time}</td>
+                                        <td className="px-6 py-4">
+                                            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-gray-100 text-gray-600 uppercase">{b.region}</span>
+                                        </td>
+                                        <td className="px-6 py-4">{getStatusPill(b.status)}</td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button 
+                                                    onClick={() => setSmsActionBooking(b)} 
+                                                    className={`flex items-center gap-1 transition-all ${
+                                                        b.smsRequest?.status === 'pending'
+                                                        ? 'p-1.5 bg-orange-100 text-orange-600 rounded-full border border-orange-200 animate-pulse'
+                                                        : b.smsRequest?.status === 'sent'
+                                                        ? 'text-green-600 font-bold'
+                                                        : 'text-gray-300'
+                                                    }`}
+                                                    title={b.smsRequest ? (b.smsRequest.status === 'pending' ? 'Pending SMS Action' : 'SMS Sent') : 'No SMS Requested'}
+                                                >
+                                                    <ChatBubbleLeftRightIcon className="w-4 h-4" />
+                                                    {b.smsRequest?.status === 'sent' && <span className="text-[10px] uppercase">Sent</span>}
+                                                </button>
+                                                <select className="text-[10px] border-gray-200 rounded-lg p-1 font-bold outline-none" value={b.bdmId || ''} onChange={(e) => handleAssignBdm(b.id, Number(e.target.value))}>
+                                                    <option value="">Assign BDM</option>
+                                                    {bdmsByRegion[b.region]?.map(bdm => (<option key={bdm.id} value={bdm.id}>{bdm.name}</option>))}
+                                                </select>
+                                                <button onClick={() => setBookingToManage(b)} className="text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-all" title="Reject">
+                                                    <XMarkIcon className="w-4 h-4" />
+                                                </button>
+                                                <button onClick={() => setBookingToEdit(b)} className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-all" title="Edit">
+                                                    <PencilSquareIcon className="w-4 h-4" />
+                                                </button>
+                                                <button onClick={() => handleDeleteBooking(b.id)} className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg transition-all" title="Delete">
+                                                    <TrashIcon className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </React.Fragment>
+                        );
+                    })}
+                    {activeLeads.length === 0 && <tr><td colSpan={7} className="p-12 text-center text-gray-400 italic">No active leads in current view.</td></tr>}
+                </tbody>
+            </table>
+        </div>
+
+        {/* ✅ Mobile Card View - shown on mobile, hidden on desktop */}
+        <div className="block md:hidden divide-y divide-gray-100">
+            {sortedActiveDates.length === 0 ? (
+                <div className="px-6 py-12 text-center text-gray-500 italic">No active appointments matching your criteria.</div>
+            ) : (
+                sortedActiveDates.map(date => {
+                    const [y, m, d] = date.split('-').map(Number);
+                    const displayDate = new Date(y, m - 1, d).toLocaleDateString(undefined, { 
+                        weekday: 'short', 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                    });
+                    return (
+                        <div key={date}>
+                            <div className="bg-gray-50 px-4 py-2 text-xs font-bold text-gray-700 uppercase tracking-tight border-y border-gray-200">
+                                {displayDate}
+                            </div>
+                            <div className="divide-y divide-gray-100">
+                                {groupedActiveLeads[date].map(b => (
+                                    <div key={b.id} className={`p-4 space-y-3 ${b.isDuplicate && (new Date(b.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) ? 'bg-amber-50 border-l-4 border-amber-400' : (b.smsRequest?.status === 'pending' ? 'bg-purple-50 border-l-4 border-purple-400' : '')}`}>
+                                        {/* Header: Client Name + Time & Status */}
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                    <span className="text-sm font-bold text-gray-900">{b.clientName}</span>
+                                                    {b.isDuplicate && (new Date(b.date) >= new Date(new Date().setFullYear(new Date().getFullYear() - 1))) && (
+                                                        <span className="text-[9px] font-black bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">DUPLICATE</span>
+                                                    )}
+                                                    {b.smsRequest?.status === 'pending' && (
+                                                        <span className="text-[9px] font-black bg-purple-200 text-purple-900 px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm">SMS REQUESTED</span>
+                                                    )}
+                                                </div>
+                                                <div className="text-xs text-gray-500 font-medium">{b.businessName}</div>
+                                                {b.clientWebsite && (
+                                                    <a 
+                                                        href={b.clientWebsite.startsWith('http') ? b.clientWebsite : `https://${b.clientWebsite}`} 
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer" 
+                                                        className="text-[10px] text-blue-500 hover:text-blue-700 hover:underline block mt-0.5 truncate max-w-[180px]"
+                                                    >
+                                                        {b.clientWebsite}
+                                                    </a>
+                                                )}
+                                            </div>
+                                            <div className="text-right flex-shrink-0 ml-2">
+                                                <div className="text-sm font-black text-gray-900">{b.time}</div>
+                                                <div className="mt-1">{getStatusPill(b.status)}</div>
+                                            </div>
+                                        </div>
+
+                                        {/* Contact & Address */}
+                                        <div className="grid grid-cols-2 gap-3 text-xs">
+                                            <div className="space-y-1">
+                                                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Calling Team</p>
+                                                <p className="font-medium text-gray-700">{b.vendor.name}</p>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Contact</p>
+                                                {b.clientPhone && (
+                                                    <a href={`tel:${b.clientPhone}`} className="text-indigo-600 font-medium block">
+                                                        {b.clientPhone}
+                                                    </a>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Address */}
+                                        {b.address && (
+                                            <div className="space-y-1">
+                                                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Address</p>
+                                                <a 
+                                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.address)}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-xs text-indigo-600 hover:underline flex items-start gap-1.5"
+                                                >
+                                                    <MapPinIcon className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                                                    {b.address}
+                                                </a>
+                                            </div>
+                                        )}
+
+                                        {/* Region & BDM */}
+                                        <div className="grid grid-cols-2 gap-3 text-xs pt-1">
+                                            <div className="space-y-1">
+                                                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Region</p>
+                                                <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-gray-100 text-gray-600 uppercase inline-block">
+                                                    {b.region}
+                                                </span>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Assigned BDM</p>
+                                                <select 
+                                                    className="text-[10px] border-gray-200 rounded-lg p-1 font-bold outline-none w-full"
+                                                    value={b.bdmId || ''} 
+                                                    onChange={(e) => handleAssignBdm(b.id, Number(e.target.value))}
+                                                >
+                                                    <option value="">Assign BDM</option>
+                                                    {bdmsByRegion[b.region]?.map(bdm => (
+                                                        <option key={bdm.id} value={bdm.id}>{bdm.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* Actions Buttons */}
+                                        <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+                                            <button 
+                                                onClick={() => setSmsActionBooking(b)} 
+                                                className={`flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold ${
+                                                    b.smsRequest?.status === 'pending'
+                                                    ? 'bg-orange-100 text-orange-600 border border-orange-200 animate-pulse'
+                                                    : b.smsRequest?.status === 'sent'
+                                                    ? 'bg-green-100 text-green-600'
+                                                    : 'bg-gray-100 text-gray-400'
+                                                }`}
+                                                title={b.smsRequest ? (b.smsRequest.status === 'pending' ? 'Pending SMS Action' : 'SMS Sent') : 'No SMS Requested'}
+                                            >
+                                                <ChatBubbleLeftRightIcon className="w-4 h-4" />
+                                                {b.smsRequest?.status === 'sent' && <span>SMS Sent</span>}
+                                                {b.smsRequest?.status === 'pending' && <span>SMS Requested</span>}
+                                            </button>
+                                            <button 
+                                                onClick={() => setBookingToManage(b)} 
+                                                className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors"
+                                                title="Reject"
+                                            >
+                                                <XMarkIcon className="w-4 h-4" /> Reject
+                                            </button>
+                                            <button 
+                                                onClick={() => setBookingToEdit(b)} 
+                                                className="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-colors"
+                                                title="Edit"
+                                            >
+                                                <PencilSquareIcon className="w-4 h-4" /> Edit
+                                            </button>
+                                            <button 
+                                                onClick={() => handleDeleteBooking(b.id)} 
+                                                className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors ml-auto"
+                                                title="Delete"
+                                            >
+                                                <TrashIcon className="w-4 h-4" /> Delete
+                                            </button>
                                         </div>
                                     </div>
+                                ))}
+                            </div>
+                        </div>
+                    );
+                })
+            )}
+        </div>
+
+        {/* Pagination - visible on all screens */}
+        <Pagination 
+            totalPages={totalActiveLeadsPages} 
+            currentPage={activeLeadsPage} 
+            onPageChange={setActiveLeadsPage} 
+            totalItems={activeLeads.length} 
+            label="Active Leads" 
+        />
+    </div>
+</div>
 
                                     {/* 2. REJECTED LEADS */}
                                     <div>
@@ -1431,14 +1455,14 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
                                         <div className="bg-white p-6 rounded-xl shadow border border-gray-200"><h4 className="font-bold mb-4 uppercase tracking-widest text-xs text-gray-400">Add New Calling Team</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4"><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Name</label><input type="text" value={newVendorName} onChange={e => setNewVendorName(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/></div><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Username</label><input type="text" value={newVendorUsername} onChange={e => setNewVendorUsername(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/></div></div><div className="mb-4"><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Password</label><div className="flex gap-2"><input type="text" value={newVendorPassword} onChange={e => setNewVendorPassword(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/><button onClick={() => setNewVendorPassword(generateSecurePassword())} className="bg-gray-100 border px-3 rounded hover:bg-gray-200 text-xs font-bold transition-colors">Generate</button></div></div></div><div className="mb-4"><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-2">Allowed Regions</label><div className="flex flex-wrap gap-3">{regions.map(r => (<label key={r} className="inline-flex items-center bg-gray-50 px-3 py-1.5 rounded border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"><input type="checkbox" checked={newVendorRegions.includes(r)} onChange={() => setNewVendorRegions(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r])} className="rounded text-indigo-600 focus:ring-indigo-500 mr-2"/><span className="text-sm font-medium text-gray-700">{r}</span></label>))}</div></div><button onClick={handleAddVendor} className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 uppercase tracking-widest text-xs">Register Calling Team</button></div>
                                         <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
                                             <table className="min-w-full divide-y divide-gray-200">
-                                                <thead className="bg-black border-b border-gray-200">
+                                                <thead className="bg-gray-50 border-b border-gray-200">
                                                     <tr>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Name</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Username</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Password</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Regions</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Status</th>
-                                                        <th className="px-6 py-4 text-right text-[10px] font-black text-white uppercase tracking-widest">Actions</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Name</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Username</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Password</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Regions</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                                                        <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="bg-white divide-y divide-100">
@@ -1465,14 +1489,14 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
                                         <div className="bg-white p-6 rounded-xl shadow border border-gray-200"><h4 className="font-bold mb-4 uppercase tracking-widest text-xs text-gray-400">Add New BDM</h4><div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end"><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Name</label><input type="text" value={newBdmName} onChange={e => setNewBdmName(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/></div><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Region</label><select value={newBdmRegion} onChange={e => setNewBdmRegion(e.target.value as any)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none">{regions.map(r => <option key={r} value={r}>{r}</option>)}</select></div><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Username</label><input type="text" value={newBdmUsername} onChange={e => setNewBdmUsername(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/></div><div><label className="text-xs font-bold uppercase tracking-tight text-gray-500 block mb-1">Password</label><div className="flex gap-2"><input type="text" value={newBdmPassword} onChange={e => setNewBdmPassword(e.target.value)} className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"/><button onClick={() => setNewBdmPassword(generateSecurePassword())} className="bg-gray-100 border px-3 rounded hover:bg-gray-200 text-xs font-bold">Gen</button></div></div></div><button onClick={handleAddBdm} className="w-full mt-6 bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 uppercase tracking-widest text-xs shadow-md shadow-indigo-100">Register BDM Account</button></div>
                                         <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
                                             <table className="min-w-full divide-y divide-gray-200">
-                                                <thead className="bg-black border-b border-gray-200">
+                                                <thead className="bg-gray-50 border-b border-gray-200">
                                                     <tr>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Name</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Region</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Username</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Password</th>
-                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-white uppercase tracking-widest">Status</th>
-                                                        <th className="px-6 py-4 text-right text-[10px] font-black text-white uppercase tracking-widest">Actions</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Name</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Region</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Username</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Password</th>
+                                                        <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                                                        <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="bg-white divide-y divide-100">
@@ -1519,7 +1543,7 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
                                         </div>
                                         <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
                                             <table className="min-w-full divide-y divide-gray-200">
-                                                <thead className="bg-black border-b border-gray-200">
+                                                <thead className="bg-gray-50 border-b border-gray-200">
                                                     <tr>
                                                         <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Name</th>
                                                         <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Username</th>
@@ -1601,7 +1625,7 @@ const parseTimeStringToMinutes = (timeStr: string): number => {
                                 )}
                             </>
                         )}
-                        {activeTab === 'calendar' && <ManagerCalendar appointments={managerAppointments} setAppointments={setManagerAppointments} bookings={allBookingsForCalendar} bdms={bdms} />}
+                        {activeTab === 'calendar' && <ManagerCalendar appointments={managerAppointments} setAppointments={setManagerAppointments} bookings={allBookingsForCalendar} />}
                         {activeTab === 'settings' && (
                             <div className="space-y-8 pb-20">
                                 {/* 1. My Profile (Top) */}

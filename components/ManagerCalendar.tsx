@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import type { ManagerAppointment, Booking, BDM } from '../types';
 import { PlusIcon, BellIcon, TrashIcon, PencilSquareIcon, UserGroupIcon } from './Icons';
 import ManagerAppointmentModal from './ManagerAppointmentModal';
-import { normalizeWebsite, getFullUrl } from '../utils/urlUtils';
+import { normalizeWebsite } from '../utils/urlUtils';
 
 interface ManagerCalendarProps {
   appointments: ManagerAppointment[];
@@ -330,40 +330,47 @@ const ManagerCalendar: React.FC<ManagerCalendarProps> = ({
                                     const bdmName = getBdmName(booking.bdmId, bdms);
 
                                     return (
-                                        <div 
+                                        <div
                                             key={`bk-${booking.id}`}
                                             className={`w-full text-left p-2 rounded-lg border ${styleClass} select-none shadow-sm`}
                                         >
                                             <div className="flex justify-between items-start">
-                                                <div>
-                                                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                                      <span className="font-bold text-sm text-gray-900">{booking.businessName}</span>
-                                                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${isNsw ? 'bg-green-200 text-green-800' : isVic ? 'bg-blue-200 text-blue-800' : 'bg-purple-200 text-purple-800'}`}>{booking.region}</span>
-                                                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-white/50 border border-black/10 text-black/70">
-                                                          {booking.status === 'rescheduled_bdm' ? 'RESCHED (BDM)' : booking.status.toUpperCase()}
-                                                      </span>
-                                                  </div>
-                                                  {booking.clientWebsite ? (
-                                                      <a 
-                                                          href={booking.clientWebsite.startsWith('http') ? booking.clientWebsite : `https://${booking.clientWebsite}`} 
-                                                          target="_blank" 
-                                                          rel="noopener noreferrer" 
-                                                          className="font-semibold text-sm hover:underline text-blue-600 block truncate max-w-[200px]"
-                                                          onClick={(e) => e.stopPropagation()}
-                                                      >
-                                                          {normalizeWebsite(booking.clientWebsite) || booking.clientWebsite}
-                                                      </a>
-                                                  ) : (
-                                                      <span className="text-xs text-gray-400">No website</span>
-                                                  )}
-                                                  <p className="text-xs text-gray-500">Client: {booking.clientName}</p>
-                                                  <div className="text-[10px] text-gray-400 mt-1 flex items-center gap-1 justify-between">
-                                                      <span className="font-medium">{booking.vendor.name}</span>
-                                                      {booking.bdmId && bdmName !== '—' && (
-                                                          <span className="text-indigo-500 flex-shrink-0">BDM: {bdmName}</span>
-                                                      )}
-                                                  </div>
-                                              </div>
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                        <span className="font-bold text-sm text-gray-900">{booking.businessName}</span>
+                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${isNsw ? 'bg-green-200 text-green-800' : isVic ? 'bg-blue-200 text-blue-800' : 'bg-purple-200 text-purple-800'}`}>
+                                                            {booking.region}
+                                                        </span>
+                                                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-white/50 border border-black/10 text-black/70">
+                                                            {booking.status === 'rescheduled_bdm' ? 'RESCHED (BDM)' : booking.status.toUpperCase()}
+                                                        </span>
+                                                    </div>
+
+                                                    {booking.clientWebsite ? (
+                                                        <a
+                                                            href={booking.clientWebsite.startsWith('http') ? booking.clientWebsite : `https://${booking.clientWebsite}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="font-semibold text-sm hover:underline text-blue-600 block truncate max-w-[200px]"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            {normalizeWebsite(booking.clientWebsite) || booking.clientWebsite}
+                                                        </a>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-400">No website</span>
+                                                    )}
+
+                                                    <p className="text-xs text-gray-500">Client: {booking.clientName}</p>
+
+                                                    <div className="text-[10px] text-gray-400 mt-1 flex items-center gap-1 justify-between">
+                                                        <span className="font-medium">{booking.vendor.name}</span>
+                                                        {booking.bdmId && bdmName !== '—' && (
+                                                            <span className="text-indigo-500 flex-shrink-0">BDM: {bdmName}</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     );
                                 }
                             }) : (
