@@ -1143,7 +1143,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         {/* ✅ Desktop Table View - hidden on mobile */}
         <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+                <thead className="bg-black">
                     <tr>
                         <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Client & Business</th>
                         <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Contact & Address</th>
