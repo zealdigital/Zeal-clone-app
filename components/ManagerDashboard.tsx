@@ -278,7 +278,7 @@ const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ onCancel, onCon
                     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200 text-left text-xs">
-                                <thead className="bg-gray-50">
+                                <thead className="bg-black">
                                     <tr>
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Business</th>
                                         <th className="p-3 text-gray-400 font-bold uppercase tracking-tighter">Client</th>
@@ -1160,7 +1160,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
                         const displayDate = new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                         return (
                             <React.Fragment key={date}>
-                                <tr className="bg-gray-50/50">
+                                <tr className="bg-black">
                                     <td colSpan={7} className="px-6 py-2 text-xs font-bold text-gray-500 uppercase tracking-tighter">{displayDate}</td>
                                 </tr>
                                 {groupedActiveLeads[date].map(b => (
